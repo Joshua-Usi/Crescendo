@@ -1,0 +1,6 @@
+<root attribute="I am an attribute!">
+	<inner>
+		<text color="red">This is some text, if you can read this, thats amazing!</text>
+	</inner>
+	<text>AHHHHHHHH</text>
+</root>

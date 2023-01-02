@@ -1,0 +1,3 @@
+[submodule "Crescendo/ThirdParty"]
+	path = Crescendo/ThirdParty
+	url = https://github.com/Joshua-Usi/CrescendoThirdParty

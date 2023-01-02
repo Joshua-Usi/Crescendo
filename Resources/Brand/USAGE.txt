@@ -1,0 +1,12 @@
+Crescendo logo usage and design specifications
+
+Based off the Minecraft Mod Public License
+Version 1.0
+----------------------------------------------------------------
+0. Definitions
+Crescendo: Denotes the Game Engine developed by Joshua Usi
+We: Joshua Usi, and other project copyright holders
+1. Usage
+The logo is primarily white (#ffffff) however to suit darker contexts, a pure black (#000000) version is distributed as well.
+2. Modifications
+You are allowed to recolour the logos to any colour you want. However we want to protect our logo. So do not modify or distort the logo other than colour without permission. Permission can be attained through emailing joshua.usi2017@gmail.com.

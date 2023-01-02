@@ -1,0 +1,32 @@
+
+<!-- name specifies name of the window -->
+<window name="My First Tool"> <!-- ImGui::Begin(name, bool, flags) -->
+	<menubar>
+		<!-- name specifies name of item menu header -->
+		<menu name="File"> <!-- ImGui::BeginMenu(name) -->
+			<!-- name specifies menu item name  -->
+			<!-- shortcut specifies hotkeys the user can use to quickly access the item -->
+			<!-- action is the name of a function stored in an std::map -->
+			<menuitem shortcut="Ctrl+O" action="open">Open</menuitem> <!-- if (ImGui::MenuItem(><, shortcut)) { functionList[open] } -->
+			<menuitem shortcut="Ctrl+S" action="save">Save</menuitem>
+			<menuitem shortcut="Ctrl+W" action="close">Close</menuitem>
+		</menu> <!-- ImGui::EndMenu(); -->
+	</menubar> <!-- ImGui::EndMenuBar(); -->
+	<text color="rgba(1.0, 1.0, 0.0, 1.0)">Important Stuff</text> <!-- Depends, if color is specified then: ImGui::TextColored(ImVec4(color[0], color[1], color[2], color[3]), ><); If no color then ImGui::Text(><)-->
+	<child id="Scrolling"> <!-- ImGui::BeginChild(id); -->
+		<!-- Should there be for-loop emulation in this? -->
+		<!-- Repeat loops are extremely basic, only incrementing and decrementing by a specific amount is allowed -->
+		<!-- Integers only -->
+		<!-- Likely need to set a limit so that it cannot be abused -->
+		<!-- Repeat loops likely to be similiar to c++ preprocessor, just doing text replacement-->
+		<!-- Repeats whatever is specified in the argument -->
+
+		<!-- variable specifies the name of the variable which can be used in replacement -->
+		<!-- start specifies the starting value of the loop (inclusive) -->
+		<!-- end specifies the ending value of the loop (INCLUSIVE) -->
+		<!-- increment is a non-zero integer -->
+		<repeat variable="$n" start="0" end="10" increment="1"> <!-- for (cs::int64 variable = start; variable <= end; variable += increment) -->
+			<text>$n: Some text</text> <!-- ImGui::Text(><) -->
+		</repeat>
+	</child> <!-- ImGui::EndChild(); -->
+</window> <!-- ImGui::End(); -->
