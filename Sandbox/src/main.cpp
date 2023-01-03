@@ -9,7 +9,7 @@ class Sandbox : public Application
 		Console::Log("Startup");
 
 		Crescendo::Tools::XML::XMLDocument doc;
-		int err = Crescendo::Tools::XML::ParseFromFile(&doc, "attributes.xml");
+		int err = Crescendo::Tools::XML::ParseFromFile(&doc, "window.xml");
 		Console::Log("Error Code: {}", err);
 	}
 	void OnUpdate()

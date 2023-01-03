@@ -10,8 +10,6 @@
 #include "filesystem/filesystem.h"
 #include "filesystem/synchronous/syncFiles.h"
 
-#include "console/console.h"
-
 #define XML_ERR_MISMATCHED_TAGS -3
 #define XML_ERR_END_TAG_SPECIFIED_BEFORE_START -2
 #define XML_ERR_FILE_NOT_FOUND -1
@@ -33,8 +31,26 @@ namespace Crescendo::Tools::XML
 			std::stringstream attributeText;
 		} lexicalBuffer;
 		cs::uint64 i = 0;
-
 		XMLNode* currentNode = nullptr;
+		std::cout << source << std::endl;
+		// Comment stripping
+		while (i < source.size())
+		{
+			if (source[i] == '<' && source[i + 1] == '!' && source[i + 2] == '-' && source[i + 3] == '-')
+			{
+				cs::uint64 j = i;
+				i++;
+				while (source[i] != '-' || source[i + 1] != '-' || source[i + 2] != '>') {
+					i++;
+				}
+				source.replace(j, i - j + 3, std::string());
+				i -= j + 3;
+			}
+			i++;
+		}
+		std::cout << "=========================================" << std::endl;
+		std::cout << source << std::endl;
+		i = 0;
 		// Lexical analysis
 		while (i < source.size())
 		{
@@ -66,22 +82,23 @@ namespace Crescendo::Tools::XML
 					}
 
 					// If the current nodes tag is different to the tag of the end tag, then the tags are mismatched
-					if (currentNode->tag.compare(lexicalBuffer.text.str()) != 0)
+					if (currentNode->tag.compare(lexicalBuffer.tag.str()) != 0)
 					{
 						return XML_ERR_MISMATCHED_TAGS;
 					}
+					lexicalBuffer.tag.str(std::string());
+					lexicalBuffer.tag.clear();
 					currentNode = currentNode->parent;
 					i++;
 					continue;
 				}
-				// Check if the node is the root node or not, 
 				if (!currentNode)
 				{
 					currentNode = document->root;
 				}
 				else
 				{
-					currentNode = new XMLNode;
+					currentNode = new XMLNode(currentNode);
 				}
 				i++;
 				// Read start tag until " " or ">"
