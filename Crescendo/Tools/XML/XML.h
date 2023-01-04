@@ -9,6 +9,14 @@
 // XML parser designed for converted xml documents to runtime windows
 namespace Crescendo::Tools::XML
 {
+	enum XMLStatus : int
+	{
+		ErrIllFormedDeclaration = -4,
+		ErrMisMatchedTags = -3,
+		ErrEndTagsSpecifiedBeforeStart = -2,
+		ErrFileNotFound = -1,
+		Success = 0,
+	};
 	class XMLNode
 	{
 	public:
@@ -32,6 +40,7 @@ namespace Crescendo::Tools::XML
 	{
 	public:
 		XMLNode* root = new XMLNode(nullptr);
+		std::map<std::string, std::string> attributes;
 		//void Delete(); // TODO
 	};
 
@@ -40,11 +49,11 @@ namespace Crescendo::Tools::XML
 	/// </summary>
 	/// <param name="document">document reference</param>
 	/// <param name="xml">xml string to parse</param>
-	int Parse(XMLDocument* document, std::string xml);
+	XMLStatus Parse(XMLDocument* document, std::string xml);
 	/// <summary>
 	/// Takes a file path and parses the xml document
 	/// </summary>
 	/// <param name="document">document reference</param>
 	/// <param name="filename">path to xml file</param>
-	int ParseFromFile(XMLDocument* document, std::string filename);
+	XMLStatus ParseFromFile(XMLDocument* document, std::string filename);
 }
