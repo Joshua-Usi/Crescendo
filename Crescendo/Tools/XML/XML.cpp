@@ -13,11 +13,17 @@
 namespace Crescendo::Tools::XML
 {
 	namespace {
-		bool IsSubstring(std::string string, std::string substring, cs::uint64 index)
+		// # can be used as a wild character that denotes any alphanumerical character
+		bool IsSubstring(std::string string, std::string substring, int position)
 		{
-			for (cs::uint64 i = index, j = 0; i < index + substring.size(); i++, j++)
+			if (position > string.size() - substring.size() || position < 0)
 			{
-				if (string[i] != substring[j])
+				return false;
+			}
+			for (int i = position; i < position + substring.size(); i++)
+			{
+				if (substring[i - position] == '#' && isalnum(string[i])) continue;
+				if (string[i] != substring[i - position])
 				{
 					return false;
 				}
@@ -56,7 +62,6 @@ namespace Crescendo::Tools::XML
 	XMLStatus Parse(XMLDocument* document, std::string* xml)
 	{
 		std::string source = StripComments(xml);
-		std::cout << source << std::endl;
 		struct {
 			// Tag buffer
 			std::stringstream tag;
@@ -68,7 +73,7 @@ namespace Crescendo::Tools::XML
 			std::stringstream attributeText;
 		} lexicalBuffer;
 		cs::uint64 i = 0;
-		XMLNode* currentNode = nullptr;
+		XMLNode* currentNode = document->root;
 		// Strip Comments
 		// Lexical analysis
 		while (i < source.size())
@@ -145,14 +150,7 @@ namespace Crescendo::Tools::XML
 					i++;
 					continue;
 				}
-				if (!currentNode)
-				{
-					currentNode = document->root;
-				}
-				else
-				{
-					currentNode = new XMLNode(currentNode);
-				}
+				currentNode = new XMLNode(currentNode);
 				i++;
 				// Read start tag until " " or ">"
 				// If it is a space, then it denotes there are some attributes
@@ -205,7 +203,10 @@ namespace Crescendo::Tools::XML
 			}
 			else {
 				// Insert innertext characters
-				lexicalBuffer.text << source[i];
+				if (source[i] != '\n')
+				{
+					lexicalBuffer.text << source[i];
+				}
 				i++;
 			}
 		}
