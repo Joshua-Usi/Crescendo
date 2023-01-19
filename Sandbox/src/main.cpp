@@ -1,4 +1,4 @@
-#include "Crescendo.h"
+#include "Crescendo.h"	
 using namespace Crescendo::Engine;
 
 class Sandbox : public Application
@@ -10,9 +10,7 @@ class Sandbox : public Application
 	}
 	void OnUpdate()
 	{
-		if (Input::GetKeyPressed(Key::ShiftLeft)) {
-			Console::Log("Hello!");
-		}
+			
 	}
 	void OnExit()
 	{

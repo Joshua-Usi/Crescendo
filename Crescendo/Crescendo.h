@@ -26,5 +26,3 @@
 
 #include "interfaces/Input.h"
 #include "interfaces/Window.h"
-
-#include "XML/XML.h"

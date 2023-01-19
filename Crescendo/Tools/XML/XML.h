@@ -11,10 +11,8 @@ namespace Crescendo::Tools::XML
 {
 	enum XMLStatus : int
 	{
-		ErrIllFormedDeclaration = -4,
-		ErrMisMatchedTags = -3,
-		ErrEndTagsSpecifiedBeforeStart = -2,
-		ErrFileNotFound = -1,
+		ErrorMismatchedTags = -2,
+		ErrorUnclosedTag = -1,
 		Success = 0,
 	};
 	class XMLNode
