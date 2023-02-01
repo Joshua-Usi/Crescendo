@@ -77,9 +77,10 @@ namespace Crescendo::Tools::XML
 	}
 	void Parse(Document* xmlDoc, gt::string* xmlString)
 	{
-		rapidxml::xml_document<char> doc;
-		doc.parse<rapidxml::parse_declaration_node>(xmlString->data());
-		RapidToCrescendo(xmlDoc, &doc);
+		rapidxml::xml_document<char>* doc = new rapidxml::xml_document<char>;
+		doc->parse<rapidxml::parse_declaration_node>(xmlString->data());
+		RapidToCrescendo(xmlDoc, doc);
+		delete doc;
 	}
 	void ParseFromFile(Document* xmlDoc, gt::string filePath)
 	{

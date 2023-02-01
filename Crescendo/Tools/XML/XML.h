@@ -17,5 +17,4 @@ namespace Crescendo::Tools::XML
 {
 	void Parse(Document* xmlDoc, gt::string* xmlString);
 	void ParseFromFile(Document* xmlDoc, gt::string filePath);
-	
 }
