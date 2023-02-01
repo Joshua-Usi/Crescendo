@@ -9,9 +9,6 @@
  *  But it was at this point I had decided reinventing *
  *          the wheel is such a waste of time!         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-#include <vector>
-
 #include "core/core.h"
 
 #include "XMLDocument.h"

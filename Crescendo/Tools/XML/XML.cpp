@@ -6,6 +6,7 @@
 #include "rapidxml/rapidxml.hpp"
 
 #include <memory>
+#include <vector>
 
 namespace Crescendo::Tools::XML
 {
