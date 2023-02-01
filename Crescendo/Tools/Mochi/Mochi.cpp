@@ -25,7 +25,7 @@ namespace Mochi
 	{
 		failedTestIDs.clear();
 		start = std::chrono::high_resolution_clock::now();
-		for (int i = 0, len = cases.size(); i < len; i++)
+		for (std::size_t i = 0, len = cases.size(); i < len; i++)
 		{
 			bool result = cases[i]();
 			casesPassed += result;
