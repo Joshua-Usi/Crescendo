@@ -1,57 +1,24 @@
 #pragma once
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *    This tool uses RapidXML by Marcin Kalicinski.    *
+ *        Though it is old, it still holds well        *
+ *     <3 It took me a month to write my own parser    *
+ *  (To be fair I didn't spend alot of my time on it,  * 
+ *     and it wasn't even close to W3C compliant).     *
+ *  But it was at this point I had decided reinventing *
+ *          the wheel is such a waste of time!         *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 #include <vector>
-#include <map>
 
 #include "core/core.h"
 
-// This isn't a full parser!!! Yet
-// XML parser designed for converted xml documents to runtime windows
+#include "XMLDocument.h"
+
 namespace Crescendo::Tools::XML
 {
-	enum XMLStatus : int
-	{
-		ErrorMismatchedTags = -2,
-		ErrorUnclosedTag = -1,
-		Success = 0,
-	};
-	class XMLNode
-	{
-	public:
-		XMLNode* parent;
-		// <tag attributes=attribute>innerText</tag>
-		std::string tag;
-		std::string innerText;
-		std::vector<XMLNode*> children;
-		std::map<std::string, std::string> attributes;
-	public:
-		XMLNode(XMLNode* par)
-		{
-			parent = par;
-			if (parent != nullptr)
-			{
-				parent->children.push_back(this);
-			}
-		}
-	};
-	class XMLDocument
-	{
-	public:
-		XMLNode* root = new XMLNode(nullptr);
-		std::map<std::string, std::string> attributes;
-		//void Delete(); // TODO
-	};
-
-	/// <summary>
-	/// Takes a string and parses an xml document
-	/// </summary>
-	/// <param name="document">document reference</param>
-	/// <param name="xml">xml string to parse</param>
-	XMLStatus Parse(XMLDocument* document, std::string xml);
-	/// <summary>
-	/// Takes a file path and parses the xml document
-	/// </summary>
-	/// <param name="document">document reference</param>
-	/// <param name="filename">path to xml file</param>
-	XMLStatus ParseFromFile(XMLDocument* document, std::string filename);
+	void Parse(Document* xmlDoc, gt::string* xmlString);
+	void ParseFromFile(Document* xmlDoc, gt::string filePath);
+	
 }

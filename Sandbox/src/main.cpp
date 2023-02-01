@@ -1,4 +1,6 @@
-#include "Crescendo.h"	
+#include "Crescendo.h"
+
+#include "XML/XML.h"
 using namespace Crescendo::Engine;
 
 class Sandbox : public Application
@@ -7,10 +9,14 @@ class Sandbox : public Application
 	{
 		Console::BeginFileLog("Sandbox");
 		Console::Log("Startup");
+
+		Crescendo::Tools::XML::Document doc;
+		Crescendo::Tools::XML::ParseFromFile(&doc, "./xml/part.xml");
+
 	}
 	void OnUpdate()
 	{
-			
+
 	}
 	void OnExit()
 	{

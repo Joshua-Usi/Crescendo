@@ -1,268 +1,96 @@
 #include "XML.h"
+
 #include "filesystem/filesystem.h"
 #include "filesystem/synchronous/syncFiles.h"
 
-#include "Utils/FiniteStateStack.h"
+#include "rapidxml/rapidxml.hpp"
 
-// TODO CRESCENDO Make XML W3C conforming and fix edge cases
+#include <memory>
+
 namespace Crescendo::Tools::XML
 {
-	namespace {
-		class LexicalBuffer
+	namespace
+	{
+		// Convert a RapidXML document to a CrescendoXML document
+		void RapidToCrescendo(Document* crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
 		{
-		private:
-			std::string buffer;
-			std::vector<std::string> memoryBuffers;
-		public:
-			LexicalBuffer(int memoryBufferCount)
+			Node* csWorkingNode = crescendoDoc->root.get();
+			rapidxml::xml_node<>* workingNode = rapidDoc->first_node();
+
+			// in declaration, set document attributes
+			if (workingNode->name_size() == 0)
 			{
-				for (int i = 0; i < memoryBufferCount; i++)
+				for (rapidxml::xml_attribute<>* attr = workingNode->first_attribute(); attr; attr = attr->next_attribute())
 				{
-					memoryBuffers.push_back(std::string());
+					crescendoDoc->attributes[attr->name()] = attr->value();
 				}
+				// Move to root node
+				workingNode = workingNode->next_sibling();
 			}
-			std::string Get()
+
+			// Note the root node
+			rapidxml::xml_node<>* rootNode = nullptr;
+			bool wasLastOperationUp = false;
+
+			while (workingNode != rootNode)
 			{
-				return buffer;
-			}
-			std::string GetStored(int n)
-			{
-				return memoryBuffers[n];
-			}
-			void Store(int n)
-			{
-				memoryBuffers[n] = buffer;
-			}
-			void ClearStore(int n)
-			{
-				memoryBuffers[n].clear();
-			}
-			void Append(char character)
-			{
-				buffer += character;
-			}
-			void Clear()
-			{
-				buffer.clear();
+				if (!rootNode) rootNode = workingNode;
+				// Assign RapidXML node values to CrescendoXML document values
+				csWorkingNode->tag = workingNode->name();
+				csWorkingNode->innerText = workingNode->value();
+				// Assign RapidXML attributes to CrescendoXML document attributes
+				for (rapidxml::xml_attribute<>* attr = workingNode->first_attribute(); attr; attr = attr->next_attribute())
+				{
+					csWorkingNode->attributes[attr->name()] = attr->value();
+				}
+				// if we can go deeper, go deeper
+				// otherwise if we can go to a sibling, we go to a sibling
+				// otherwise we go upwards
+				// depth first search
+				if (!wasLastOperationUp && workingNode->first_node())
+				{
+					wasLastOperationUp = false;
+					workingNode = workingNode->first_node();
+					csWorkingNode = new Node(csWorkingNode);
+				}
+				else if (workingNode->next_sibling())
+				{
+					wasLastOperationUp = false;
+					workingNode = workingNode->next_sibling();
+
+					csWorkingNode = new Node(csWorkingNode->GetParent());
+				}
+				else
+				{
+					wasLastOperationUp = true;
+					workingNode = workingNode->parent();
+
+					csWorkingNode = csWorkingNode->GetParent();
+				}
 			}
 		};
-		bool IsSubstring(std::string string, std::string substring, long position)
+		void CrescendoToRapid(Document* crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
 		{
-			// Outside string bounds
-			if (position > string.size() - substring.size() || position < 0) return false;
-			for (int i = position; i < position + substring.size(); i++)
-			{
-				if (string[i] != substring[i - position]) return false;
-			}
-			return true;
-		}
-		std::string CleanupDocument(std::string* xml)
-		{
-			bool inComment = false;
-			std::string source = *xml;
-			long i = 0, j = 0;
-			while (i < source.size())
-			{
-				// Find start of comment
-				if (IsSubstring(source, "<!--", i))
-				{
-					inComment = true;
-					// Note start of comment
-					j = i;
-				}
-				if (inComment && IsSubstring(source, "-->", i))
-				{
-					inComment = false;
-					source.replace(j, i - j + 3, "");
-					i = j;
-				}
-				i++;
-			}
-			return source;
-		}
-		enum class XMLLexerState
-		{
-			None,
-
-			Declaration,
-
-			TagBeginName,
-			TagInnerText,
-			TagEndName,
-
-			AttributeTag,
-			AttributeText,
-		};
-		std::map<XMLLexerState, std::string> stateMap {
-			{XMLLexerState::None, "None"},
-			{XMLLexerState::Declaration, "Declaration"},
-			{XMLLexerState::TagBeginName, "TagBeginName"},
-			{XMLLexerState::TagInnerText, "TagInnerText"},
-			{XMLLexerState::TagEndName, "TagEndName"},
-			{XMLLexerState::AttributeTag, "AttributeTag"},
-			{XMLLexerState::AttributeText, "AttributeText"},
+			// CRESCENDO TODO
 		};
 	}
-	XMLStatus Parse(XMLDocument* document, std::string* xml)
+	void Parse(Document* xmlDoc, gt::string* xmlString)
 	{
-		std::string source = CleanupDocument(xml);
-		int i = 0;
-		int increment = 1;
-		XMLNode* currentNode = nullptr;
-
-		LexicalBuffer lexicalBuffer(2);
-
-		FiniteStateStack<XMLLexerState> lexerState(XMLLexerState::None, stateMap);
-
-		// Lexical analysis
-		while (i < source.size())
-		{
-			lexicalBuffer.Append(source[i]);
-			switch (lexerState.GetState())
-			{
-				case XMLLexerState::None:
-				{
-					if (IsSubstring(source, "<", i))
-					{
-						// Declaration start
-						if (IsSubstring(source, "<?xml", i))
-						{
-							lexerState.Push(XMLLexerState::Declaration);
-							increment = 4;
-						}
-						// Otherwise its a node
-						else
-						{
-							lexerState.Push(XMLLexerState::TagBeginName);
-						}
-						lexicalBuffer.Clear();
-					}
-					break;
-				}
-				case XMLLexerState::Declaration:
-				{
-					if (IsSubstring(source, "?>", i + 1))
-					{
-						lexerState.Pop();
-						increment = 3;
-					}
-					else
-					{
-						lexerState.Push(XMLLexerState::AttributeTag);
-						increment = 2;
-					}
-					lexicalBuffer.Clear();
-					break;
-				}
-				case XMLLexerState::TagBeginName:
-				{
-					if (IsSubstring(source, ">", i + 1) || IsSubstring(source, " ", i + 1))
-					{
-						if (lexicalBuffer.GetStored(0).size() == 0)
-						{
-							currentNode = (currentNode) ? new XMLNode(currentNode) : document->root;
-							lexicalBuffer.Store(0);
-						}
-						lexicalBuffer.Clear();
-						increment = 2;
-					}
-					if (IsSubstring(source, ">", i + 1))
-					{
-						lexerState.Push(XMLLexerState::TagInnerText);
-						std::string tag = lexicalBuffer.GetStored(0);
-						currentNode->tag = tag;
-						lexicalBuffer.ClearStore(0);
-					}
-					else if (IsSubstring(source, " ", i + 1))
-					{
-						lexerState.Push(XMLLexerState::AttributeTag);
-					}
-					break;
-				}
-				case XMLLexerState::TagInnerText:
-				{
-					if (IsSubstring(source, "</", i + 1))
-					{
-						currentNode->innerText = lexicalBuffer.Get();
-						lexerState.Push(XMLLexerState::TagEndName);
-						lexicalBuffer.Clear();
-						increment = 3;
-					}
-					else if (IsSubstring(source, "<", i + 1))
-					{
-						lexerState.Push(XMLLexerState::TagBeginName);
-						lexicalBuffer.Clear();
-						increment = 2;
-					}
-					break;
-				}
-				case XMLLexerState::TagEndName:
-				{
-					if (IsSubstring(source, ">", i + 1))
-					{
-						if (currentNode->tag != lexicalBuffer.Get())
-						{
-							return XMLStatus::ErrorMismatchedTags;
-						}
-						lexerState.Pop(3);
-						lexicalBuffer.Clear();
-						currentNode = currentNode->parent;
-					}
-					break;
-				}
-				case XMLLexerState::AttributeTag:
-				{
-					if (IsSubstring(source, "=\"", i + 1))
-					{
-						lexerState.Push(XMLLexerState::AttributeText);
-						lexicalBuffer.Store(1);
-						lexicalBuffer.Clear();
-						increment = 3;
-					}
-					break;
-				}
-				case XMLLexerState::AttributeText:
-				{
-					if (IsSubstring(source, "\"", i + 1))
-					{
-						// In declaration
-						if (lexerState.StateExists(XMLLexerState::Declaration))
-						{
-							document->attributes[lexicalBuffer.GetStored(1)] = lexicalBuffer.Get();
-						}
-						// In node
-						else
-						{
-							currentNode->attributes[lexicalBuffer.GetStored(1)] = lexicalBuffer.Get();
-						}
-						lexerState.Pop(2);
-						lexicalBuffer.Clear();
-					}
-					break;
-				}
-			}
-			i += increment;
-			increment = 1;
-		}
-		if (lexerState.GetState() != XMLLexerState::None)
-		{
-			return XMLStatus::ErrorUnclosedTag;
-		}
-		return XMLStatus::Success;
+		rapidxml::xml_document<char> doc;
+		doc.parse<rapidxml::parse_declaration_node>(xmlString->data());
+		RapidToCrescendo(xmlDoc, &doc);
 	}
-	XMLStatus ParseFromFile(XMLDocument* document, std::string filename)
+	void ParseFromFile(Document* xmlDoc, gt::string filePath)
 	{
-		std::fstream file;
+		gt::file file;
 		std::stringstream data;
 		// Check if file exists first
-		if (!Engine::FileSystem::Exists(filename))
-		{
-			return XMLStatus::Success;
-		}
-		Engine::FileSystem::Open(&file, filename);
-		// Write data to stringstreambuffer
+		if (!Crescendo::Engine::FileSystem::Exists(filePath)) return;
+		Crescendo::Engine::FileSystem::Open(&file, filePath);
+		// Write data to stringstream buffer
 		data << file.rdbuf();
-		std::string str = data.str();
-		return Parse(document, &str);
+		std::string d = data.str();
+		Parse(xmlDoc, &d);
+		Crescendo::Engine::FileSystem::Close(&file);
 	}
 }
