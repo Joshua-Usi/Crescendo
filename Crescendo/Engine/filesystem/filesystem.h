@@ -18,12 +18,12 @@ namespace Crescendo::Engine::FileSystem {
 	/// Queries the space left on the disk in bytes
 	/// </summary>
 	/// <returns>Space left on the disk in bytes</returns>
-	cs::uint64 CS_API QuerySpaceLeft();
+	gt::Uint64 CS_API QuerySpaceLeft();
 	/// <summary>
 	/// Queries the total space of the disk in bytes
 	/// </summary>
 	/// <returns>Total space of the disk in bytes</returns>
-	cs::uint64 CS_API QueryDiskSize();
+	gt::Uint64 CS_API QueryDiskSize();
 	/// <summary>
 	/// Creates a directory / folder
 	/// </summary>

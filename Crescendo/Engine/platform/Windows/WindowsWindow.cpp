@@ -82,17 +82,17 @@ namespace Crescendo::Engine
 		}
 	}
 
-	cs::int32 WindowsWindow::GetWidth() const
+	gt::Int32 WindowsWindow::GetWidth() const
 	{
 		return data.width;
 	}
 
-	cs::int32 WindowsWindow::GetHeight() const
+	gt::Int32 WindowsWindow::GetHeight() const
 	{
 		return data.height;
 	}
 
-	cs::int32 WindowsWindow::GetRefreshRate() const
+	gt::Int32 WindowsWindow::GetRefreshRate() const
 	{
 		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 		return glfwGetVideoMode(monitor)->refreshRate;

@@ -61,7 +61,7 @@ namespace Crescendo::Engine::Console {
 		std::stringstream ss;
 		ss << owner.c_str();
 		if (printTimestamp) {
-			cs::int64 time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+			gt::Int64 time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 			// %T is the format hh:mm:ss
 			ss << "[" << std::put_time(std::localtime(&time), "%T") << "] ";
 		}

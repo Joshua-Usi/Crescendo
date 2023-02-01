@@ -6,12 +6,12 @@ namespace Crescendo::Engine::FileSystem {
 	bool Exists(std::string fileName) {
 		return std::filesystem::exists(fileName);
 	}
-	cs::uint64 QuerySpaceLeft() {
+	gt::Uint64 QuerySpaceLeft() {
 		std::filesystem::path root = std::filesystem::current_path().root_path();
 		std::filesystem::space_info info = std::filesystem::space(root);
 		return info.available;
 	}
-	cs::uint64 CS_API QueryDiskSize() {
+	gt::Uint64 CS_API QueryDiskSize() {
 		std::filesystem::path root = std::filesystem::current_path().root_path();
 		std::filesystem::space_info info = std::filesystem::space(root);
 		return info.capacity;

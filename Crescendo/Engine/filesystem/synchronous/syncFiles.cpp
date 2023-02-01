@@ -9,7 +9,7 @@ namespace Crescendo::Engine::FileSystem {
 		return false;
 	}
 
-	cs::int64 CS_API Size(std::fstream* file)
+	gt::Int64 CS_API Size(std::fstream* file)
 	{
 		return file->tellg();
 	}
@@ -23,10 +23,10 @@ namespace Crescendo::Engine::FileSystem {
 	void Read(std::fstream* file) {
 
 	}
-	void ReadCharacter(std::fstream* file, cs::uint64 character) {
+	void ReadCharacter(std::fstream* file, gt::Uint64 character) {
 
 	}
-	void ReadCharacters(std::fstream* file, cs::uint64 begin, cs::uint64 end) {
+	void ReadCharacters(std::fstream* file, gt::Uint64 begin, gt::Uint64 end) {
 
 	}
 
@@ -34,7 +34,7 @@ namespace Crescendo::Engine::FileSystem {
 		// get size of the file
 		file->seekg(0, file->end);
 		// supports up to 9.2 Exabyte files, more than enough for a long time
-		cs::uint64 size = file->tellg();
+		gt::Uint64 size = file->tellg();
 		// set write to last character, makes it append mode
 		file->seekg(size);
 		file->write(data.c_str(), data.length());
@@ -42,16 +42,16 @@ namespace Crescendo::Engine::FileSystem {
 	void WriteLine(std::fstream* file, std::string data) {
 
 	}
-	void Insert(std::fstream* file, cs::uint64 character, std::string data) {
+	void Insert(std::fstream* file, gt::Uint64 character, std::string data) {
 
 	}
-	void InsertLine(std::fstream* file, cs::uint64 line, std::string data) {
+	void InsertLine(std::fstream* file, gt::Uint64 line, std::string data) {
 
 	}
 	void Overwrite(std::fstream* file, std::string data) {
 
 	}
-	void OverwriteLine(std::fstream* file, cs::uint64 line, std::string data) {
+	void OverwriteLine(std::fstream* file, gt::Uint64 line, std::string data) {
 
 	}
 	void Close(std::fstream* file) {

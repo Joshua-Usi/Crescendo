@@ -5,10 +5,10 @@
 namespace Crescendo::Engine {
 	struct WindowProps {
 		std::string title;
-		cs::int32 width;
-		cs::int32 height;
+		gt::Int32 width;
+		gt::Int32 height;
 
-		WindowProps(const std::string& windowTitle = "Crescendo", cs::int32 windowWidth = 1280, cs::int32 windowHeight = 720) {
+		WindowProps(const std::string& windowTitle = "Crescendo", gt::Int32 windowWidth = 1280, gt::Int32 windowHeight = 720) {
 			title = windowTitle;
 			width = windowWidth;
 			height = windowHeight;
@@ -29,12 +29,12 @@ namespace Crescendo::Engine {
 		/// Get the width of the window
 		/// </summary>
 		/// <returns>Width of the window as an integer</returns>
-		virtual cs::int32 GetWidth() const = 0;
+		virtual gt::Int32 GetWidth() const = 0;
 		/// <summary>
 		/// Get the height of the window
 		/// </summary>
 		/// <returns>Height of the window as an integer</returns>
-		virtual cs::int32 GetHeight() const = 0;
+		virtual gt::Int32 GetHeight() const = 0;
 		/// <summary>
 		/// Returns a void pointer to the native window pointer
 		/// </summary>
@@ -44,7 +44,7 @@ namespace Crescendo::Engine {
 		/// Returns the refresh rate of the given window in Hz
 		/// </summary>
 		/// <returns>Refresh rate in Hz</returns>
-		virtual cs::int32 GetRefreshRate() const = 0;
+		virtual gt::Int32 GetRefreshRate() const = 0;
 
 		/// <summary>
 		/// Interface for enabling vsync

@@ -3,7 +3,7 @@
 #include "Layer.h"
 
 namespace Crescendo::Engine {
-	Layer::Layer(double ur, cs::uint64 pr)
+	Layer::Layer(double ur, gt::Uint64 pr)
 	{
 		updateRate = ur;
 		priority = pr;

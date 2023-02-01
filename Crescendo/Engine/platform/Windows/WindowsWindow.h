@@ -14,9 +14,9 @@ namespace Crescendo::Engine
 
 		virtual void OnUpdate() override;
 
-		virtual cs::int32 GetWidth() const override;
-		virtual cs::int32 GetHeight() const override;
-		virtual cs::int32 GetRefreshRate() const override;
+		virtual gt::Int32 GetWidth() const override;
+		virtual gt::Int32 GetHeight() const override;
+		virtual gt::Int32 GetRefreshRate() const override;
 
 		virtual void SetVSync(bool isEnabled) override;
 
@@ -34,7 +34,7 @@ namespace Crescendo::Engine
 		{
 			std::string title = "";
 			WindowsWindow* windowPointer = NULL;
-			cs::int32 width = 0, height = 0;
+			gt::Int32 width = 0, height = 0;
 			bool vSync = false;
 			bool isOpen = false;
 		} data;

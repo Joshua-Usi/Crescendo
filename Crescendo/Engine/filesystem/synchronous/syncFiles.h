@@ -18,7 +18,7 @@ namespace Crescendo::Engine::FileSystem {
 	/// </summary>
 	/// <param name="file">File reference</param>
 	/// <returns>Size of file in bytes</returns>
-	cs::int64 CS_API Size(std::fstream* file);
+	gt::Int64 CS_API Size(std::fstream* file);
 
 	// Read Methods
 	// Read the next character in the file
@@ -28,9 +28,9 @@ namespace Crescendo::Engine::FileSystem {
 	// Reads the entire file
 	void CS_API Read(std::fstream* file);
 	// Read a specific character from the file
-	void CS_API ReadCharacter(std::fstream*, cs::uint64 character);
+	void CS_API ReadCharacter(std::fstream*, gt::Uint64 character);
 	// Read a specific set of characters from the file
-	void CS_API ReadCharacters(std::fstream*, cs::uint64 begin, cs::uint64 end);
+	void CS_API ReadCharacters(std::fstream*, gt::Uint64 begin, gt::Uint64 end);
 
 	// Write Methods
 	// Appends and writes data to a file
@@ -38,13 +38,13 @@ namespace Crescendo::Engine::FileSystem {
 	// Appends and writes data to a file, then adds a line break character
 	void CS_API WriteLine(std::fstream* file, std::string data);
 	// Inserts a string of characters after a given character
-	void CS_API Insert(std::fstream* file, cs::uint64 character, std::string data);
+	void CS_API Insert(std::fstream* file, gt::Uint64 character, std::string data);
 	// Inserts a line after a given line in the file
-	void CS_API InsertLine(std::fstream* file, cs::uint64 line, std::string data);
+	void CS_API InsertLine(std::fstream* file, gt::Uint64 line, std::string data);
 	// writes over the data of the file
 	void CS_API Overwrite(std::fstream* file, std::string data);
 	// writes over a specific line in the file
-	void CS_API OverwriteLine(std::fstream* file, cs::uint64 line, std::string data);
+	void CS_API OverwriteLine(std::fstream* file, gt::Uint64 line, std::string data);
 	// closes a file, recommended once you are done with it
 	void CS_API Close(std::fstream* file);
 }

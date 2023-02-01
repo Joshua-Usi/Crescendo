@@ -19,7 +19,7 @@ namespace Crescendo
 			Layer* update = new LayerUpdate(1.0 / 60.0, 0);
 			layerManager.Attach(update);
 
-			cs::int32 refreshRate = window->GetRefreshRate();
+			gt::Int32 refreshRate = window->GetRefreshRate();
 			double secondsPerFrame = (refreshRate == 0) ? 0 : 1.0 / double(refreshRate);
 
 			// At refresh rate speeds

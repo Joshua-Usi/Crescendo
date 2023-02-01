@@ -7,11 +7,11 @@ namespace Crescendo::Engine
 	class CS_API Layer
 	{
 	public:
-		Layer(double ur, cs::uint64 pr);
+		Layer(double ur, gt::Uint64 pr);
 		// 0 means as fast as possible, measured in seconds
 		double updateRate;
 		double lastCalled;
-		cs::uint64 priority;
+		gt::Uint64 priority;
 
 		bool ShouldRun(double time);
 

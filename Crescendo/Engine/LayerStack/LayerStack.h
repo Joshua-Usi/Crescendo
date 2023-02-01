@@ -14,7 +14,7 @@ namespace Crescendo::Engine
 		/// <summary>
 		/// Get the number of layers in the stack
 		/// </summary>
-		cs::int64 Count();
+		gt::Int64 Count();
 		/// <summary>
 		/// Append a new layer to the end of the stack. This layer will run last
 		/// </summary>

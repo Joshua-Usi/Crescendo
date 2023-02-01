@@ -8,12 +8,12 @@ namespace Crescendo::Engine
 
 	}
 	LayerStack::~LayerStack() {
-		for (cs::int64 i = 0, size = layers.size(); i < size; i++)
+		for (gt::Int64 i = 0, size = layers.size(); i < size; i++)
 		{
 			layers[i]->OnDetach();
 		}
 	}
-	cs::int64 LayerStack::Count()
+	gt::Int64 LayerStack::Count()
 	{
 		return layers.size();
 	}
@@ -25,7 +25,7 @@ namespace Crescendo::Engine
 	void LayerStack::Attach(Layer* layer)
 	{
 		// O(n) insertion, is fine considering layers aren't attached very often
-		cs::int64 i, size;
+		gt::Int64 i, size;
 		for (i = 0, size = layers.size(); i < size; i++)
 		{
 			if (layers[i]->priority > layer->priority)
@@ -39,9 +39,9 @@ namespace Crescendo::Engine
 	void LayerStack::Insert(int index, Layer* layer)
 	{
 		// Find the average priority of the 2 adjacent layers
-		cs::uint64 lower = layers[index - 1]->priority;
-		cs::uint64 higher = layers[index]->priority;
-		cs::uint64 avg = (lower + higher) / 2;
+		gt::Uint64 lower = layers[index - 1]->priority;
+		gt::Uint64 higher = layers[index]->priority;
+		gt::Uint64 avg = (lower + higher) / 2;
 		// Set priority to the average
 		layer->priority = avg;
 		// Insert in place
@@ -69,7 +69,7 @@ namespace Crescendo::Engine
 	}
 	void LayerStack::Init(double time)
 	{
-		for (cs::int64 i = 0, size = layers.size(); i < size; i++)
+		for (gt::Int64 i = 0, size = layers.size(); i < size; i++)
 		{
 			layers[i]->OnInit();
 			layers[i]->lastCalled = time;
@@ -77,7 +77,7 @@ namespace Crescendo::Engine
 	}
 	void LayerStack::QueryForUpdate(double time)
 	{
-		for (cs::int64 i = 0, size = layers.size(); i < size; i++)
+		for (gt::Int64 i = 0, size = layers.size(); i < size; i++)
 		{
 			if (layers[i]->ShouldRun(time)) {
 				layerQueue.push_back(layers[i]);
@@ -86,7 +86,7 @@ namespace Crescendo::Engine
 	}
 	void LayerStack::Update(double time)
 	{
-		for (cs::int64 i = 0, size = layerQueue.size(); i < size; i++)
+		for (gt::Int64 i = 0, size = layerQueue.size(); i < size; i++)
 		{
 			double dt = time - layerQueue[i]->lastCalled;
 			double callDt = layerQueue[i]->updateRate;
@@ -113,8 +113,8 @@ namespace Crescendo::Engine
 			Layer* a = layers[first];
 			Layer* b = layers[second];
 			// Store their priorities
-			cs::uint64 aPrio = a->priority;
-			cs::uint64 bPrio = b->priority;
+			gt::Uint64 aPrio = a->priority;
+			gt::Uint64 bPrio = b->priority;
 			// Swap their priorities
 			b->priority = aPrio;
 			a->priority = bPrio;

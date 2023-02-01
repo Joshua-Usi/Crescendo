@@ -23,7 +23,7 @@ namespace Crescendo::Engine::Console {
 		if (isLoggingToFile) {
 			// Get localtime as year.month.day and insert into string stream
 			std::stringstream ss;
-			cs::int64 time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+			gt::Int64 time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 			ss << std::put_time(std::localtime(&time), "%y.%m.%d");
 
 			std::string fileName = std::format("{}-{}.log", logFileName, ss.str());
