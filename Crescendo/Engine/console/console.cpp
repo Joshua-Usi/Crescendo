@@ -1,6 +1,7 @@
 #include "console/console.h"
 
-namespace Crescendo::Engine::Console {
+namespace Crescendo::Engine::Console
+{
 	std::mutex threadMutex;
 
 	Severity minimumSeverity = Severity::Info;
@@ -13,14 +14,17 @@ namespace Crescendo::Engine::Console {
 	std::string logFileName = "";
 	std::stringstream logFileBuffer;
 
-	void BeginFileLog(std::string name) {
+	void BeginFileLog(std::string name)
+	{
 		logFileName = name;
 		isLoggingToFile = true;
 		Console::EngineInfo("Began logging to file");
 	}
 
-	void EndFileLog() {
-		if (isLoggingToFile) {
+	void EndFileLog()
+	{
+		if (isLoggingToFile)
+		{
 			// Get localtime as year.month.day and insert into string stream
 			std::stringstream ss;
 			gt::Int64 time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -28,7 +32,8 @@ namespace Crescendo::Engine::Console {
 
 			std::string fileName = std::format("{}-{}.log", logFileName, ss.str());
 
-			if (!FileSystem::Exists(fileName)) {
+			if (!FileSystem::Exists(fileName))
+			{
 				FileSystem::Create(fileName);
 			}
 
@@ -45,22 +50,27 @@ namespace Crescendo::Engine::Console {
 			logFileName.clear();
 			logFileBuffer.clear();
 		}
-		else {
+		else
+		{
 			Console::EngineWarn("Ignoring request to finish file logging as logging was never started");
 		}
 	}
 
-	void SetMinimumSeverity(Severity severity) {
+	void SetMinimumSeverity(Severity severity)
+	{
 		minimumSeverity = severity;
 	}
 
-	void ShowSeverities(bool enabled) {
+	void ShowSeverities(bool enabled)
+	{
 		printSeverity = enabled;
 	}
-	void ShowTimestamps(bool enabled) {
+	void ShowTimestamps(bool enabled)
+	{
 		printTimestamp = enabled;
 	}
-	void ShowTraces(bool enabled) {
+	void ShowTraces(bool enabled)
+	{
 		printTrace = enabled;
 	}
 }

@@ -12,13 +12,15 @@
 #ifndef CS_PROD
 #define CS_DEFINE_LOGGER(name, severity)\
 	template<typename... Args>\
-	void name(std::string message, Args... args) {\
+	void name(std::string message, Args... args)\
+	{\
 		if (minimumSeverity <= severity) {\
 			_UnclassifiedLog("", "["#name"] ", message, args...);\
 		}\
 	}\
 	template<typename... Args>\
-	void Engine##name(std::string message, Args... args) {\
+	void Engine##name(std::string message, Args... args)\
+	{\
 		if (minimumSeverity <= severity) {\
 			_UnclassifiedLog("(Crescendo) ", "["#name"] ", message, args...);\
 		}\
@@ -31,7 +33,8 @@
 	void Engine##name(std::string message, Args... args) {}
 #endif
 
-namespace Crescendo::Engine::Console {
+namespace Crescendo::Engine::Console
+{
 	enum class Severity { Debug, Info, Log, Warn, Error, Critical };
 
 	extern CS_API std::mutex threadMutex;
@@ -54,24 +57,22 @@ namespace Crescendo::Engine::Console {
 	/// <param name="message">This is run through std::format, taking ...args</param>
 	/// <param name="...args">Format specifier arguments</param>
 	template<typename... Args>
-	void _UnclassifiedLog(std::string owner, std::string severity, std::string message, Args... args) {
+	void _UnclassifiedLog(std::string owner, std::string severity, std::string message, Args... args)
+	{
 		#ifndef CS_DISABLE_THREAD_SAFE_LOGGING
 			std::scoped_lock lock(threadMutex);
 		#endif
 		std::stringstream ss;
 		ss << owner.c_str();
-		if (printTimestamp) {
+		if (printTimestamp)
+		{
 			gt::Int64 time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 			// %T is the format hh:mm:ss
 			ss << "[" << std::put_time(std::localtime(&time), "%T") << "] ";
 		}
-		if (printSeverity) {
-			ss << severity.c_str();
-		}
+		if (printSeverity) ss << severity.c_str();
 		ss << std::vformat(message, std::make_format_args(std::forward<Args>(args)...)) << "\n";
-		if (isLoggingToFile) {
-			logFileBuffer << ss.str();
-		}
+		if (isLoggingToFile) logFileBuffer << ss.str();
 		printf(ss.str().c_str());
 	}
 
@@ -147,19 +148,19 @@ namespace Crescendo::Engine::Console {
 	/// <typeparam name="return_type">Customisable return type</typeparam>
 	/// <param name="message">The message to ask the user</param>
 	/// <returns>A const char* reference to response</returns>
-	template <typename return_type = std::string>
-	return_type Ask(std::string message) {
-		return_type s;
+	template <typename return_type = std::string*>
+	void Ask(return_type output, std::string message)
+	{
 		std::cout << message;
-		std::cin >> s;
-		return s;
+		std::cin >> output;
 	}
 	/// <summary>
 	/// Outputs a raw, unformatted string to the console, useful if you want to create your own messages or output raw data
 	/// </summary>
 	/// <param name="message">The message to output to the console, No formatting</param>
 	template <typename any_type>
-	void Output(any_type message) {
+	void Output(any_type message)
+	{
 		std::scoped_lock lock(threadMutex);
 		std::cout << message;
 	}
