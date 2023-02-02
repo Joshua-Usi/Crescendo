@@ -23,5 +23,9 @@ namespace Crescendo::Tools::XML
 		{
 			attributes.erase(attributeName);
 		}
+		gt::Int64 AttributeCount()
+		{
+			return attributes.size();
+		}
 	};
 }
