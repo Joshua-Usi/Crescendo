@@ -48,7 +48,7 @@ namespace Crescendo::Tools::XML
 		/// <returns>Pointer to child</returns>
 		Node* GetChild(unsigned int n)
 		{
-			if (children.size() < n)
+			if (n < children.size())
 			{
 				return children[n].get();
 			}
