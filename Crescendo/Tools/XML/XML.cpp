@@ -2,7 +2,6 @@
 
 #include "filesystem/filesystem.h"
 #include "filesystem/synchronous/syncFiles.h"
-#include "console/console.h"
 
 #include "converters/CrescendoToRapid.h"
 #include "converters/RapidToCrescendo.h"
@@ -12,7 +11,6 @@
 #include "rapidxml/rapidxml_print.hpp"
 
 #include <vector>
-#include <stack>
 
 namespace Crescendo::Tools::XML
 {
