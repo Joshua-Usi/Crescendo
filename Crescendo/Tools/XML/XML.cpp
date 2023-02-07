@@ -2,84 +2,25 @@
 
 #include "filesystem/filesystem.h"
 #include "filesystem/synchronous/syncFiles.h"
+#include "console/console.h"
+
+#include "converters/CrescendoToRapid.h"
+#include "converters/RapidToCrescendo.h"
 
 #include "rapidxml/rapidxml.hpp"
+#include "rapidxml/rapidxml_ext.hpp"
+#include "rapidxml/rapidxml_print.hpp"
 
-#include <memory>
 #include <vector>
+#include <stack>
 
 namespace Crescendo::Tools::XML
 {
-	namespace
-	{
-		// Convert a RapidXML document to a CrescendoXML document
-		void RapidToCrescendo(Document* crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
-		{
-			Node* csWorkingNode = crescendoDoc->root.get();
-			rapidxml::xml_node<>* workingNode = rapidDoc->first_node();
-
-			// in declaration, set document attributes
-			if (workingNode->name_size() == 0)
-			{
-				for (rapidxml::xml_attribute<>* attr = workingNode->first_attribute(); attr; attr = attr->next_attribute())
-				{
-					crescendoDoc->attributes[attr->name()] = attr->value();
-				}
-				// Move to root node
-				workingNode = workingNode->next_sibling();
-			}
-
-			// Note the root node
-			rapidxml::xml_node<>* rootNode = nullptr;
-			bool wasLastOperationUp = false;
-
-			while (workingNode != rootNode)
-			{
-				if (!rootNode) rootNode = workingNode;
-				// Assign RapidXML node values to CrescendoXML document values
-				csWorkingNode->tag = workingNode->name();
-				csWorkingNode->innerText = workingNode->value();
-				// Assign RapidXML attributes to CrescendoXML document attributes
-				for (rapidxml::xml_attribute<>* attr = workingNode->first_attribute(); attr; attr = attr->next_attribute())
-				{
-					csWorkingNode->attributes[attr->name()] = attr->value();
-				}
-				// if we can go deeper, go deeper
-				// otherwise if we can go to a sibling, we go to a sibling
-				// otherwise we go upwards
-				// depth first search
-				if (!wasLastOperationUp && workingNode->first_node())
-				{
-					wasLastOperationUp = false;
-					workingNode = workingNode->first_node();
-					csWorkingNode = new Node(csWorkingNode);
-				}
-				else if (workingNode->next_sibling())
-				{
-					wasLastOperationUp = false;
-					workingNode = workingNode->next_sibling();
-
-					csWorkingNode = new Node(csWorkingNode->GetParent());
-				}
-				else
-				{
-					wasLastOperationUp = true;
-					workingNode = workingNode->parent();
-
-					csWorkingNode = csWorkingNode->GetParent();
-				}
-			}
-		};
-		void CrescendoToRapid(Document* crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
-		{
-			// CRESCENDO TODO
-		};
-	}
 	void Parse(Document* xmlDoc, gt::string* xmlString)
 	{
 		rapidxml::xml_document<char>* doc = new rapidxml::xml_document<char>;
-		doc->parse<rapidxml::parse_declaration_node>(xmlString->data());
-		RapidToCrescendo(xmlDoc, doc);
+		doc->parse<rapidxml::parse_declaration_node | rapidxml::parse_no_data_nodes>(xmlString->data());
+		util::RapidToCrescendo(xmlDoc, doc);
 		delete doc;
 	}
 	void ParseFromFile(Document* xmlDoc, gt::string filePath)
@@ -94,5 +35,12 @@ namespace Crescendo::Tools::XML
 		std::string d = data.str();
 		Parse(xmlDoc, &d);
 		Crescendo::Engine::FileSystem::Close(&file);
+	}
+	void Stringify(Document* xmlDoc, gt::string* outputString)
+	{
+		rapidxml::xml_document<char>* doc = new rapidxml::xml_document<char>;
+		util::CrescendoToRapid(xmlDoc, doc);
+		rapidxml::print(std::back_inserter(*outputString), *doc, 0);
+		delete doc;
 	}
 }

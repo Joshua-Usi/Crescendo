@@ -1,0 +1,77 @@
+#pragma once
+
+#include "XML/XML.h"
+
+#include "console/console.h"
+
+#include "rapidxml/rapidxml.hpp"
+#include "rapidxml/rapidxml_ext.hpp"
+#include "rapidxml/rapidxml_print.hpp"
+
+#include <stack>
+
+namespace Crescendo::Tools::XML::util
+{
+	// Convert a RapidXML document to a CrescendoXML document
+	void RapidToCrescendo(Document* crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
+	{
+		Node* csWorkingNode = crescendoDoc->root.get();
+		rapidxml::xml_node<>* workingNode = rapidDoc->first_node();
+
+		// Move declaration node, if declarations exist
+		if (workingNode->name_size() == 0)
+		{
+			for (rapidxml::xml_attribute<>* attr = workingNode->first_attribute(); attr; attr = attr->next_attribute())
+			{
+				crescendoDoc->attributes[attr->name()] = attr->value();
+			}
+			// Move to root node
+			workingNode = workingNode->next_sibling();
+		}
+
+		// Note the root node
+		rapidxml::xml_node<>* rootNode = workingNode;
+
+		bool wasLastOperationUp = false;
+
+		do
+		{
+			if (!wasLastOperationUp)
+			{
+				csWorkingNode->tag = workingNode->name();
+				csWorkingNode->innerText = workingNode->value();
+				// Assign RapidXML attributes to CrescendoXML document attributes
+				for (rapidxml::xml_attribute<>* attr = workingNode->first_attribute(); attr; attr = attr->next_attribute())
+				{
+					csWorkingNode->attributes[attr->name()] = attr->value();
+				}
+			}
+			// depth first search
+			// if there is a child node and we haven't recently moved up a node, take it
+			// if there isn't a child node, move up the tree and go to the sibling node
+			// otherwise, move back up a node
+			// this ensures all nodes are reached
+			if (!wasLastOperationUp && workingNode->first_node())
+			{
+				wasLastOperationUp = false;
+
+				workingNode = workingNode->first_node();
+				csWorkingNode = new Node(csWorkingNode);
+			}
+			else if (workingNode->next_sibling())
+			{
+				wasLastOperationUp = false;
+
+				workingNode = workingNode->next_sibling();
+				csWorkingNode = new Node(csWorkingNode->GetParent());
+			}
+			else
+			{
+				wasLastOperationUp = true;
+
+				workingNode = workingNode->parent();
+				csWorkingNode = csWorkingNode->GetParent();
+			}
+		} while (workingNode != rootNode);
+	};
+}

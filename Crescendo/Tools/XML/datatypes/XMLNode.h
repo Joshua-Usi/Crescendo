@@ -17,6 +17,37 @@ namespace Crescendo::Tools::XML
 		gt::string tag;
 		gt::string innerText;
 	public:
+		// RapidXML like syntax
+		Node* _first_node()
+		{
+			if (this->GetChildCount() > 0)
+			{
+				return this->GetChild(0);
+			}
+			return nullptr;
+		}
+		Node* _next_sibling()
+		{
+			if (!this->GetParent())
+			{
+				return nullptr;
+			}
+
+			unsigned int i = 0;
+			while (i < this->GetParent()->GetChildCount())
+			{
+				if ((this->GetParent()->children[i].get() == this) && i + 1 < this->GetParent()->GetChildCount())
+				{
+					return this->GetParent()->GetChild(i + 1);
+				}
+				i++;
+			}
+			return nullptr;
+		}
+		Node* _parent()
+		{
+			return (this->GetParent()) ? this->GetParent() : nullptr;
+		}
 		Node(Node* par = nullptr)
 		{
 			parent = par;

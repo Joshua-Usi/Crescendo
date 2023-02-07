@@ -11,10 +11,11 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "core/core.h"
 
-#include "XMLDocument.h"
+#include "datatypes/XMLDocument.h"
 
 namespace Crescendo::Tools::XML
 {
 	void Parse(Document* xmlDoc, gt::string* xmlString);
 	void ParseFromFile(Document* xmlDoc, gt::string filePath);
+	void Stringify(Document* xmlDoc, gt::string* outputString);
 }
