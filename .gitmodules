@@ -1,3 +1,6 @@
 [submodule "Crescendo/ThirdParty"]
 	path = Crescendo/ThirdParty
 	url = https://github.com/Joshua-Usi/CrescendoThirdParty
+[submodule "Tests/Mochi"]
+	path = Tests/Mochi
+	url = https://github.com/Joshua-Usi/Mochi
