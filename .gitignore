@@ -11,6 +11,9 @@ vendor/
 *.ttf
 *.ini
 
+lazygit.bat
+scc.bat
+
 # Intermediate build files
 bin-intermediate/
 

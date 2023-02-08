@@ -1,1 +1,0 @@
-vendor\bins\lazygit.exe
