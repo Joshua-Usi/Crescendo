@@ -58,7 +58,7 @@ namespace Crescendo::Engine
 
 		glfwSetWindowCloseCallback(window, [](GLFWwindow* window)
 		{
-			WindowData windowPointer = CrescendoCastVoid(WindowData, glfwGetWindowUserPointer(window));
+			WindowData windowPointer = CastVoid(WindowData, glfwGetWindowUserPointer(window));
 			windowPointer.windowPointer->Shutdown();
 		});
 

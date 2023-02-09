@@ -24,7 +24,6 @@ namespace Crescendo::Engine
 
 		Application* app;
 		bool wind = true;
-		bool demo_wind = true;
 
 		void OnAttach()
 		{
@@ -50,7 +49,7 @@ namespace Crescendo::Engine
 				Console::EngineWarn("Cannot open file {}, falling back to ImGui default", fontFile);
 			}
 
-			ImGui_ImplGlfw_InitForOpenGL(&CrescendoCastVoid(GLFWwindow, app->GetWindow()->GetNative()), true);
+			ImGui_ImplGlfw_InitForOpenGL(&CastVoid(GLFWwindow, app->GetWindow()->GetNative()), true);
 			ImGui_ImplOpenGL3_Init("#version 430");
 
 			// Setup Dear ImGui style
@@ -100,14 +99,9 @@ namespace Crescendo::Engine
 					// Display contents in a scrolling region
 					ImGui::TextColored(ImVec4(1, 1, 0, 1), "Important Stuff");
 					ImGui::BeginChild("Scrolling");
-					for (int n = 0; n < 50; n++)
-						ImGui::Text("%04d: Some text", n);
+					ImGui::Text("n: Some text");
 					ImGui::EndChild();
 					ImGui::End();
-				}
-
-				if (demo_wind) {
-					ImGui::ShowDemoWindow(&demo_wind);
 				}
 
 				ImGui::Render();
@@ -126,7 +120,7 @@ namespace Crescendo::Engine
 					}
 				}
 
-				glfwSwapBuffers(&CrescendoCastVoid(GLFWwindow, app->GetWindow()->GetNative()));
+				glfwSwapBuffers(&CastVoid(GLFWwindow, app->GetWindow()->GetNative()));
 			}
 		}
 	};

@@ -2,8 +2,8 @@
 
 #include "types.h"
 
-#ifndef CrescendoCastVoid
-	#define CrescendoCastVoid(type, data) *static_cast<type*>(data)
+#ifndef CastVoid
+	#define CastVoid(type, data) *static_cast<type*>(data)
 #endif
 
 /* only apply to windows */
