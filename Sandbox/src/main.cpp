@@ -8,14 +8,6 @@ class Sandbox : public Application
 	void OnStartup()
 	{
 		Console::BeginFileLog("Sandbox");
-		Console::Log("Startup");
-
-		double now = GetTime();
-		const char* documentPath = "./xml/nasa.xml";
-		Crescendo::Tools::XML::Document doc;
-		Crescendo::Tools::XML::ParseFromFile(&doc, documentPath);
-		Console::Log("{} took {}s to parse", documentPath, GetTime() - now);
-
 	}
 	void OnUpdate()
 	{
@@ -23,7 +15,6 @@ class Sandbox : public Application
 	}
 	void OnExit()
 	{
-		Console::Log("Exit");
 		Console::EndFileLog();
 	}
 };
