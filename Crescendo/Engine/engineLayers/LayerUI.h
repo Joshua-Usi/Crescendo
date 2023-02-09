@@ -50,7 +50,7 @@ namespace Crescendo::Engine
 			}
 
 			ImGui_ImplGlfw_InitForOpenGL(&CastVoid(GLFWwindow, app->GetWindow()->GetNative()), true);
-			ImGui_ImplOpenGL3_Init("#version 430");
+			ImGui_ImplOpenGL3_Init("#version 460");
 
 			// Setup Dear ImGui style
 			ImGui::StyleColorsDark();

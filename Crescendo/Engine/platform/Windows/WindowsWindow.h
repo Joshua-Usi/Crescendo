@@ -29,6 +29,7 @@ namespace Crescendo::Engine
 		virtual void Shutdown();
 
 		GLFWwindow* window;
+		//GraphicsContext* context;
 
 		struct WindowData
 		{

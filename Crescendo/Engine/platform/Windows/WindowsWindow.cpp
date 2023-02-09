@@ -5,7 +5,7 @@
 
 namespace Crescendo::Engine
 {
-	static bool InitialisedGLFW = false;
+	static bool IsGLFWInitialised = false;
 	Window* Window::Create(const WindowProps& props)
 	{
 		return new WindowsWindow(props);
@@ -23,19 +23,21 @@ namespace Crescendo::Engine
 
 	void WindowsWindow::Init(const WindowProps& props)
 	{
-		data.title = props.title;
-		data.width = props.width;
-		data.height = props.height;
-		data.isOpen = true;
-		data.windowPointer = this;
+		this->data.title = props.title;
+		this->data.width = props.width;
+		this->data.height = props.height;
+		this->data.isOpen = true;
+		this->data.windowPointer = this;
 
 		Console::EngineInfo("Creating window \"{}\" of size {}x{}", props.title, props.width, props.height);
 
+		//this->GraphicsContext = new OpenGLGraphicsContext();
+
 		// Initialise glfw if it hasn't been yet
-		if (!InitialisedGLFW)
+		if (!IsGLFWInitialised)
 		{
 			CS_ASSERT(glfwInit(), "GLFW Initialisation Failed!");
-			InitialisedGLFW = true;
+			IsGLFWInitialised = true;
 		}
 
 		// first thing after initialisation
@@ -48,48 +50,51 @@ namespace Crescendo::Engine
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-		window = glfwCreateWindow(data.width, data.height, data.title.c_str(), NULL, NULL);
-		glfwMakeContextCurrent(window);
+		this->window = glfwCreateWindow(this->data.width, this->data.height, this->data.title.c_str(), NULL, NULL);
+
+		//this->GraphicsContext->Init();
+
+		glfwMakeContextCurrent(this->window);
 
 		// why does the glad loader check look like this????
 		CS_ASSERT(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress), "GLAD Initialisation Failed!");
 
-		glfwSetWindowUserPointer(window, &data);
+		glfwSetWindowUserPointer(this->window, &this->data);
 
-		glfwSetWindowCloseCallback(window, [](GLFWwindow* window)
+		glfwSetWindowCloseCallback(this->window, [](GLFWwindow* window)
 		{
 			WindowData windowPointer = CastVoid(WindowData, glfwGetWindowUserPointer(window));
 			windowPointer.windowPointer->Shutdown();
 		});
 
-		SetVSync(false);
+		this->SetVSync(true);
 	}
 
 	void WindowsWindow::Shutdown()
 	{
-		data.isOpen = false;
-		glfwDestroyWindow(window);
+		this->data.isOpen = false;
+		glfwDestroyWindow(this->window);
 	}
 
 	void WindowsWindow::OnUpdate()
 	{
-		if (data.isOpen)
+		if (this->data.isOpen)
 		{
 			glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
-			//glfwSwapBuffers(window);
 			glfwPollEvents();
+			glfwSwapBuffers(this->window);
 		}
 	}
 
 	gt::Int32 WindowsWindow::GetWidth() const
 	{
-		return data.width;
+		return this->data.width;
 	}
 
 	gt::Int32 WindowsWindow::GetHeight() const
 	{
-		return data.height;
+		return this->data.height;
 	}
 
 	gt::Int32 WindowsWindow::GetRefreshRate() const
@@ -108,21 +113,21 @@ namespace Crescendo::Engine
 		{
 			glfwSwapInterval(0);
 		}
-		data.vSync = isEnabled;
+		this->data.vSync = isEnabled;
 	}
 
 	bool WindowsWindow::IsVSynced() const
 	{
-		return data.vSync;
+		return this->data.vSync;
 	}
 
 	bool WindowsWindow::IsOpen() const
 	{
-		return data.isOpen;
+		return this->data.isOpen;
 	}
 
 	void* WindowsWindow::GetNative() const
 	{
-		return window;
+		return this->window;
 	}
 }
