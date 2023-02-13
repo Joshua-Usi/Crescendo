@@ -1,14 +1,12 @@
 #pragma once
 
-#include "XML/XML.h"
+#include "core/core.h"
 
-#include "console/console.h"
+#include "XML/XML.h"
 
 #include "rapidxml/rapidxml.hpp"
 #include "rapidxml/rapidxml_ext.hpp"
 #include "rapidxml/rapidxml_print.hpp"
-
-#include <stack>
 
 namespace Crescendo::Tools::XML::util
 {
@@ -19,8 +17,8 @@ namespace Crescendo::Tools::XML::util
 		rapidxml::xml_node<>* node = rapidDoc->allocate_node(rapidxml::node_element, tag, text);
 		for (auto const& attribute : csNode->attributes)
 		{
-			char* key = rapidDoc->allocate_string(attribute.first.c_str());
-			char* value = rapidDoc->allocate_string(attribute.second.c_str());
+			char* key = rapidDoc->allocate_string(attribute.first);
+			char* value = rapidDoc->allocate_string(attribute.second);
 			rapidxml::xml_attribute<>* rapidAttribute = rapidDoc->allocate_attribute(key, value);
 			node->append_attribute(rapidAttribute);
 		}
@@ -38,7 +36,7 @@ namespace Crescendo::Tools::XML::util
 			// Move individual declarations over
 			for (auto const& attribute : crescendoDoc->attributes)
 			{
-				rapidxml::xml_attribute<>* rapidAttribute = rapidDoc->allocate_attribute(attribute.first.c_str(), attribute.second.c_str());
+				rapidxml::xml_attribute<>* rapidAttribute = rapidDoc->allocate_attribute(attribute.first, attribute.second);
 				declarationNode->append_attribute(rapidAttribute);
 			}
 			// Append declaration node

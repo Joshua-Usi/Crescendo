@@ -19,10 +19,3 @@
 #include "core/entrypoint.h"
 
 #include "console/console.h"
-
-#include "filesystem/filesystem.h"
-#include "filesystem/synchronous/syncFiles.h"
-#include "filesystem/asynchronous/asyncFiles.h"
-
-#include "interfaces/Input.h"
-#include "interfaces/Window.h"

@@ -8,12 +8,12 @@ namespace Crescendo::Engine
 
 	}
 	LayerStack::~LayerStack() {
-		for (gt::Int64 i = 0, size = layers.size(); i < size; i++)
+		for (uint64_t i = 0, size = layers.size(); i < size; i++)
 		{
 			layers[i]->OnDetach();
 		}
 	}
-	gt::Int64 LayerStack::Count()
+	uint64_t LayerStack::Count()
 	{
 		return layers.size();
 	}
@@ -25,7 +25,7 @@ namespace Crescendo::Engine
 	void LayerStack::Attach(Layer* layer)
 	{
 		// O(n) insertion, is fine considering layers aren't attached very often
-		gt::Int64 i, size;
+		uint64_t i, size;
 		for (i = 0, size = layers.size(); i < size; i++)
 		{
 			if (layers[i]->priority > layer->priority)
@@ -33,43 +33,42 @@ namespace Crescendo::Engine
 				break;
 			}
 		}
-		layers.insert(layers.begin() + i, layer);
+		layers.emplace(layers.begin() + i, layer);
 		layer->OnAttach();
 	}
-	void LayerStack::Insert(int index, Layer* layer)
+	void LayerStack::Insert(uint64_t index, Layer* layer)
 	{
 		// Find the average priority of the 2 adjacent layers
-		gt::Uint64 lower = layers[index - 1]->priority;
-		gt::Uint64 higher = layers[index]->priority;
-		gt::Uint64 avg = (lower + higher) / 2;
+		uint64_t lower = layers[index - 1]->priority;
+		uint64_t higher = layers[index]->priority;
+		uint64_t avg = (lower + higher) / 2;
 		// Set priority to the average
 		layer->priority = avg;
 		// Insert in place
-		layers.insert(layers.begin() + index, layer);
-
+		layers.emplace(layers.begin() + index, layer);
 		layer->OnAttach();
 	}
-	Layer* LayerStack::Replace(int index, Layer* layer)
+	Layer* LayerStack::Replace(uint64_t index, Layer* layer)
 	{
-		Layer* replaced = layers[index];
+		Layer* replaced = layers[index].get();
 		layer->priority = replaced->priority;
-		layers[index] = layer;
+		layers[index].reset(layer);
 
 		layer->OnAttach();
 		replaced->OnDetach();
 
 		return replaced;
 	}
-	Layer* LayerStack::Detach(int index)
+	Layer* LayerStack::Detach(uint64_t index)
 	{
-		Layer* l = layers[index];
+		Layer* l = layers[index].get();
 		l->OnDetach();
 		layers.erase(layers.begin() + index);
 		return l;
 	}
 	void LayerStack::Init(double time)
 	{
-		for (gt::Int64 i = 0, size = layers.size(); i < size; i++)
+		for (uint64_t i = 0, size = layers.size(); i < size; i++)
 		{
 			layers[i]->OnInit();
 			layers[i]->lastCalled = time;
@@ -77,16 +76,16 @@ namespace Crescendo::Engine
 	}
 	void LayerStack::QueryForUpdate(double time)
 	{
-		for (gt::Int64 i = 0, size = layers.size(); i < size; i++)
+		for (uint64_t i = 0, size = layers.size(); i < size; i++)
 		{
 			if (layers[i]->ShouldRun(time)) {
-				layerQueue.push_back(layers[i]);
+				layerQueue.push_back(layers[i].get());
 			}
 		}
 	}
 	void LayerStack::Update(double time)
 	{
-		for (gt::Int64 i = 0, size = layerQueue.size(); i < size; i++)
+		for (uint64_t i = 0, size = layerQueue.size(); i < size; i++)
 		{
 			double dt = time - layerQueue[i]->lastCalled;
 			double callDt = layerQueue[i]->updateRate;
@@ -104,27 +103,27 @@ namespace Crescendo::Engine
 		// Clear the queue afterwards
 		layerQueue.clear();
 	}
-	void LayerStack::Swap(int first, int second)
+	void LayerStack::Swap(uint64_t first, uint64_t second)
 	{
 		// Ignore swap query if same
 		if (first != second)
 		{
 			// Store references to the layers
-			Layer* a = layers[first];
-			Layer* b = layers[second];
+			Layer* a = layers[first].get();
+			Layer* b = layers[second].get();
 			// Store their priorities
-			gt::Uint64 aPrio = a->priority;
-			gt::Uint64 bPrio = b->priority;
+			uint64_t aPrio = a->priority;
+			uint64_t bPrio = b->priority;
 			// Swap their priorities
 			b->priority = aPrio;
 			a->priority = bPrio;
 			// Swap their indexes 
-			layers[second] = a;
-			layers[first] = b;
+			layers[second].reset(a);
+			layers[first].reset(b);
 		}
 	}
-	Layer* LayerStack::Get(int index)
+	Layer* LayerStack::Get(uint64_t index)
 	{
-		return layers[index];
+		return layers[index].get();
 	}
 }

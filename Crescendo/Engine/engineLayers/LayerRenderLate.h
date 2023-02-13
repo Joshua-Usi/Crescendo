@@ -6,12 +6,12 @@
 
 namespace Crescendo::Engine {
 	// Handles updates and stuff
-	class LayerRender : public Layer {
+	class LayerRenderLate : public Layer {
 	public:
 		using Layer::Layer;
 
 		void OnUpdate(double dt) {
-			Application::Get()->GetWindow()->OnUpdate();
+			Application::Get()->GetWindow()->OnLateUpdate();
 		}
 	};
 }

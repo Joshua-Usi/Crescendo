@@ -17,18 +17,18 @@ namespace Crescendo {
 	 *	My laptop, so its not that bad
 	 */
 	namespace Random {
-		void CS_API SetSeed(gt::Int64 seed);
+		void SetSeed(int64_t seed);
 		// Returns a random integer between 0 and randMax
-		gt::Int64 CS_API Int();
+		int64_t Int();
 		// returns a random integer between min and max inclusive
-		gt::Int64 CS_API IntBetween(gt::Int64 min, gt::Int64 max);
+		int64_t IntBetween(int64_t min, int64_t max);
 		// returns a random float between 0 and 1 inclusive, somewhat similiar to javascripts random
-		float CS_API Float();
+		float Float();
 		// returns a random float between min and max inclusive
-		float CS_API FloatBetween(float min, float max);
+		float FloatBetween(float min, float max);
 		// returns a random double between 0 and 1 inclusive, somewhat similiar to javascripts random
-		double CS_API Double();
+		double Double();
 		// returns a random double between min and max inclusive
-		double CS_API DoubleBetween(double min, double max);
+		double DoubleBetween(double min, double max);
 	}
 }

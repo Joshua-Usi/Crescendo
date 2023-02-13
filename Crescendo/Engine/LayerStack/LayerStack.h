@@ -3,18 +3,25 @@
 #include "core/core.h"
 #include "Layer/Layer.h"
 
+#include <memory>
+
 namespace Crescendo::Engine
 {
 	// TODO CRESCENDO Convert to job system / multithread
-	class CS_API LayerStack
+	class LayerStack
 	{
+	private:
+		// updates in order
+		std::vector<std::unique_ptr<Layer>> layers;
+		// Holds a list of layers to be updated this frame
+		std::vector<Layer*> layerQueue;
 	public:
 		LayerStack();
 		~LayerStack();
 		/// <summary>
 		/// Get the number of layers in the stack
 		/// </summary>
-		gt::Int64 Count();
+		uint64_t Count();
 		/// <summary>
 		/// Append a new layer to the end of the stack. This layer will run last
 		/// </summary>
@@ -23,20 +30,20 @@ namespace Crescendo::Engine
 		 /// <summary>
 		 /// Insert a layer at the index (places before), note this method automatically changes the priority field to suit the layer sorting engine
 		 /// </summary>
-		void Insert(int index, Layer* layer);
+		void Insert(uint64_t index, Layer* layer);
 		/// <summary>
 		/// Replaces a layer with another, sets the layer priority field to the layer it replaces, returns the layer removed
 		/// </summary>
 		/// <param name="index">the index to replace the layer with</param>
 		/// <param name="layer">The layer to be replaced</param>
 		/// <returns>The replaced and removed layer</returns>
-		Layer* Replace(int index, Layer* layer);
+		Layer* Replace(uint64_t index, Layer* layer);
 		/// <summary>
 		/// Removes a layer from the stack
 		/// </summary>
 		/// <param name="index">The index of the to be removed layer</param>
 		/// <returns>The removed layer</returns>
-		Layer* Detach(int index);
+		Layer* Detach(uint64_t index);
 		/// <summary>
 		/// Initialise the layers and the layer manager. Usually only called once
 		/// </summary>
@@ -57,17 +64,12 @@ namespace Crescendo::Engine
 		/// </summary>
 		/// <param name="first">The index of the first layer</param>
 		/// <param name="second">The index of the second layer</param>
-		void Swap(int first, int second);
+		void Swap(uint64_t first, uint64_t second);
 		/// <summary>
 		/// Get a specific layer via index
 		/// </summary>
 		/// <param name="index">Index to get layer</param>
 		/// <returns>Layer at index</returns>
-		Layer* Get(int index);
-	private:
-		// updates in order
-		std::vector<Layer*> layers;
-		// Holds a list of layers to be updated this frame
-		std::vector<Layer*> layerQueue;
+		Layer* Get(uint64_t index);
 	};
 }

@@ -9,21 +9,21 @@ namespace Crescendo::Tools::XML
 	class AttributeContainer
 	{
 	public:
-		std::map<gt::string, gt::string> attributes;
+		std::map<const char*, const char*> attributes;
 	public:
-		gt::string GetAttribute(gt::string attributeName)
+		std::string GetAttribute(const char* attributeName)
 		{
-			return attributes[attributeName].data();
+			return attributes[attributeName];
 		}
-		void SetAttribute(gt::string attributeName, gt::string attributeValue)
+		void SetAttribute(const char* attributeName, const char* attributeValue)
 		{
 			attributes[attributeName] = attributeValue;
 		}
-		void RemoveAttribute(gt::string attributeName)
+		void RemoveAttribute(const char* attributeName)
 		{
 			attributes.erase(attributeName);
 		}
-		gt::Int64 AttributeCount()
+		uint64_t AttributeCount()
 		{
 			return attributes.size();
 		}

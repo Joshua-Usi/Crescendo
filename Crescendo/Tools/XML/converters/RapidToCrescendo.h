@@ -2,13 +2,9 @@
 
 #include "XML/XML.h"
 
-#include "console/console.h"
-
 #include "rapidxml/rapidxml.hpp"
 #include "rapidxml/rapidxml_ext.hpp"
 #include "rapidxml/rapidxml_print.hpp"
-
-#include <stack>
 
 namespace Crescendo::Tools::XML::util
 {

@@ -3,15 +3,15 @@
 #include "Layer.h"
 
 namespace Crescendo::Engine {
-	Layer::Layer(double ur, gt::Uint64 pr)
+	Layer::Layer(double ur, uint64_t pr)
 	{
-		updateRate = ur;
-		priority = pr;
-		lastCalled = 0.0;
+		this->updateRate = ur;
+		this->priority = pr;
+		this->lastCalled = 0.0;
 	}
 
 	bool Layer::ShouldRun(double time)
 	{
-		return time - lastCalled >= updateRate;
+		return time - this->lastCalled >= this->updateRate;
 	}
 }

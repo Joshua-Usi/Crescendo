@@ -2,14 +2,14 @@
 
 namespace Crescendo::Engine::FileSystem {
 	// TODO CRESCENDO Finish Sync file handling
-	void Open(std::fstream* file, std::string fileName) {
+	void Open(std::fstream* file, const char* fileName) {
 		*file = std::fstream(fileName);
 	}
 	bool IsEOF(std::fstream* file) {
 		return false;
 	}
 
-	gt::Int64 CS_API Size(std::fstream* file)
+	int64_t Size(std::fstream* file)
 	{
 		return file->tellg();
 	}
@@ -20,38 +20,40 @@ namespace Crescendo::Engine::FileSystem {
 	void ReadNextLine(std::fstream* file) {
 
 	}
-	void Read(std::fstream* file) {
+	void Read(std::fstream* file, std::string* data) {
+		std::stringstream buffer;
+		buffer << file->rdbuf();
+		*data = buffer.str();
+	}
+	void ReadCharacter(std::fstream* file, uint64_t character) {
 
 	}
-	void ReadCharacter(std::fstream* file, gt::Uint64 character) {
-
-	}
-	void ReadCharacters(std::fstream* file, gt::Uint64 begin, gt::Uint64 end) {
+	void ReadCharacters(std::fstream* file, uint64_t begin, uint64_t end) {
 
 	}
 
-	void Write(std::fstream* file, std::string data) {
+	void Write(std::fstream* file, const char* data) {
 		// get size of the file
 		file->seekg(0, file->end);
 		// supports up to 9.2 Exabyte files, more than enough for a long time
-		gt::Uint64 size = file->tellg();
+		uint64_t size = file->tellg();
 		// set write to last character, makes it append mode
 		file->seekg(size);
-		file->write(data.c_str(), data.length());
+		file->write(data, strlen(data));
 	}
-	void WriteLine(std::fstream* file, std::string data) {
+	void WriteLine(std::fstream* file, const char* data) {
 
 	}
-	void Insert(std::fstream* file, gt::Uint64 character, std::string data) {
+	void Insert(std::fstream* file, uint64_t character, const char* data) {
 
 	}
-	void InsertLine(std::fstream* file, gt::Uint64 line, std::string data) {
+	void InsertLine(std::fstream* file, uint64_t line, const char* data) {
 
 	}
-	void Overwrite(std::fstream* file, std::string data) {
+	void Overwrite(std::fstream* file, const char* data) {
 
 	}
-	void OverwriteLine(std::fstream* file, gt::Uint64 line, std::string data) {
+	void OverwriteLine(std::fstream* file, uint64_t line, const char* data) {
 
 	}
 	void Close(std::fstream* file) {

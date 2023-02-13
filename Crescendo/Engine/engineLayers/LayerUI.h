@@ -39,10 +39,10 @@ namespace Crescendo::Engine
 			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 			io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 			// Use Roboto-Medium.ttf if available, otherwise fallback to default ImGui font
-			std::string fontFile = "data/fonts/Roboto-Medium.ttf";
+			const char* fontFile = "data/fonts/Roboto-Medium.ttf";
 			if (FileSystem::Exists(fontFile))
 			{
-				io.Fonts->AddFontFromFileTTF(fontFile.c_str(), 18);
+				io.Fonts->AddFontFromFileTTF(fontFile, 18);
 			}
 			else
 			{
@@ -119,8 +119,6 @@ namespace Crescendo::Engine
 						glfwMakeContextCurrent(currentContext);
 					}
 				}
-
-				glfwSwapBuffers(&CastVoid(GLFWwindow, app->GetWindow()->GetNative()));
 			}
 		}
 	};

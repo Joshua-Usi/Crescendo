@@ -8,7 +8,7 @@ namespace Crescendo::Engine {
 	/// <summary>
 	/// Only one instance of this class should ever exist even throughout multiple windows / surfaces
 	/// </summary>
-	class CS_API Input {
+	class Input {
 	public:
 		/// <summary>
 		/// Returns true once for a given key, then never return true again until the key is released and then pressed again

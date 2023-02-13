@@ -14,31 +14,30 @@
 
 namespace Crescendo::Tools::XML
 {
-	void Parse(Document* xmlDoc, gt::string* xmlString)
+	void Parse(Document* xmlDoc, const char* xmlString)
 	{
 		rapidxml::xml_document<char>* doc = new rapidxml::xml_document<char>;
-		doc->parse<rapidxml::parse_declaration_node | rapidxml::parse_no_data_nodes>(xmlString->data());
+		doc->parse<rapidxml::parse_declaration_node | rapidxml::parse_no_data_nodes>((char*)xmlString);
 		util::RapidToCrescendo(xmlDoc, doc);
 		delete doc;
 	}
-	void ParseFromFile(Document* xmlDoc, gt::string filePath)
+	void ParseFromFile(Document* xmlDoc, const char* filePath)
 	{
-		gt::file file;
+		std::fstream file;
 		std::stringstream data;
 		// Check if file exists first
 		if (!Crescendo::Engine::FileSystem::Exists(filePath)) return;
 		Crescendo::Engine::FileSystem::Open(&file, filePath);
 		// Write data to stringstream buffer
 		data << file.rdbuf();
-		std::string d = data.str();
-		Parse(xmlDoc, &d);
+		Parse(xmlDoc, data.str().c_str());
 		Crescendo::Engine::FileSystem::Close(&file);
 	}
-	void Stringify(Document* xmlDoc, gt::string* outputString)
+	void Stringify(Document* xmlDoc, std::string* outputString)
 	{
 		rapidxml::xml_document<char>* doc = new rapidxml::xml_document<char>;
 		util::CrescendoToRapid(xmlDoc, doc);
-		rapidxml::print(std::back_inserter(*outputString), *doc, 0);
+		rapidxml::print(outputString, *doc, 0);
 		delete doc;
 	}
 }

@@ -6,7 +6,9 @@
 
 namespace Crescendo::Engine {
 	// Manages timing in any arbitrary format
-	class CS_API TimeManager {
+	class TimeManager {
+	private:
+		std::chrono::high_resolution_clock::time_point start;
 	public:
 		TimeManager();
 		~TimeManager() = default;
@@ -27,8 +29,6 @@ namespace Crescendo::Engine {
 		/// https://stackoverflow.com/a/41210880/11098922
 		/// </summary>
 		void Rebase();
-	private:
-		std::chrono::high_resolution_clock::time_point start;
 	};
 }
 

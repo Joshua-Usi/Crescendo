@@ -14,8 +14,8 @@ namespace Crescendo::Tools::XML
 	public:
 		std::vector<std::unique_ptr<Node>> children;
 		Node* parent;
-		gt::string tag;
-		gt::string innerText;
+		std::string tag;
+		std::string innerText;
 	public:
 		// RapidXML like syntax
 		Node* _first_node()
@@ -89,7 +89,7 @@ namespace Crescendo::Tools::XML
 		/// Returns the number of child nodes the current node has
 		/// </summary>
 		/// <returns>The number of child nodes as an integer</returns>
-		gt::Uint64 GetChildCount()
+		uint64_t GetChildCount()
 		{
 			return children.size();
 		}
@@ -133,7 +133,7 @@ namespace Crescendo::Tools::XML
 		/// Gets the tag name of the node
 		/// </summary>
 		/// <returns>Tag name of the node</returns>
-		gt::string GetTagName()
+		std::string GetTagName()
 		{
 			return tag;
 		}
@@ -141,7 +141,7 @@ namespace Crescendo::Tools::XML
 		/// Gets the text content of the node
 		/// </summary>
 		/// <returns>Text content of the node</returns>
-		gt::string GetTextContent()
+		std::string GetTextContent()
 		{
 			return innerText;
 		}

@@ -3,6 +3,7 @@
 #include "engineLayers/LayerUpdate.h"
 #include "engineLayers/LayerRender.h"
 #include "engineLayers/LayerUI.h"
+#include "engineLayers/LayerRenderLate.h"
 
 namespace Crescendo
 {
@@ -13,46 +14,43 @@ namespace Crescendo
 		{
 			window = Window::Create();
 
-			self = this;
+			CS_ASSERT(self == nullptr, "Application instance already exists!");
+			this->self = this;
 
 			// 60Hz updates
-			Layer* update = new LayerUpdate(1.0 / 60.0, 0);
-			layerManager.Attach(update);
+			//this->layerManager.Attach(new LayerUpdate(1.0 / 60.0, 0));
 
-			gt::Int32 refreshRate = window->GetRefreshRate();
+			uint32_t refreshRate = this->window->GetRefreshRate();
 			double secondsPerFrame = (refreshRate == 0) ? 0 : 1.0 / double(refreshRate);
+			Console::EngineLog("Running at {}fps", refreshRate);
 
 			// At refresh rate speeds
-			Layer* render = new LayerRender(secondsPerFrame * 0, 1000);
-			layerManager.Attach(render);
+			this->layerManager.Attach(new LayerRender(secondsPerFrame, 1000));
+			this->layerManager.Attach(new LayerUpdate(secondsPerFrame, 2000));
+			this->layerManager.Attach(new LayerUI(secondsPerFrame, 3000));
+			this->layerManager.Attach(new LayerRenderLate(secondsPerFrame, 4000));
 
-			Layer* render2 = new LayerUI(secondsPerFrame * 0, 2000);
-			layerManager.Attach(render2);
-
-			layerManager.Init(timeManager.GetTimeSinceStart<double>());
+			// Initialise layers at current time
+			this->layerManager.Init(this->timeManager.GetTimeSinceStart<double>());
 		}
 		Application::~Application()
 		{
-			// Delete layers in the order they were added, though its not a
-			// very performant algorithm, its fine for this case
-			while (layerManager.Count() > 1) {
-				delete layerManager.Detach(0);
-			}
+
 		}
 		void Application::Run()
 		{
-			OnStartup();
-			while (IsRunning())
+			this->OnStartup();
+			while (this->IsRunning())
 			{
-				double time = timeManager.GetTimeSinceStart<double>();
-				layerManager.QueryForUpdate(time);
-				layerManager.Update(time);
+				double time = this->timeManager.GetTimeSinceStart<double>();
+				this->layerManager.QueryForUpdate(time);
+				this->layerManager.Update(time);
 			}
-			OnExit();
+			this->OnExit();
 		}
 		bool Application::IsRunning()
 		{
-			return GetWindow()->IsOpen();
+			return this->GetWindow()->IsOpen();
 		}
 		void Application::OnStartup()
 		{
@@ -60,11 +58,11 @@ namespace Crescendo
 		}
 		void Application::OnUpdate()
 		{
-			
+
 		}
 		void Application::OnExit()
 		{
-			
+			glfwTerminate();
 		}
 		Application* Application::Get()
 		{
@@ -72,10 +70,10 @@ namespace Crescendo
 		}
 		double Application::GetTime()
 		{
-			return timeManager.GetTimeSinceStart<double>();
+			return this->timeManager.GetTimeSinceStart<double>();
 		}
 		Window* Application::GetWindow() {
-			return window;
+			return this->window;
 		}
 	}
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string>
 #include <fstream>
 #include <filesystem>
 
@@ -10,41 +9,37 @@
 // NOTE ALL OPERATIONS ARE NONREVERSIBLE
 namespace Crescendo::Engine::FileSystem {
 	// Opens a file for read-write IO
-	void CS_API Open(std::fstream* file, std::string fileName);
+	void Open(std::fstream* file, const char* fileName);
 	// Determines if the end of a file has been reached
-	bool CS_API IsEOF(std::fstream* file);
+	bool IsEOF(std::fstream* file);
 	/// <summary>
 	/// Determines the size of a file in bytes
 	/// </summary>
 	/// <param name="file">File reference</param>
 	/// <returns>Size of file in bytes</returns>
-	gt::Int64 CS_API Size(std::fstream* file);
+	int64_t Size(std::fstream* file);
 
 	// Read Methods
 	// Read the next character in the file
-	void CS_API ReadNextCharacter(std::fstream* file);
+	void ReadNextCharacter(std::fstream* file);
 	// Read the next whole line in the file, returns 
-	void CS_API ReadNextLine(std::fstream* file);
+	void ReadNextLine(std::fstream* file);
 	// Reads the entire file
-	void CS_API Read(std::fstream* file);
+	void Read(std::fstream* file, std::string* data);
 	// Read a specific character from the file
-	void CS_API ReadCharacter(std::fstream*, gt::Uint64 character);
+	void ReadCharacter(std::fstream*, uint64_t character);
 	// Read a specific set of characters from the file
-	void CS_API ReadCharacters(std::fstream*, gt::Uint64 begin, gt::Uint64 end);
+	void ReadCharacters(std::fstream*, uint64_t begin, uint64_t end);
 
 	// Write Methods
 	// Appends and writes data to a file
-	void CS_API Write(std::fstream* file, std::string data);
+	void Write(std::fstream* file, const char* data);
 	// Appends and writes data to a file, then adds a line break character
-	void CS_API WriteLine(std::fstream* file, std::string data);
+	void WriteLine(std::fstream* file, const char* data);
 	// Inserts a string of characters after a given character
-	void CS_API Insert(std::fstream* file, gt::Uint64 character, std::string data);
+	void Insert(std::fstream* file, uint64_t character, const char* data);
 	// Inserts a line after a given line in the file
-	void CS_API InsertLine(std::fstream* file, gt::Uint64 line, std::string data);
-	// writes over the data of the file
-	void CS_API Overwrite(std::fstream* file, std::string data);
-	// writes over a specific line in the file
-	void CS_API OverwriteLine(std::fstream* file, gt::Uint64 line, std::string data);
+	void InsertLine(std::fstream* file, uint64_t line, const char* data);
 	// closes a file, recommended once you are done with it
-	void CS_API Close(std::fstream* file);
+	void Close(std::fstream* file);
 }

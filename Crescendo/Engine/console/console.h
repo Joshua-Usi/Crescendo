@@ -6,7 +6,6 @@
 #include <format>
 
 #include "core/core.h"
-#include "filesystem/synchronous/syncFiles.h"
 
 /* I love this macro */
 #ifndef CS_PROD
@@ -37,17 +36,17 @@ namespace Crescendo::Engine::Console
 {
 	enum class Severity { Debug, Info, Log, Warn, Error, Critical };
 
-	extern CS_API std::mutex threadMutex;
+	extern std::mutex threadMutex;
 
-	extern CS_API Severity minimumSeverity;
+	extern Severity minimumSeverity;
 
-	extern CS_API bool printSeverity;
-	extern CS_API bool printTimestamp;
-	extern CS_API bool printTrace;
+	extern bool printSeverity;
+	extern bool printTimestamp;
+	extern bool printTrace;
 
-	extern CS_API bool isLoggingToFile;
-	extern CS_API std::string logFileName;
-	extern CS_API std::stringstream logFileBuffer;
+	extern bool isLoggingToFile;
+	extern std::string logFileName;
+	extern std::stringstream logFileBuffer;
 
 	/// <summary>
 	/// Allows for users to write custom logs
@@ -59,14 +58,14 @@ namespace Crescendo::Engine::Console
 	template<typename... Args>
 	void _UnclassifiedLog(std::string owner, std::string severity, std::string message, Args... args)
 	{
-		#ifndef CS_DISABLE_THREAD_SAFE_LOGGING
-			std::scoped_lock lock(threadMutex);
-		#endif
+#ifndef CS_DISABLE_THREAD_SAFE_LOGGING
+		std::scoped_lock lock(threadMutex);
+#endif
 		std::stringstream ss;
 		ss << owner.c_str();
 		if (printTimestamp)
 		{
-			gt::Int64 time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+			int64_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 			// %T is the format hh:mm:ss
 			ss << "[" << std::put_time(std::localtime(&time), "%T") << "] ";
 		}
@@ -117,30 +116,30 @@ namespace Crescendo::Engine::Console
 	/// starts logging to a file; the file name will be <name><time>.log, Time being the date the file is saved
 	/// </summary>
 	/// <param name="name">Name of the log file</param>
-	void CS_API BeginFileLog(std::string name);
+	void BeginFileLog(const char* name);
 	/// <summary>
 	/// Writes pending the file log to file
 	/// </summary>
-	void CS_API EndFileLog();
+	void EndFileLog();
 
 	/// <summary>
 	/// Only shows console calls for the given minimum or higher
 	/// </summary>
 	/// <param name="severity">Minimum severity to display</param>
-	void CS_API SetMinimumSeverity(Severity severity);
+	void SetMinimumSeverity(Severity severity);
 
 	/// <summary>
 	/// Toggles whether or not to shows the severities of console messages
 	/// </summary>
-	void CS_API ShowSeverities(bool enabled);
+	void ShowSeverities(bool enabled);
 	/// <summary>
 	/// Toggles whether or not to show timestamps for console messages
 	/// </summary>
-	void CS_API ShowTimestamps(bool enabled);
+	void ShowTimestamps(bool enabled);
 	/// <summary>
 	/// Toggles whether or not to show traces (file name and line)
 	/// </summary>
-	void CS_API ShowTraces(bool enabled);
+	void ShowTraces(bool enabled);
 
 	/// <summary>
 	/// Pauses the console and waits for user to type input
@@ -148,8 +147,8 @@ namespace Crescendo::Engine::Console
 	/// <typeparam name="return_type">Customisable return type</typeparam>
 	/// <param name="message">The message to ask the user</param>
 	/// <returns>A const char* reference to response</returns>
-	template <typename return_type = std::string*>
-	void Ask(return_type output, std::string message)
+	template <typename return_type>
+	void Ask(return_type output, const char* message)
 	{
 		std::cout << message;
 		std::cin >> output;

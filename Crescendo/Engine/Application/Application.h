@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/core.h"
+
 #include "TimeManager/TimeManager.h"
 #include "LayerStack/LayerStack.h"
 #include "interfaces/Window.h"
@@ -9,8 +10,15 @@ namespace Crescendo
 {
 	namespace Engine
 	{
-		class CS_API Application
+		class Application
 		{
+		private:
+			LayerStack layerManager;
+			TimeManager timeManager;
+
+			Window* window;
+
+			static Application* self;
 		public:
 			Application();
 			virtual ~Application();
@@ -52,13 +60,6 @@ namespace Crescendo
 			/// </summary>
 			/// <returns>reference to the current application</returns>
 			static Application* Get();
-		private:
-			LayerStack layerManager;
-			TimeManager timeManager;
-
-			Window* window;
-
-			static Application* self;
 		};
 
 		/// <summary>
