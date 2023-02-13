@@ -19,6 +19,7 @@ engine_dirs = {
 	"%{wks.location}/Crescendo",
 	"%{wks.location}/Crescendo/Editor",
 	"%{wks.location}/Crescendo/Engine",
+	"%{wks.location}/Crescendo/Rendering",
 	"%{wks.location}/Crescendo/Tools",
 	"%{wks.location}/Crescendo/Utils",
 	"%{wks.location}/Crescendo/ThirdParty",

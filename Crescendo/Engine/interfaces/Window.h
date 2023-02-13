@@ -2,16 +2,20 @@
 
 #include "core/core.h"
 
+#include "GraphicsAPI.h"
+
 namespace Crescendo::Engine {
 	struct WindowProps {
+		Rendering::GraphicsAPI graphicsAPI;
 		int32_t width;
 		int32_t height;
 		const char* title;
 
-		WindowProps(const char* windowTitle = "Crescendo", int32_t windowWidth = 1280, int32_t windowHeight = 720) {
-			title = windowTitle;
-			width = windowWidth;
-			height = windowHeight;
+		WindowProps(const char* windowTitle = "Crescendo", int32_t windowWidth = 1280, int32_t windowHeight = 720, Rendering::GraphicsAPI windowGraphicsAPI = Rendering::GraphicsAPI::OpenGL) {
+			this->graphicsAPI = windowGraphicsAPI;
+			this->title = windowTitle;
+			this->width = windowWidth;
+			this->height = windowHeight;
 		}
 	};
 	/// <summary>

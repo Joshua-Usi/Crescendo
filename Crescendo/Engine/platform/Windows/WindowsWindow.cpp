@@ -5,6 +5,8 @@
 #include "console/console.h"
 #include "glad/glad.h"
 
+#include "Renderer.h"
+
 namespace Crescendo::Engine
 {
 	static bool IsGLFWInitialised = false;
@@ -49,10 +51,11 @@ namespace Crescendo::Engine
 
 		this->window = glfwCreateWindow(this->data.width, this->data.height, this->data.title, NULL, NULL);
 
-		Rendering::GraphicsContext::UseAPI(Rendering::GraphicsAPI::OpenGL);
+		// Set API
+		Rendering::Renderer::SetAPI(Rendering::GraphicsAPI::OpenGL);
 
 
-		this->context = Rendering::GraphicsContext::Create(this->window);
+		this->context.reset(Rendering::GraphicsContext::Create(this->window));
 		this->context->Init();
 
 		glfwSetWindowUserPointer(this->window, &this->data);
@@ -66,11 +69,11 @@ namespace Crescendo::Engine
 		this->SetVSync(false);
 
 		// Vertex Array
-		glGenVertexArrays(1, &this->vertexArray);
-		glBindVertexArray(this->vertexArray);
+		this->vertexArray.reset(Rendering::VertexAttributeObject::Create());
+		this->vertexArray->Bind();
 		// Vertex Buffer
-		glGenBuffers(1, &this->vertexBuffer);
-		glBindBuffer(GL_ARRAY_BUFFER, this->vertexBuffer);
+		this->vertexBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::ArrayBuffer));
+		this->vertexBuffer->Bind();
 
 		float vertices[] = {
 			-0.5f, -0.5f, 0.0f,
@@ -78,13 +81,12 @@ namespace Crescendo::Engine
 			 0.0f,  0.5f, 0.0f,
 		};
 
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(0);
-		// Vertex Buffer
-		glGenBuffers(1, &this->colorBuffer);
-		glBindBuffer(GL_ARRAY_BUFFER, this->colorBuffer);
+		this->vertexBuffer->SetData(vertices, sizeof(vertices));
+		this->vertexArray->SetAttributePointer(0, 3, sizeof(float));
+		this->vertexArray->EnableAttribute(0);
+		// Color Buffer
+		this->colorBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::ArrayBuffer));
+		this->colorBuffer->Bind();
 
 		float colors[] = {
 			1.0f, 0.0f, 0.0f,
@@ -92,23 +94,22 @@ namespace Crescendo::Engine
 			0.0f, 0.0f, 1.0f,
 		};
 
-		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+		this->colorBuffer->SetData(colors, sizeof(colors));
 
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
+		this->vertexArray->SetAttributePointer(1, 3, sizeof(float));
+		this->vertexArray->EnableAttribute(1);
 
-		glBindVertexArray(0);
+		this->vertexArray->Unbind();
 
 		// Index Buffer
-		glGenBuffers(1, &this->indexBuffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->indexBuffer);
+		this->indexBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::ElementArrayBuffer));
+		this->indexBuffer->Bind();
 
 		unsigned int indices[] = { 0, 1, 2 };
 
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+		this->indexBuffer->SetData(indices, sizeof(indices));
 
-
-		this->shaderProgram = Rendering::ShaderProgram::Create();
+		this->shaderProgram.reset(Rendering::ShaderProgram::Create());
 
 		std::fstream shader;
 		std::string shaderSource;
@@ -129,10 +130,6 @@ namespace Crescendo::Engine
 	}
 	void WindowsWindow::Shutdown()
 	{
-		glDeleteVertexArrays(1, &this->vertexArray);
-		glDeleteBuffers(1, &this->vertexBuffer);
-		glDeleteBuffers(1, &this->indexBuffer);
-		glDeleteBuffers(1, &this->colorBuffer);
 
 		this->data.isOpen = false;
 		glfwDestroyWindow(this->window);
@@ -146,8 +143,8 @@ namespace Crescendo::Engine
 			glfwPollEvents();
 
 			this->shaderProgram->Bind();
-			glBindVertexArray(this->vertexArray);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->indexBuffer);
+			this->vertexArray->Bind();
+			this->indexBuffer->Bind();
 			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 		}
 	}
