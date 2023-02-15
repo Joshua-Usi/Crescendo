@@ -9,6 +9,7 @@ namespace Crescendo::Rendering
 {
 	OpenGLBufferObject::OpenGLBufferObject(BufferType bufferType)
 	{
+		count = 0;
 		type = bufferType;
 		glGenBuffers(1, &this->bufferID);
 	}
@@ -16,15 +17,16 @@ namespace Crescendo::Rendering
 	{
 		glDeleteBuffers(1, &this->bufferID);
 	}
-	void OpenGLBufferObject::SetData(void* pointer, uint64_t size)
+	void OpenGLBufferObject::SetData(void* pointer, uint32_t count)
 	{
+		this->count = count;
 		switch (type)
 		{
-		case BufferType::ArrayBuffer:
-			glBufferData(GL_ARRAY_BUFFER, size, pointer, GL_STATIC_DRAW);
+		case BufferType::Vertex:
+			glBufferData(GL_ARRAY_BUFFER, sizeof(float) * count, pointer, GL_STATIC_DRAW);
 			break;
-		case BufferType::ElementArrayBuffer:
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, pointer, GL_STATIC_DRAW);
+		case BufferType::Index:
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * count, pointer, GL_STATIC_DRAW);
 			break;
 		}
 	}
@@ -32,10 +34,10 @@ namespace Crescendo::Rendering
 	{
 		switch (type)
 		{
-		case BufferType::ArrayBuffer:
+		case BufferType::Vertex:
 			glBindBuffer(GL_ARRAY_BUFFER, this->bufferID);
 			break;
-		case BufferType::ElementArrayBuffer:
+		case BufferType::Index:
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->bufferID);
 			break;
 		}
@@ -43,5 +45,9 @@ namespace Crescendo::Rendering
 	void OpenGLBufferObject::Unbind()
 	{
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+	uint32_t OpenGLBufferObject::GetCount()
+	{
+		return this->count;
 	}
 }

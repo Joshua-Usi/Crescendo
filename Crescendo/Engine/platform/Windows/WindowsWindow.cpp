@@ -72,7 +72,7 @@ namespace Crescendo::Engine
 		this->vertexArray.reset(Rendering::VertexAttributeObject::Create());
 		this->vertexArray->Bind();
 		// Vertex Buffer
-		this->vertexBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::ArrayBuffer));
+		this->vertexBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::Vertex));
 		this->vertexBuffer->Bind();
 
 		float vertices[] = {
@@ -81,11 +81,11 @@ namespace Crescendo::Engine
 			 0.0f,  0.5f, 0.0f,
 		};
 
-		this->vertexBuffer->SetData(vertices, sizeof(vertices));
+		this->vertexBuffer->SetData(vertices, 9);
 		this->vertexArray->SetAttributePointer(0, 3, sizeof(float));
 		this->vertexArray->EnableAttribute(0);
 		// Color Buffer
-		this->colorBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::ArrayBuffer));
+		this->colorBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::Vertex));
 		this->colorBuffer->Bind();
 
 		float colors[] = {
@@ -94,7 +94,7 @@ namespace Crescendo::Engine
 			0.0f, 0.0f, 1.0f,
 		};
 
-		this->colorBuffer->SetData(colors, sizeof(colors));
+		this->colorBuffer->SetData(colors, 9);
 
 		this->vertexArray->SetAttributePointer(1, 3, sizeof(float));
 		this->vertexArray->EnableAttribute(1);
@@ -102,12 +102,12 @@ namespace Crescendo::Engine
 		this->vertexArray->Unbind();
 
 		// Index Buffer
-		this->indexBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::ElementArrayBuffer));
+		this->indexBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::Index));
 		this->indexBuffer->Bind();
 
 		unsigned int indices[] = { 0, 1, 2 };
 
-		this->indexBuffer->SetData(indices, sizeof(indices));
+		this->indexBuffer->SetData(indices, 3);
 
 		this->shaderProgram.reset(Rendering::ShaderProgram::Create());
 
@@ -145,7 +145,7 @@ namespace Crescendo::Engine
 			this->shaderProgram->Bind();
 			this->vertexArray->Bind();
 			this->indexBuffer->Bind();
-			glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+			glDrawElements(GL_TRIANGLES, this->indexBuffer->GetCount(), GL_UNSIGNED_INT, 0);
 		}
 	}
 	void WindowsWindow::OnLateUpdate()
