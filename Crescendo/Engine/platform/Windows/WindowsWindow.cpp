@@ -51,13 +51,6 @@ namespace Crescendo::Engine
 
 		this->window = glfwCreateWindow(this->data.width, this->data.height, this->data.title, NULL, NULL);
 
-		// Set API
-		Rendering::Renderer::SetAPI(Rendering::GraphicsAPI::OpenGL);
-
-
-		this->context.reset(Rendering::GraphicsContext::Create(this->window));
-		this->context->Init();
-
 		glfwSetWindowUserPointer(this->window, &this->data);
 
 		glfwSetWindowCloseCallback(this->window, [](GLFWwindow* window)
@@ -68,6 +61,12 @@ namespace Crescendo::Engine
 
 		this->SetVSync(false);
 
+		// Set API
+		Rendering::Renderer::SetAPI(Rendering::GraphicsAPI::OpenGL);
+
+		this->context.reset(Rendering::GraphicsContext::Create(this->window));
+		this->context->Init();
+
 		// Vertex Array
 		this->vertexArray.reset(Rendering::VertexAttributeObject::Create());
 		this->vertexArray->Bind();
@@ -75,26 +74,26 @@ namespace Crescendo::Engine
 		this->vertexBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::Vertex));
 		this->vertexBuffer->Bind();
 
-		float vertices[] = {
+		std::vector<float> vertices = {
 			-0.5f, -0.5f, 0.0f,
 			 0.5f, -0.5f, 0.0f,
 			 0.0f,  0.5f, 0.0f,
 		};
 
-		this->vertexBuffer->SetData(vertices, 9);
+		this->vertexBuffer->SetData(vertices.data(), vertices.size());
 		this->vertexArray->SetAttributePointer(0, 3, sizeof(float));
 		this->vertexArray->EnableAttribute(0);
 		// Color Buffer
 		this->colorBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::Vertex));
 		this->colorBuffer->Bind();
 
-		float colors[] = {
+		std::vector<float> colors = {
 			1.0f, 0.0f, 0.0f,
 			0.0f, 1.0f, 0.0f,
 			0.0f, 0.0f, 1.0f,
 		};
 
-		this->colorBuffer->SetData(colors, 9);
+		this->colorBuffer->SetData(colors.data(), colors.size());
 
 		this->vertexArray->SetAttributePointer(1, 3, sizeof(float));
 		this->vertexArray->EnableAttribute(1);
@@ -105,9 +104,9 @@ namespace Crescendo::Engine
 		this->indexBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::Index));
 		this->indexBuffer->Bind();
 
-		unsigned int indices[] = { 0, 1, 2 };
+		std::vector<unsigned int> indices = { 0, 1, 2 };
 
-		this->indexBuffer->SetData(indices, 3);
+		this->indexBuffer->SetData(indices.data(), indices.size());
 
 		this->shaderProgram.reset(Rendering::ShaderProgram::Create());
 
@@ -117,7 +116,7 @@ namespace Crescendo::Engine
 		FileSystem::Open(&shader, "../Crescendo/Rendering/shaders/base.vert");
 		FileSystem::Read(&shader, &shaderSource);
 		this->shaderProgram->AttachShader(Rendering::ShaderType::Vertex, shaderSource.c_str());
-		// FragmentShader
+		// Fragment Shader
 		FileSystem::Open(&shader, "../Crescendo/Rendering/shaders/base.frag");
 		FileSystem::Read(&shader, &shaderSource);
 		this->shaderProgram->AttachShader(Rendering::ShaderType::Fragment, shaderSource.c_str());
