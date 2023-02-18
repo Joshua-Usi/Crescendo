@@ -4,7 +4,7 @@
 #include "interfaces/GraphicsContext.h"
 #include "interfaces/ShaderProgram.h"
 #include "interfaces/Buffers.h"
-//#include "interfaces/VertexAttributeObject.h"
+#include "interfaces/VertexArray.h"
 
 #include "GLFW/glfw3.h"
 
@@ -22,12 +22,9 @@ namespace Crescendo::Engine
 		std::unique_ptr<Rendering::GraphicsContext> context;
 		std::unique_ptr<Rendering::ShaderProgram> shaderProgram;
 
-		//std::unique_ptr<Rendering::VertexAttributeObject> vertexArray;
-		unsigned int vertexArray;
-
-		std::unique_ptr<Rendering::VertexBuffer> vertexBuffer;
-		std::unique_ptr<Rendering::VertexBuffer> colorBuffer;
-		std::unique_ptr<Rendering::IndexBuffer> indexBuffer;
+		std::shared_ptr<Rendering::VertexArray> vertexArray;
+		std::shared_ptr<Rendering::VertexBuffer> vertexBuffer;
+		std::shared_ptr<Rendering::IndexBuffer> indexBuffer;
 
 		struct WindowData
 		{

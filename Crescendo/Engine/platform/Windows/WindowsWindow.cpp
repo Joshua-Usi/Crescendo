@@ -9,33 +9,6 @@
 
 namespace Crescendo::Engine
 {
-	static GLenum ShaderDataTypeToOpenGLBaseType(Rendering::ShaderDataType type)
-	{
-		switch (type) {
-		case Rendering::ShaderDataType::Bool: return GL_BOOL;
-
-		case Rendering::ShaderDataType::Int: return GL_INT;
-		case Rendering::ShaderDataType::Int2: return GL_INT;
-		case Rendering::ShaderDataType::Int3: return GL_INT;
-		case Rendering::ShaderDataType::Int4: return GL_INT;
-
-		case Rendering::ShaderDataType::Float: return GL_FLOAT;
-		case Rendering::ShaderDataType::Float2: return GL_FLOAT;
-		case Rendering::ShaderDataType::Float3: return GL_FLOAT;
-		case Rendering::ShaderDataType::Float4: return GL_FLOAT;
-
-		case Rendering::ShaderDataType::Double: return GL_DOUBLE;
-		case Rendering::ShaderDataType::Double2: return GL_DOUBLE;
-		case Rendering::ShaderDataType::Double3: return GL_DOUBLE;
-		case Rendering::ShaderDataType::Double4: return GL_DOUBLE;
-
-		case Rendering::ShaderDataType::Mat3: return GL_FLOAT;
-		case Rendering::ShaderDataType::Mat4: return GL_FLOAT;
-		}
-
-		CS_ASSERT(false, "Unknown ShaderDataType");
-		return 0;
-	}
 	static bool IsGLFWInitialised = false;
 	Window* Window::Create(const WindowProps& props)
 	{
@@ -95,8 +68,8 @@ namespace Crescendo::Engine
 		this->SetVSync(false);
 
 		// Vertex Array
-		glGenVertexArrays(1, &this->vertexArray);
-		glBindVertexArray(this->vertexArray);
+		this->vertexArray.reset(Rendering::VertexArray::Create());
+
 		// Vertex Buffer
 		std::vector<float> vertices = {
 			-0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
@@ -110,23 +83,13 @@ namespace Crescendo::Engine
 		};
 		this->vertexBuffer->SetLayout(layout);
 
-		uint32_t index = 0;
-		for (const auto& element : layout)
-		{
-			glEnableVertexAttribArray(index);
-			glVertexAttribPointer(
-				index,
-				element.GetComponentCount(),
-				ShaderDataTypeToOpenGLBaseType(element.type),
-				element.normalized ? GL_TRUE : GL_FALSE,
-				layout.GetStride(),
-				(const void*)element.offset);
-			index++; 
-		}
-		glBindVertexArray(0);
+		this->vertexArray->AddVertexBuffer(this->vertexBuffer);
 		// Index Buffer
 		std::vector<unsigned int> indices = { 0, 1, 2 };
 		this->indexBuffer.reset(Rendering::IndexBuffer::Create(indices.data(), indices.size()));
+
+		this->vertexArray->SetIndexBuffer(this->indexBuffer);
+
 		this->shaderProgram.reset(Rendering::ShaderProgram::Create());
 		std::fstream shader;
 		std::string shaderSource;
@@ -160,7 +123,7 @@ namespace Crescendo::Engine
 			glfwPollEvents();
 
 			this->shaderProgram->Bind();
-			glBindVertexArray(this->vertexArray);
+			this->vertexArray->Bind();
 			this->indexBuffer->Bind();
 			glDrawElements(GL_TRIANGLES, this->indexBuffer->GetCount(), GL_UNSIGNED_INT, 0);
 		}

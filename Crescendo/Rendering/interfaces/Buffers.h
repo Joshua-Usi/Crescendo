@@ -87,8 +87,6 @@ namespace Crescendo::Rendering
 			CS_ASSERT(false, "Unknown ShaderDataType");
 			return 0;
 		}
-
-
 	};
 	class BufferLayout
 	{
@@ -111,6 +109,8 @@ namespace Crescendo::Rendering
 
 		std::vector<BufferElement>::iterator begin() { return this->elements.begin(); }
 		std::vector<BufferElement>::iterator end() { return this->elements.end(); }
+		std::vector<BufferElement>::const_iterator begin() const { return this->elements.begin(); }
+		std::vector<BufferElement>::const_iterator end() const { return this->elements.end(); }
 
 	};
 	class VertexBuffer

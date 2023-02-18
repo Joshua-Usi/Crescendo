@@ -1,16 +1,16 @@
-#include "VertexAttributeObject.h"
+#include "VertexArray.h"
 
-#include "platform/OpenGL/OpenGLVertexAttributeObject.h"
+#include "platform/OpenGL/OpenGLVertexArray.h"
 #include "Renderer.h"
 
 namespace Crescendo::Rendering
 {
-	VertexAttributeObject* VertexAttributeObject::Create()
+	VertexArray* VertexArray::Create()
 	{
 		switch (Renderer::GetAPI())
 		{
 		case GraphicsAPI::None: CS_ASSERT(false, "GraphicsAPI::None is currently not supported!"); return nullptr;
-		case GraphicsAPI::OpenGL: return new OpenGLVertexAttributeObject();
+		case GraphicsAPI::OpenGL: return new OpenGLVertexArray();
 		default: throw "Invalid Graphics API";
 		}
 	}
