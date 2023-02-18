@@ -59,13 +59,13 @@ namespace Crescendo::Engine
 			windowPointer.windowPointer->Shutdown();
 		});
 
-		this->SetVSync(false);
-
 		// Set API
 		Rendering::Renderer::SetAPI(Rendering::GraphicsAPI::OpenGL);
 
 		this->context.reset(Rendering::GraphicsContext::Create(this->window));
 		this->context->Init();
+
+		this->SetVSync(false);
 
 		// Vertex Array
 		this->vertexArray.reset(Rendering::VertexAttributeObject::Create());
@@ -82,20 +82,27 @@ namespace Crescendo::Engine
 
 		this->vertexBuffer->SetData(vertices.data(), vertices.size());
 		this->vertexArray->SetAttributePointer(0, 3, sizeof(float));
+
+		Rendering::BufferLayout layout = {
+			{Rendering::ShaderDataType::Float3, "aPosition"},
+		};
+
+		/*this->vertexBuffer->SetLayout(layout);*/
+
 		this->vertexArray->EnableAttribute(0);
 		// Color Buffer
 		this->colorBuffer.reset(Rendering::BufferObject::Create(Rendering::BufferType::Vertex));
 		this->colorBuffer->Bind();
 
 		std::vector<float> colors = {
-			1.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 1.0f,
+			1.0f, 0.0f, 0.0f, 1.0f,
+			0.0f, 1.0f, 0.0f, 1.0f,
+			0.0f, 0.0f, 1.0f, 1.0f,
 		};
 
 		this->colorBuffer->SetData(colors.data(), colors.size());
 
-		this->vertexArray->SetAttributePointer(1, 3, sizeof(float));
+		this->vertexArray->SetAttributePointer(1, 4, sizeof(float));
 		this->vertexArray->EnableAttribute(1);
 
 		this->vertexArray->Unbind();
