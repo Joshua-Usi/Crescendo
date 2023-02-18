@@ -22,9 +22,8 @@ namespace Crescendo::Engine
 		std::unique_ptr<Rendering::GraphicsContext> context;
 		std::unique_ptr<Rendering::ShaderProgram> shaderProgram;
 
-		std::shared_ptr<Rendering::VertexArray> vertexArray;
-		std::shared_ptr<Rendering::VertexBuffer> vertexBuffer;
-		std::shared_ptr<Rendering::IndexBuffer> indexBuffer;
+		std::shared_ptr<Rendering::VertexArray> triangleVertexArray;
+		std::shared_ptr<Rendering::VertexArray> squareVertexArray;
 
 		struct WindowData
 		{

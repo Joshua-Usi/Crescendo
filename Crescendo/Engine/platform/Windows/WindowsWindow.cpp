@@ -68,27 +68,54 @@ namespace Crescendo::Engine
 		this->SetVSync(false);
 
 		// Vertex Array
-		this->vertexArray.reset(Rendering::VertexArray::Create());
+		this->triangleVertexArray.reset(Rendering::VertexArray::Create());
 
 		// Vertex Buffer
-		std::vector<float> vertices = {
+		std::vector<float> triangleVertices = {
 			-0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
 			 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
 			 0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
 		};
-		this->vertexBuffer.reset(Rendering::VertexBuffer::Create(vertices.data(), vertices.size()));
-		Rendering::BufferLayout layout = {
+		std::shared_ptr<Rendering::VertexBuffer> triangleVertexBuffer;
+		triangleVertexBuffer.reset(Rendering::VertexBuffer::Create(triangleVertices.data(), triangleVertices.size()));
+		triangleVertexBuffer->SetLayout({
 			{Rendering::ShaderDataType::Float3, "aPosition"},
 			{Rendering::ShaderDataType::Float4, "aColor"},
-		};
-		this->vertexBuffer->SetLayout(layout);
+		});
 
-		this->vertexArray->AddVertexBuffer(this->vertexBuffer);
+		this->triangleVertexArray->AddVertexBuffer(triangleVertexBuffer);
 		// Index Buffer
-		std::vector<unsigned int> indices = { 0, 1, 2 };
-		this->indexBuffer.reset(Rendering::IndexBuffer::Create(indices.data(), indices.size()));
+		std::vector<unsigned int> triangleIndices = { 0, 1, 2 };
+		std::shared_ptr<Rendering::IndexBuffer> triangleIndexBuffer;
+		triangleIndexBuffer.reset(Rendering::IndexBuffer::Create(triangleIndices.data(), triangleIndices.size()));
 
-		this->vertexArray->SetIndexBuffer(this->indexBuffer);
+		this->triangleVertexArray->SetIndexBuffer(triangleIndexBuffer);
+
+		this->squareVertexArray.reset(Rendering::VertexArray::Create());
+
+		std::vector<float> squareVertices = {
+			-0.75f, -0.75f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+			 0.75f, -0.75f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+			 0.75f,  0.75f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+			-0.75f,  0.75f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+		};
+
+		std::shared_ptr<Rendering::VertexBuffer> squareVertexBuffer;
+		squareVertexBuffer.reset(Rendering::VertexBuffer::Create(squareVertices.data(), squareVertices.size()));
+		squareVertexBuffer->SetLayout({
+			{Rendering::ShaderDataType::Float3, "aPosition"},
+			{Rendering::ShaderDataType::Float4, "aColor"},
+		});
+
+		this->squareVertexArray->AddVertexBuffer(squareVertexBuffer);
+
+		std::vector<uint32_t> squareIndices = {
+			0, 1, 2, 2, 3, 0,
+		};
+		std::shared_ptr<Rendering::IndexBuffer> squareIndexBuffer;
+		squareIndexBuffer.reset(Rendering::IndexBuffer::Create(squareIndices.data(), squareIndices.size()));
+		this->squareVertexArray->SetIndexBuffer(squareIndexBuffer);
+
 
 		this->shaderProgram.reset(Rendering::ShaderProgram::Create());
 		std::fstream shader;
@@ -123,9 +150,12 @@ namespace Crescendo::Engine
 			glfwPollEvents();
 
 			this->shaderProgram->Bind();
-			this->vertexArray->Bind();
-			this->indexBuffer->Bind();
-			glDrawElements(GL_TRIANGLES, this->indexBuffer->GetCount(), GL_UNSIGNED_INT, 0);
+
+			this->squareVertexArray->Bind();
+			glDrawElements(GL_TRIANGLES, this->squareVertexArray->GetIndexBuffer()->GetCount(), GL_UNSIGNED_INT, 0);
+
+			this->triangleVertexArray->Bind();
+			glDrawElements(GL_TRIANGLES, this->triangleVertexArray->GetIndexBuffer()->GetCount(), GL_UNSIGNED_INT, 0);
 		}
 	}
 	void WindowsWindow::OnLateUpdate()
