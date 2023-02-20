@@ -7,15 +7,16 @@ namespace Crescendo::Engine
 	{
 
 	}
-	LayerStack::~LayerStack() {
-		for (uint64_t i = 0, size = layers.size(); i < size; i++)
+	LayerStack::~LayerStack()
+	{
+		for (uint64_t i = 0, size = this->layers.size(); i < size; i++)
 		{
-			layers[i]->OnDetach();
+			this->layers[i]->OnDetach();
 		}
 	}
 	uint64_t LayerStack::Count()
 	{
-		return layers.size();
+		return this->layers.size();
 	}
 	// Insertion rules:
 	// - A layer is inserted at the place where:
@@ -26,34 +27,35 @@ namespace Crescendo::Engine
 	{
 		// O(n) insertion, is fine considering layers aren't attached very often
 		uint64_t i, size;
-		for (i = 0, size = layers.size(); i < size; i++)
+		for (i = 0, size = this->layers.size(); i < size; i++)
 		{
-			if (layers[i]->priority > layer->priority)
+			if (this->layers[i]->priority > layer->priority)
 			{
 				break;
 			}
 		}
-		layers.emplace(layers.begin() + i, layer);
+		this->layers.emplace(this->layers.begin() + i, layer);
 		layer->OnAttach();
 	}
 	void LayerStack::Insert(uint64_t index, Layer* layer)
 	{
 		// Find the average priority of the 2 adjacent layers
-		uint64_t lower = layers[index - 1]->priority;
-		uint64_t higher = layers[index]->priority;
+		uint64_t lower = this->layers[index - 1]->priority;
+		uint64_t higher = this->layers[index]->priority;
 		uint64_t avg = (lower + higher) / 2;
 		// Set priority to the average
 		layer->priority = avg;
 		// Insert in place
-		layers.emplace(layers.begin() + index, layer);
+		this->layers.emplace(layers.begin() + index, layer);
 		layer->OnAttach();
 	}
 	Layer* LayerStack::Replace(uint64_t index, Layer* layer)
 	{
-		Layer* replaced = layers[index].get();
+		// Replace the priorities
+		Layer* replaced = this->layers[index].get();
 		layer->priority = replaced->priority;
-		layers[index].reset(layer);
-
+		this->layers[index].reset(layer);
+		// Detach the layer
 		layer->OnAttach();
 		replaced->OnDetach();
 
@@ -61,44 +63,42 @@ namespace Crescendo::Engine
 	}
 	Layer* LayerStack::Detach(uint64_t index)
 	{
-		Layer* l = layers[index].get();
+		Layer* l = this->layers[index].get();
 		l->OnDetach();
-		layers.erase(layers.begin() + index);
+		this->layers.erase(this->layers.begin() + index);
 		return l;
 	}
 	void LayerStack::Init(double time)
 	{
-		for (uint64_t i = 0, size = layers.size(); i < size; i++)
+		for (const auto& layer : this->layers)
 		{
-			layers[i]->OnInit();
-			layers[i]->lastCalled = time;
+			layer->OnInit();
+			layer->lastCalled = time;
 		}
 	}
 	void LayerStack::QueryForUpdate(double time)
 	{
-		for (uint64_t i = 0, size = layers.size(); i < size; i++)
+		for (const auto& layer : this->layers)
 		{
-			if (layers[i]->ShouldRun(time)) {
-				layerQueue.push_back(layers[i].get());
+			if (layer->ShouldRun(time))
+			{
+				layerQueue.push_back(layer.get());
 			}
 		}
 	}
 	void LayerStack::Update(double time)
 	{
-		for (uint64_t i = 0, size = layerQueue.size(); i < size; i++)
+		for (const auto& layer : this->layerQueue)
 		{
-			double dt = time - layerQueue[i]->lastCalled;
-			double callDt = layerQueue[i]->updateRate;
+			double dt = time - layer->lastCalled;
+			double callDt = layer->updateRate;
 			// Prevents blowup of layer calls when:
 			// - Execution is paused
 			// - Windows PC enters hiberation (Nullpomino suffers from this problem)
 			// - Program execution paused via waiting for user input
-			if (dt > 4 * callDt)
-			{
-				callDt = dt;
-			}
-			layerQueue[i]->OnUpdate(dt);
-			layerQueue[i]->lastCalled += callDt;
+			if (dt > 4 * callDt) callDt = dt;
+			layer->OnUpdate(dt);
+			layer->lastCalled += callDt;
 		}
 		// Clear the queue afterwards
 		layerQueue.clear();
@@ -109,8 +109,8 @@ namespace Crescendo::Engine
 		if (first != second)
 		{
 			// Store references to the layers
-			Layer* a = layers[first].get();
-			Layer* b = layers[second].get();
+			Layer* a = this->layers[first].get();
+			Layer* b = this->layers[second].get();
 			// Store their priorities
 			uint64_t aPrio = a->priority;
 			uint64_t bPrio = b->priority;
@@ -118,8 +118,8 @@ namespace Crescendo::Engine
 			b->priority = aPrio;
 			a->priority = bPrio;
 			// Swap their indexes 
-			layers[second].reset(a);
-			layers[first].reset(b);
+			this->layers[second].reset(a);
+			this->layers[first].reset(b);
 		}
 	}
 	Layer* LayerStack::Get(uint64_t index)
