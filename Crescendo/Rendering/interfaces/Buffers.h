@@ -55,7 +55,8 @@ namespace Crescendo::Rendering
 		uint32_t size;
 		bool normalized;
 
-		BufferElement() {}
+		BufferElement() 
+			: name(""), type(ShaderDataType::None), size(0), offset(0), normalized(false) {}
 		BufferElement(ShaderDataType type, const char* name, bool normalized = false)
 			: name(name), type(type), size(GetShaderDataTypeSize(type)), offset(0), normalized(normalized) {}
 
