@@ -1,5 +1,3 @@
-#include <vector>
-
 #include "LayerStack.h"
 namespace Crescendo::Engine
 {
