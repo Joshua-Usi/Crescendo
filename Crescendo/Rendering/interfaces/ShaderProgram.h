@@ -39,5 +39,12 @@ namespace Crescendo::Rendering
 		/// </summary>
 		/// <returns>A polymorphic ShaderProgram</returns>
 		static ShaderProgram* Create();
+		/// <summary>
+		/// Creates a RenderAPI specific ShaderProgram taking vertex and fragment shaders and automatically compiling and linking
+		/// </summary>
+		/// <param name="vertexSource">Source text of vertex shader</param>
+		/// <param name="fragmentSource">Source text of fragment shader</param>
+		/// <returns></returns>
+		static ShaderProgram* Create(const char* vertexSource, const char* fragmentSource);
 	};
 }

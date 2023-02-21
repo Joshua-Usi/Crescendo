@@ -14,6 +14,12 @@ namespace Crescendo::Rendering
 		std::vector<uint32_t> shaderIDs;
 	public:
 		OpenGLShaderProgram();
+		/// <summary>
+		/// Option to create shaders directly without having to call other methods
+		/// </summary>
+		/// <param name="vertexSource">Vertex shader source</param>
+		/// <param name="fragmentSource">Fragment shader source</param>
+		OpenGLShaderProgram(const char* vertexSource, const char* fragmentSource);
 		virtual ~OpenGLShaderProgram();
 
 		virtual void AttachShader(ShaderType type, const char* shaderSource) override;

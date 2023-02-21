@@ -12,6 +12,13 @@ namespace Crescendo::Rendering
 	{
 		this->shaderProgramID = glCreateProgram();
 	}
+	OpenGLShaderProgram::OpenGLShaderProgram(const char* vertexSource, const char* fragmentSource)
+	{
+		this->shaderProgramID = glCreateProgram();
+		this->AttachShader(ShaderType::Vertex, vertexSource);
+		this->AttachShader(ShaderType::Fragment, fragmentSource);
+		this->Link();
+	}
 	OpenGLShaderProgram::~OpenGLShaderProgram()
 	{
 		glDeleteProgram(this->shaderProgramID);
@@ -32,6 +39,8 @@ namespace Crescendo::Rendering
 		case ShaderType::Fragment:
 			shaderID = glCreateShader(GL_FRAGMENT_SHADER);
 			break;
+		default:
+			CS_ASSERT(false, "Invalid ShaderType");
 		}
 
 		glShaderSource(shaderID, 1, &shaderSource, 0);

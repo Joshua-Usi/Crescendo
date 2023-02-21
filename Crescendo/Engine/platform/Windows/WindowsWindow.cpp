@@ -116,23 +116,20 @@ namespace Crescendo::Engine
 		squareIndexBuffer.reset(Rendering::IndexBuffer::Create(squareIndices.data(), squareIndices.size()));
 		this->squareVertexArray->SetIndexBuffer(squareIndexBuffer);
 
-
-		this->shaderProgram.reset(Rendering::ShaderProgram::Create());
 		std::fstream shader;
-		std::string shaderSource;
+		std::string vertexSource;
+		std::string fragmentSource;
+
 		// Vertex Shader
 		FileSystem::Open(&shader, "../Crescendo/Rendering/shaders/base.vert");
-		FileSystem::Read(&shader, &shaderSource);
-		this->shaderProgram->AttachShader(Rendering::ShaderType::Vertex, shaderSource.c_str());
+		FileSystem::Read(&shader, &vertexSource);
 		// Fragment Shader
 		FileSystem::Open(&shader, "../Crescendo/Rendering/shaders/base.frag");
-		FileSystem::Read(&shader, &shaderSource);
-		this->shaderProgram->AttachShader(Rendering::ShaderType::Fragment, shaderSource.c_str());
+		FileSystem::Read(&shader, &fragmentSource);
 		// Always close files after you are done with them
 		FileSystem::Close(&shader);
 
-		// Link and bind the shader program;
-		this->shaderProgram->Link();
+		this->shaderProgram.reset(Rendering::ShaderProgram::Create(vertexSource.data(), fragmentSource.data()));
 		this->shaderProgram->Bind();
 	}
 	void WindowsWindow::Shutdown()

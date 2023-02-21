@@ -14,4 +14,13 @@ namespace Crescendo::Rendering
 		default: throw "Invalid Graphics API";
 		}
 	}
+	ShaderProgram* ShaderProgram::Create(const char* vertexSource, const char* fragmentSource)
+	{
+		switch (Renderer::GetAPI())
+		{
+		case GraphicsAPI::None: CS_ASSERT(false, "GraphicsAPI::None is currently not supported!"); return nullptr;
+		case GraphicsAPI::OpenGL: return new OpenGLShaderProgram(vertexSource, fragmentSource);
+		default: throw "Invalid Graphics API";
+		}
+	}
 }
