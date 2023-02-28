@@ -2,9 +2,25 @@
 
 #include "core/core.h"
 
-#define CS_FILE_DOES_NOT_EXIST "does not exist"
+namespace Crescendo::Engine::FileSystem
+{
+	/*class File
+	{
+	private:
+		std::fstream file;
+	public:
+		File(const char* file);
+		~File();
 
-namespace Crescendo::Engine::FileSystem {
+		void Append();
+		void AppendLine();
+
+		uint64_t Size();
+
+		std::string Read();
+
+		void Clear();
+	};*/
 	/// <summary>
 	/// Determines if a given file exists
 	/// </summary>
@@ -41,11 +57,6 @@ namespace Crescendo::Engine::FileSystem {
 	/// </summary>
 	/// <param name="fileName">name of the file to delete</param>
 	void Delete(const char* fileName);
-	/// <summary>
-	/// Deletes all data from a file
-	/// </summary>
-	/// <param name="fileName">Name of the file to clear</param>
-	void Clear(const char* fileName);
 	/// <summary>
 	/// Copies a file from one place to another
 	/// </summary>

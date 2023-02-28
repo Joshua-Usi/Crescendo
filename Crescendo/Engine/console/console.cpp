@@ -39,11 +39,11 @@ namespace Crescendo::Engine::Console
 			}
 
 			std::fstream file;
-			FileSystem::Open(&file, fileName.c_str());
-			FileSystem::Write(&file, logFileBuffer.str().c_str());
+			FileSystem::Open(file, fileName.c_str());
+			FileSystem::Write(file, logFileBuffer.str().c_str());
 			// Appends 64 = signs so that the end of a program running can be denoted
-			FileSystem::Write(&file, "==============================================================\n");
-			FileSystem::Close(&file);
+			FileSystem::Write(file, "==============================================================\n");
+			FileSystem::Close(file);
 
 			Console::EngineInfo("Saved logs to {}-{}.log", logFileName, ss.str());
 			// Reset buffers

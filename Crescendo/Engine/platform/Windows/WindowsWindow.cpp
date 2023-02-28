@@ -122,13 +122,13 @@ namespace Crescendo::Engine
 		std::string fragmentSource;
 
 		// Vertex Shader
-		FileSystem::Open(&shader, "../Crescendo/Rendering/shaders/base.vert");
-		FileSystem::Read(&shader, &vertexSource);
+		FileSystem::Open(shader, "../Crescendo/Rendering/shaders/base.vert");
+		FileSystem::Read(shader, vertexSource);
 		// Fragment Shader
-		FileSystem::Open(&shader, "../Crescendo/Rendering/shaders/base.frag");
-		FileSystem::Read(&shader, &fragmentSource);
+		FileSystem::Open(shader, "../Crescendo/Rendering/shaders/base.frag");
+		FileSystem::Read(shader, fragmentSource);
 		// Always close files after you are done with them
-		FileSystem::Close(&shader);
+		FileSystem::Close(shader);
 
 		this->shaderProgram.reset(Rendering::ShaderProgram::Create(vertexSource.data(), fragmentSource.data()));
 		this->shaderProgram->Bind();
