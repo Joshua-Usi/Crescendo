@@ -1,0 +1,41 @@
+#pragma once
+
+#include "core/core.h"
+#include "VertexArray.h" 
+
+#include <memory>
+
+namespace Crescendo::Rendering
+{
+	class RendererAPI
+	{
+	public:
+		enum class API
+		{
+			None,
+			OpenGL,
+			//Vulkan,
+			//DirectX11,
+			//DirectX12,
+			//Metal,
+		};
+	public:
+		/// <summary>
+		/// Clear the screen with a magenta colur (1.0f, 0.0f, 1.0f, 1.0f)
+		/// </summary>
+		virtual void Clear() = 0;
+		
+		/// <summary>
+		/// Draw an object to the screen
+		/// </summary>
+		/// <param name="vertexArray">vertexArray to draw</param>
+		virtual void DrawIndexed(const std::shared_ptr<Rendering::VertexArray>& vertexArray) = 0;
+
+		// Set the renderingAPI to use
+		static void SetAPI(RendererAPI::API renderingAPI);
+		// Get the set rendereringAPI
+		static API GetAPI();
+	private:
+		static API api;
+	};
+}

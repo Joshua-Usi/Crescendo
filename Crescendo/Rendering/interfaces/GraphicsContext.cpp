@@ -1,4 +1,3 @@
-#include "GraphicsContext.h"
 
 #include "platform/OpenGL/OpenGLGraphicsContext.h"
 #include "Renderer.h"
@@ -9,8 +8,8 @@ namespace Crescendo::Rendering
 	{
 		switch (Renderer::GetAPI())
 		{
-		case GraphicsAPI::None: CS_ASSERT(false, "GraphicsAPI::None is currently not supported!"); return nullptr;
-		case GraphicsAPI::OpenGL: return new OpenGLGraphicsContext((GLFWwindow*)windowHandle);
+		case RendererAPI::API::None: CS_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
+		case RendererAPI::API::OpenGL: return new OpenGLGraphicsContext((GLFWwindow*)windowHandle);
 		default: throw "Invalid Graphics API";
 		}
 	}

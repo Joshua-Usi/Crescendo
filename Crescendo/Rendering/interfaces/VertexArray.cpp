@@ -9,8 +9,8 @@ namespace Crescendo::Rendering
 	{
 		switch (Renderer::GetAPI())
 		{
-		case GraphicsAPI::None: CS_ASSERT(false, "GraphicsAPI::None is currently not supported!"); return nullptr;
-		case GraphicsAPI::OpenGL: return new OpenGLVertexArray();
+		case RendererAPI::API::None: CS_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
+		case RendererAPI::API::OpenGL: return new OpenGLVertexArray();
 		default: throw "Invalid Graphics API";
 		}
 	}

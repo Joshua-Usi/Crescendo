@@ -24,6 +24,7 @@ namespace Crescendo::Engine
 	}
 	void WindowsWindow::Init(const WindowProps& props)
 	{
+		this->data.graphicsAPI = props.graphicsAPI;
 		this->data.title = props.title;
 		this->data.width = props.width;
 		this->data.height = props.height;
@@ -60,7 +61,7 @@ namespace Crescendo::Engine
 		});
 
 		// Set API
-		Rendering::Renderer::SetAPI(Rendering::GraphicsAPI::OpenGL);
+		Rendering::RendererAPI::SetAPI(this->data.graphicsAPI);
 
 		this->context.reset(Rendering::GraphicsContext::Create(this->window));
 		this->context->Init();
@@ -142,17 +143,18 @@ namespace Crescendo::Engine
 	{
 		if (this->data.isOpen)
 		{
-			glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT);
 			glfwPollEvents();
 
 			this->shaderProgram->Bind();
 
-			this->squareVertexArray->Bind();
-			glDrawElements(GL_TRIANGLES, this->squareVertexArray->GetIndexBuffer()->GetCount(), GL_UNSIGNED_INT, 0);
+			Rendering::RenderCommand::Clear();
 
-			this->triangleVertexArray->Bind();
-			glDrawElements(GL_TRIANGLES, this->triangleVertexArray->GetIndexBuffer()->GetCount(), GL_UNSIGNED_INT, 0);
+			Rendering::Renderer::BeginScene();
+
+			Rendering::Renderer::Submit(this->squareVertexArray);
+			Rendering::Renderer::Submit(this->triangleVertexArray);
+
+			Rendering::Renderer::EndScene();
 		}
 	}
 	void WindowsWindow::OnLateUpdate()

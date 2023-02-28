@@ -27,6 +27,7 @@ namespace Crescendo::Engine
 
 		struct WindowData
 		{
+			Rendering::RendererAPI::API graphicsAPI;
 			WindowsWindow* windowPointer = NULL;
 			const char* title = "";
 			int32_t width = 0, height = 0;
