@@ -8,6 +8,17 @@
 
 namespace Crescendo::Rendering
 {
+	uint32_t OpenGLShaderProgram::GetUniformLocation(const char* name)
+	{
+		// Check if it exists in the uniform cache
+		if (this->uniformCache.find(name) != this->uniformCache.end())
+		{
+			// Return if it does
+			return this->uniformCache[0];
+		}
+		// Otherwise take the long route and get the uniform location directly from the GPU
+		return glGetUniformLocation(this->shaderProgramID, name);
+	}
 	OpenGLShaderProgram::OpenGLShaderProgram()
 	{
 		this->shaderProgramID = glCreateProgram();
@@ -94,5 +105,49 @@ namespace Crescendo::Rendering
 	void OpenGLShaderProgram::Unbind()
 	{
 		glUseProgram(0);
+	}
+	void OpenGLShaderProgram::SetBool(const char* name, bool value)
+	{
+		glUniform1i(this->GetUniformLocation(name), (int)value);
+	}
+	void OpenGLShaderProgram::SetInt(const char* name, int32_t value)
+	{
+		glUniform1i(this->GetUniformLocation(name), value);
+	}
+	void OpenGLShaderProgram::SetInt2(const char* name, glm::ivec2& value)
+	{
+		glUniform2iv(this->GetUniformLocation(name), 1, &value[0]);
+	}
+	void OpenGLShaderProgram::SetInt3(const char* name, glm::ivec3& value)
+	{
+		glUniform3iv(this->GetUniformLocation(name), 1, &value[0]);
+	}
+	void OpenGLShaderProgram::SetInt4(const char* name, glm::ivec4& value)
+	{
+		glUniform4iv(this->GetUniformLocation(name), 1, &value[0]);
+	}
+	void OpenGLShaderProgram::SetFloat(const char* name, float value)
+	{
+		glUniform1f(this->GetUniformLocation(name), value);
+	}
+	void OpenGLShaderProgram::SetFloat2(const char* name, glm::vec2& value)
+	{
+		glUniform2fv(this->GetUniformLocation(name), 1, &value[0]);
+	}
+	void OpenGLShaderProgram::SetFloat3(const char* name, glm::vec3& value)
+	{
+		glUniform3fv(this->GetUniformLocation(name), 1, &value[0]);
+	}
+	void OpenGLShaderProgram::SetFloat4(const char* name, glm::vec4& value)
+	{
+		glUniform4fv(this->GetUniformLocation(name), 1, &value[0]);
+	}
+	void OpenGLShaderProgram::SetMat3(const char* name, glm::mat3& value)
+	{
+		glUniformMatrix3fv(this->GetUniformLocation(name), 1, GL_FALSE, &value[0][0]);
+	}
+	void OpenGLShaderProgram::SetMat4(const char* name, glm::mat4& value)
+	{
+		glUniformMatrix4fv(this->GetUniformLocation(name), 1, GL_FALSE, &value[0][0]);
 	}
 }

@@ -2,6 +2,18 @@
 
 #include "glad/glad.h"
 
+void Crescendo::Rendering::OpenGLRendererAPI::SetDepthTest(bool state)
+{
+	if (state)
+	{
+		glEnable(GL_DEPTH_TEST);
+	}
+	else
+	{
+		glDisable(GL_DEPTH_TEST);
+	}
+}
+
 void Crescendo::Rendering::OpenGLRendererAPI::Clear()
 {
 	glClearColor(1.0f, 0.0f, 1.0f, 1.0f);

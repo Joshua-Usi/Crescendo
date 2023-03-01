@@ -4,6 +4,7 @@
 #include "interfaces/ShaderProgram.h"
 
 #include <vector>
+#include <unordered_map>
 
 namespace Crescendo::Rendering
 {
@@ -12,6 +13,9 @@ namespace Crescendo::Rendering
 	private:
 		uint32_t shaderProgramID;
 		std::vector<uint32_t> shaderIDs;
+		std::unordered_map<const char*, uint32_t> uniformCache;
+
+		uint32_t GetUniformLocation(const char* name);
 	public:
 		OpenGLShaderProgram();
 		/// <summary>
@@ -26,5 +30,20 @@ namespace Crescendo::Rendering
 		virtual void Link() override;
 		virtual void Bind() override;
 		virtual void Unbind() override;
+
+		virtual void SetBool(const char* name, bool value) override;
+
+		virtual void SetInt(const char* name, int32_t value) override;
+		virtual void SetInt2(const char* name, glm::ivec2& value) override;
+		virtual void SetInt3(const char* name, glm::ivec3& value) override;
+		virtual void SetInt4(const char* name, glm::ivec4& value) override;
+
+		virtual void SetFloat(const char* name, float value) override;
+		virtual void SetFloat2(const char* name, glm::vec2& value) override;
+		virtual void SetFloat3(const char* name, glm::vec3& value) override;
+		virtual void SetFloat4(const char* name, glm::vec4& value) override;
+
+		virtual void SetMat3(const char* name, glm::mat3& value) override;
+		virtual void SetMat4(const char* name, glm::mat4& value) override;
 	};
 }

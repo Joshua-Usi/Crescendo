@@ -18,6 +18,10 @@ namespace Crescendo::Rendering
 		{
 			rendererAPI->Clear();
 		}
+		inline static void SetDepthTest(bool state)
+		{
+			rendererAPI->SetDepthTest(state);
+		}
 		/// <summary>
 		/// Draw an object to the screen
 		/// </summary>

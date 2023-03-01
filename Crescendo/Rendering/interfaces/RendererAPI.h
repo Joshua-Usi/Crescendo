@@ -22,6 +22,11 @@ namespace Crescendo::Rendering
 		};
 	public:
 		/// <summary>
+		/// Sets whether or not depth testing is enabled
+		/// </summary>
+		/// <param name="state">Depth testing state</param>
+		virtual void SetDepthTest(bool state) = 0;
+		/// <summary>
 		/// Clear the screen with a magenta colur (1.0f, 0.0f, 1.0f, 1.0f)
 		/// </summary>
 		virtual void Clear() = 0;
