@@ -1,7 +1,8 @@
 #pragma once
 
 #include "core/core.h"
-#include "VertexArray.h" 
+#include "VertexArray.h"
+#include "ShaderProgram.h"
 
 #include <memory>
 

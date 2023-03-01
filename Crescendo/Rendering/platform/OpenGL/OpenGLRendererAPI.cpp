@@ -10,6 +10,5 @@ void Crescendo::Rendering::OpenGLRendererAPI::Clear()
 
 void Crescendo::Rendering::OpenGLRendererAPI::DrawIndexed(const std::shared_ptr<Rendering::VertexArray>& vertexArray)
 {
-	vertexArray->Bind();
 	glDrawElements(GL_TRIANGLES, vertexArray->GetIndexBuffer()->GetCount(), GL_UNSIGNED_INT, nullptr);
 }

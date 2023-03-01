@@ -8,3 +8,8 @@
  */ 
 #include "core/entrypoint.h"
 #include "console/console.h"
+
+#include "filesystem/filesystem.h"
+#include "filesystem/synchronous/syncFiles.h"
+
+#include "Renderer.h"

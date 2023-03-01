@@ -20,10 +20,6 @@ namespace Crescendo::Engine
 
 		GLFWwindow* window;
 		std::unique_ptr<Rendering::GraphicsContext> context;
-		std::unique_ptr<Rendering::ShaderProgram> shaderProgram;
-
-		std::shared_ptr<Rendering::VertexArray> triangleVertexArray;
-		std::shared_ptr<Rendering::VertexArray> squareVertexArray;
 
 		struct WindowData
 		{
