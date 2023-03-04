@@ -13,3 +13,5 @@
 #include "filesystem/synchronous/syncFiles.h"
 
 #include "Renderer.h"
+
+#include "interfaces/Input.h"

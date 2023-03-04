@@ -1,21 +1,35 @@
 #include "Crescendo.h"
+#include "cameras/Perspective/PerspectiveCamera.h"
+#include "random/random.h"
+
 using namespace Crescendo::Engine;
 namespace Rendering = Crescendo::Rendering;
-
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
 
 class Sandbox : public Application
 {
 private:
-	glm::vec3 camera = glm::vec3(0.0f, 0.0f, 3.0f);
+	Rendering::PerspectiveCamera camera = Rendering::PerspectiveCamera(45.0f, 16.0f / 9.0f);
+
+	glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
+
+	float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
+
+	float px, py;
+
+	std::vector<glm::vec3> cubePositions;
 
 	std::unique_ptr<Rendering::ShaderProgram> shaderProgram;
-
 	std::shared_ptr<Rendering::VertexArray> cubeVertexArray;
 public:
 	void OnStartup()
 	{
+		cubePositions.push_back(glm::vec3(0.0f, 5.0f, 0.0f));
+		cubePositions.push_back(glm::vec3(0.0f, -5.0f, 0.0f));
+		for (int32_t i = 0; i < 500; i++)
+		{
+			cubePositions.push_back(glm::vec3(Crescendo::Random::FloatBetween(-5, 5), Crescendo::Random::FloatBetween(0, 0), Crescendo::Random::FloatBetween(-100, 100)));
+		}
+
 		Console::BeginFileLog("Sandbox");
 		this->cubeVertexArray.reset(Rendering::VertexArray::Create());
 		std::vector<float> cubeVertices = {
@@ -38,24 +52,12 @@ public:
 		});
 		this->cubeVertexArray->AddVertexBuffer(cubeVertexBuffer);
 		std::vector<uint32_t> cubeIndices = {
-			// front
-			0, 1, 2,
-			2, 3, 0,
-			// right
-			1, 5, 6,
-			6, 2, 1,
-			// back
-			7, 6, 5,
-			5, 4, 7,
-			// left
-			4, 0, 3,
-			3, 7, 4,
-			// bottom
-			4, 5, 1,
-			1, 0, 4,
-			// top
-			3, 2, 6,
-			6, 7, 3
+			0, 1, 2, 2, 3, 0, // front
+			1, 5, 6, 6, 2, 1, // right
+			7, 6, 5, 5, 4, 7, // back
+			4, 0, 3, 3, 7, 4, // left
+			4, 5, 1, 1, 0, 4, // bottom
+			3, 2, 6, 6, 7, 3, // top
 		};
 		std::shared_ptr<Rendering::IndexBuffer> cubeIndexBuffer;
 		cubeIndexBuffer.reset(Rendering::IndexBuffer::Create(cubeIndices.data(), cubeIndices.size()));
@@ -73,34 +75,52 @@ public:
 	}
 	void OnUpdate()
 	{
-
-		/*const float radius = 10.0f;
-		float camX = sin(Application::Get()->GetTime()) * radius;
-		float camZ = cos(Application::Get()->GetTime()) * radius;
-		glm::mat4 view;
-		view = glm::lookAt(glm::vec3(camX, 0.0, camZ), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));*/
-
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-		model = glm::rotate(model, (float)Application::Get()->GetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
-
-		glm::mat4 view = glm::mat4(1.0f);
-		// note that we're translating the scene in the reverse direction of where we want to move
-		view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-
-		glm::mat4 projection;
-		projection = glm::perspective(glm::radians(45.0f), (float)Application::GetWindow()->GetWidth() / (float)Application::GetWindow()->GetHeight(), 0.1f, 1000.0f);
+		Window* appWindow = Application::GetWindow();
 
 		this->shaderProgram->Bind();
-		this->shaderProgram->SetMat4("uModel", model);
-		this->shaderProgram->SetMat4("uView", view);
-		this->shaderProgram->SetMat4("uProjection", projection);
+
+		float x = Input::GetMousePositionX(), y = Input::GetMousePositionY();
+		float dx = x - this->px, dy = y - this->py;
+
+		px = x, py = y;
+
+		this->yaw -= dx * 0.001f;
+		this->pitch -= dy * 0.001f;
+
+		if (pitch > 3.14159f / 2.0f - 0.01f) pitch = 3.14159f / 2.0f - 0.01f;
+		if (pitch < -3.14159f / 2.0f + 0.01f) pitch = -3.14159f / 2.0f + 0.01f;
+
+		this->camera.SetRotation(glm::vec3(this->yaw, this->pitch, this->roll));
+
+		glm::vec3 rotation = this->camera.GetRotation();
+
+		if (Input::GetKeyPressed(Key::Space)) this->position.y += 0.1f;
+		if (Input::GetKeyPressed(Key::ShiftLeft)) this->position.y -= 0.1f;
+
+		if (Input::GetKeyPressed(Key::W)) this->position.x -= 0.1f * sin(this->yaw), this->position.z -= 0.1f * cos(this->yaw);
+		if (Input::GetKeyPressed(Key::S)) this->position.x += 0.1f * sin(this->yaw), this->position.z += 0.1f * cos(this->yaw);
+
+		if (Input::GetKeyPressed(Key::A)) this->position.x -= 0.1f * sin(this->yaw + 3.14159f / 2.0f), this->position.z -= 0.1f * cos(this->yaw + 3.14159f / 2.0f);
+		if (Input::GetKeyPressed(Key::D)) this->position.x += 0.1f * sin(this->yaw + 3.14159f / 2.0f), this->position.z += 0.1f * cos(this->yaw + 3.14159f / 2.0f);
+
+		this->camera.SetPosition(this->position);
+
+		glm::mat4 pv = this->camera.GetViewProjectionMatrix();
+		this->shaderProgram->SetMat4("uProjectionView", pv);
 
 		Rendering::RenderCommand::Clear();
 		Rendering::RenderCommand::SetDepthTest(true);
 		Rendering::Renderer::BeginScene();
 
-		Rendering::Renderer::Submit(this->cubeVertexArray);
+		for (uint32_t i = 0; i < cubePositions.size(); i++)
+		{
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, cubePositions[i]);
+			float angle = 20.0f * i;
+			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+			this->shaderProgram->SetMat4("uModel", model);
+			Rendering::Renderer::Submit(this->cubeVertexArray);
+		}
 
 		Rendering::Renderer::EndScene();
 	}

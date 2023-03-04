@@ -28,6 +28,7 @@ namespace Crescendo::Engine
 			const char* title = "";
 			int32_t width = 0, height = 0;
 			bool vSync = false;
+			bool isCursorLocked = false;
 			bool isOpen = false;
 		} data;
 	public:
@@ -42,8 +43,10 @@ namespace Crescendo::Engine
 		virtual int32_t GetRefreshRate() const override;
 
 		virtual void SetVSync(bool isEnabled) override;
+		virtual void SetCursorLock(bool isEnabled) override;
 
 		virtual bool IsVSynced() const override;
+		virtual bool IsCursorLocked() const override;
 		virtual bool IsOpen() const override;
 
 		virtual void* GetNative() const override;

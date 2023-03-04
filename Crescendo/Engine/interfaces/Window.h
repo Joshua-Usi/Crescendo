@@ -55,15 +55,26 @@ namespace Crescendo::Engine {
 		virtual int32_t GetRefreshRate() const = 0;
 
 		/// <summary>
-		/// Interface for enabling vsync
+		/// Interface for enabling / disabling vsync
 		/// </summary>
 		/// <param name="isEnabled"></param>
 		virtual void SetVSync(bool isEnabled) = 0;
+		/// <summary>
+		/// Interface for enabling / disabling cursor locks
+		/// </summary>
+		/// <param name="isEnabled"></param>
+		virtual void SetCursorLock(bool isEnabled) = 0;
 
 		/// <summary>
 		/// Determines if a window is vsynced
 		/// </summary>
+		/// <returns>Boolean</returns>
 		virtual bool IsVSynced() const = 0;
+		/// <summary>
+		/// Determines if the cursor is locked on the screen
+		/// </summary>
+		/// <returns>Boolean</returns>
+		virtual bool IsCursorLocked() const = 0;
 		/// <summary>
 		/// Determines if a window is open
 		/// </summary>

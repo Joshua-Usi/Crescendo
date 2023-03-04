@@ -64,7 +64,8 @@ namespace Crescendo::Engine
 		this->context.reset(Rendering::GraphicsContext::Create(this->window));
 		this->context->Init();
 
-		this->SetVSync(false);
+		this->SetVSync(true);
+		this->SetCursorLock(true);
 	}
 	void WindowsWindow::Shutdown()
 	{
@@ -111,9 +112,25 @@ namespace Crescendo::Engine
 		}
 		this->data.vSync = isEnabled;
 	}
+	void WindowsWindow::SetCursorLock(bool isEnabled)
+	{
+		if (isEnabled)
+		{
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		}
+		else
+		{
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		}
+		this->data.isCursorLocked = isEnabled;
+	}
 	bool WindowsWindow::IsVSynced() const
 	{
 		return this->data.vSync;
+	}
+	bool WindowsWindow::IsCursorLocked() const
+	{
+		return this->data.isCursorLocked;
 	}
 	bool WindowsWindow::IsOpen() const
 	{
