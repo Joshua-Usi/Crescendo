@@ -1,6 +1,6 @@
 #include "Crescendo.h"
 #include "cameras/Perspective/PerspectiveCamera.h"
-#include "random/random.h"
+#include "Random/Random.h"
 
 using namespace Crescendo::Engine;
 namespace Rendering = Crescendo::Rendering;
@@ -27,7 +27,7 @@ public:
 		cubePositions.push_back(glm::vec3(0.0f, -5.0f, 0.0f));
 		for (int32_t i = 0; i < 500; i++)
 		{
-			cubePositions.push_back(glm::vec3(Crescendo::Random::FloatBetween(-5, 5), Crescendo::Random::FloatBetween(0, 0), Crescendo::Random::FloatBetween(-100, 100)));
+			cubePositions.push_back(glm::vec3(Crescendo::Random::Float(-5, 5), Crescendo::Random::Float(0, 0), Crescendo::Random::Float(-100, 100)));
 		}
 
 		Console::BeginFileLog("Sandbox");
