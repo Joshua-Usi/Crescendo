@@ -97,19 +97,19 @@ int main()
 			return Mochi::Assert::That(gate.Output()).Is.Not().True().AssertsTrue();
 		});
 		suite->AddCase("Nested Gate Logic: Equivalent to '(true && true) && (true && false)'", [&]() {
-			Mochi::Logic::Gate gate(Mochi::Logic::Operator::And, 2);
+			Mochi::Logic::Gate* gate = new Mochi::Logic::Gate(Mochi::Logic::Operator::And, 2);
 
-			Mochi::Logic::Gate gateSub1(Mochi::Logic::Operator::And, 2);
-			gateSub1.SetInputBool(0, true);
-			gateSub1.SetInputBool(1, true);
+			Mochi::Logic::Gate* gateSub1 = new Mochi::Logic::Gate(Mochi::Logic::Operator::And, 2);
+			gateSub1->SetInputBool(0, true);
+			gateSub1->SetInputBool(1, true);
 
-			Mochi::Logic::Gate gateSub2(Mochi::Logic::Operator::And, 2);
-			gateSub2.SetInputBool(0, true);
-			gateSub2.SetInputBool(1, false);
+			Mochi::Logic::Gate* gateSub2 = new Mochi::Logic::Gate(Mochi::Logic::Operator::And, 2);
+			gateSub2->SetInputBool(0, true);
+			gateSub2->SetInputBool(1, false);
 
-			gate.SetInput(0, &gateSub1);
-			gate.SetInput(1, &gateSub2);
-			return Mochi::Assert::That(gate.Output()).Is.Not().True().AssertsTrue();
+			gate->SetInput(0, gateSub1);
+			gate->SetInput(1, gateSub2);
+			return Mochi::Assert::That(gate->Output()).Is.Not().True().AssertsTrue();
 		});
 
 	});
