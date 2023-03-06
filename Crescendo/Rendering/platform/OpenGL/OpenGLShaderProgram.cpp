@@ -114,15 +114,15 @@ namespace Crescendo::Rendering
 	{
 		glUniform1i(this->GetUniformLocation(name), value);
 	}
-	void OpenGLShaderProgram::SetInt2(const char* name, glm::ivec2& value)
+	void OpenGLShaderProgram::SetInt2(const char* name, const glm::ivec2& value)
 	{
 		glUniform2iv(this->GetUniformLocation(name), 1, &value[0]);
 	}
-	void OpenGLShaderProgram::SetInt3(const char* name, glm::ivec3& value)
+	void OpenGLShaderProgram::SetInt3(const char* name, const glm::ivec3& value)
 	{
 		glUniform3iv(this->GetUniformLocation(name), 1, &value[0]);
 	}
-	void OpenGLShaderProgram::SetInt4(const char* name, glm::ivec4& value)
+	void OpenGLShaderProgram::SetInt4(const char* name, const glm::ivec4& value)
 	{
 		glUniform4iv(this->GetUniformLocation(name), 1, &value[0]);
 	}
@@ -130,23 +130,23 @@ namespace Crescendo::Rendering
 	{
 		glUniform1f(this->GetUniformLocation(name), value);
 	}
-	void OpenGLShaderProgram::SetFloat2(const char* name, glm::vec2& value)
+	void OpenGLShaderProgram::SetFloat2(const char* name, const glm::vec2& value)
 	{
 		glUniform2fv(this->GetUniformLocation(name), 1, &value[0]);
 	}
-	void OpenGLShaderProgram::SetFloat3(const char* name, glm::vec3& value)
+	void OpenGLShaderProgram::SetFloat3(const char* name, const glm::vec3& value)
 	{
 		glUniform3fv(this->GetUniformLocation(name), 1, &value[0]);
 	}
-	void OpenGLShaderProgram::SetFloat4(const char* name, glm::vec4& value)
+	void OpenGLShaderProgram::SetFloat4(const char* name, const glm::vec4& value)
 	{
 		glUniform4fv(this->GetUniformLocation(name), 1, &value[0]);
 	}
-	void OpenGLShaderProgram::SetMat3(const char* name, glm::mat3& value)
+	void OpenGLShaderProgram::SetMat3(const char* name, const glm::mat3& value)
 	{
 		glUniformMatrix3fv(this->GetUniformLocation(name), 1, GL_FALSE, &value[0][0]);
 	}
-	void OpenGLShaderProgram::SetMat4(const char* name, glm::mat4& value)
+	void OpenGLShaderProgram::SetMat4(const char* name, const glm::mat4& value)
 	{
 		glUniformMatrix4fv(this->GetUniformLocation(name), 1, GL_FALSE, &value[0][0]);
 	}
