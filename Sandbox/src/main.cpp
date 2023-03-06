@@ -18,7 +18,7 @@ private:
 
 	std::vector<glm::vec3> cubePositions;
 
-	std::unique_ptr<Rendering::ShaderProgram> shaderProgram;
+	std::shared_ptr<Rendering::ShaderProgram> shaderProgram;
 	std::shared_ptr<Rendering::VertexArray> cubeVertexArray;
 public:
 	void OnStartup()
@@ -71,13 +71,10 @@ public:
 		FileSystem::Read(shader, fragmentSource);
 		FileSystem::Close(shader);
 		this->shaderProgram.reset(Rendering::ShaderProgram::Create(vertexSource.data(), fragmentSource.data()));
-		this->shaderProgram->Bind();
 	}
 	void OnUpdate()
 	{
 		Window* appWindow = Application::GetWindow();
-
-		this->shaderProgram->Bind();
 
 		float x = Input::GetMousePositionX(), y = Input::GetMousePositionY();
 		float dx = x - this->px, dy = y - this->py;
@@ -101,16 +98,17 @@ public:
 		if (Input::GetKeyPressed(Key::S)) this->position.x += 0.1f * sin(this->yaw), this->position.z += 0.1f * cos(this->yaw);
 
 		if (Input::GetKeyPressed(Key::A)) this->position.x -= 0.1f * sin(this->yaw + 3.14159f / 2.0f), this->position.z -= 0.1f * cos(this->yaw + 3.14159f / 2.0f);
-		if (Input::GetKeyPressed(Key::D)) this->position.x += 0.1f * sin(this->yaw + 3.14159f / 2.0f), this->position.z += 0.1f * cos(this->yaw + 3.14159f / 2.0f);
+		if (Input::GetKeyPressed(Key::D)) this->position.x += 0.1f * sin(this->yaw + 3.14159f / 2.0f), this->position.z += 0.1f * cos(this->yaw + 3.14159f / 2.0f); 
+		
+		if (Input::GetKeyPressed(Key::Escape)) this->Close();
 
 		this->camera.SetPosition(this->position);
 
-		glm::mat4 pv = this->camera.GetViewProjectionMatrix();
-		this->shaderProgram->SetMat4("uProjectionView", pv);
-
+		Rendering::RenderCommand::SetClear(0.5f, 0.5f, 0.5f);
 		Rendering::RenderCommand::Clear();
 		Rendering::RenderCommand::SetDepthTest(true);
-		Rendering::Renderer::BeginScene();
+
+		Rendering::Renderer::BeginScene(this->camera);
 
 		for (uint32_t i = 0; i < cubePositions.size(); i++)
 		{
@@ -118,8 +116,7 @@ public:
 			model = glm::translate(model, cubePositions[i]);
 			float angle = 20.0f * i;
 			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-			this->shaderProgram->SetMat4("uModel", model);
-			Rendering::Renderer::Submit(this->cubeVertexArray);
+			Rendering::Renderer::Submit(this->shaderProgram, this->cubeVertexArray, model);
 		}
 
 		Rendering::Renderer::EndScene();

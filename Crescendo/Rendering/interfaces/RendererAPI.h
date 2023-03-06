@@ -27,6 +27,14 @@ namespace Crescendo::Rendering
 		/// <param name="state">Depth testing state</param>
 		virtual void SetDepthTest(bool state) = 0;
 		/// <summary>
+		/// Sets the clear colour of the screen
+		/// </summary>
+		/// <param name="r">Red parameter</param>
+		/// <param name="g">Green parameter</param>
+		/// <param name="b">Blue parameter</param>
+		/// <param name="a">Alpha parameter, is optional and defaults to 1.0f</param>
+		virtual void SetClear(float r, float g, float b, float a) = 0;
+		/// <summary>
 		/// Clear the screen with a magenta colur (1.0f, 0.0f, 1.0f, 1.0f)
 		/// </summary>
 		virtual void Clear() = 0;

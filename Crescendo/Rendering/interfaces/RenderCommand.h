@@ -11,6 +11,10 @@ namespace Crescendo::Rendering
 	private:
 		static RendererAPI* rendererAPI;
 	public:
+		inline static void SetClear(float r, float g, float b, float a = 1.0f)
+		{
+			rendererAPI->SetClear(r, g, b, a);
+		}
 		/// <summary>
 		/// Clear the screen with a magenta colour (1.0f, 0.0f, 1.0f, 1.0f)
 		/// </summary>
