@@ -16,7 +16,6 @@ namespace Crescendo::Engine
 	{
 	private:
 		virtual void Init(const WindowProps& props);
-		virtual void Shutdown();
 
 		GLFWwindow* window;
 		std::unique_ptr<Rendering::GraphicsContext> context;
@@ -34,6 +33,8 @@ namespace Crescendo::Engine
 	public:
 		WindowsWindow(const WindowProps& props);
 		virtual ~WindowsWindow();
+
+		virtual void Close() override;
 
 		virtual void OnUpdate() override;
 		virtual void OnLateUpdate() override;

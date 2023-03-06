@@ -25,6 +25,10 @@ namespace Crescendo::Engine {
 	public:
 		virtual ~Window() {};
 		/// <summary>
+		/// Manually close the window
+		/// </summary>
+		virtual void Close() = 0;
+		/// <summary>
 		/// Run once every frame
 		/// </summary>
 		virtual void OnUpdate() = 0;

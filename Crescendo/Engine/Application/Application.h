@@ -25,6 +25,10 @@ namespace Crescendo
 
 			void Run();
 			/// <summary>
+			/// Close the application
+			/// </summary>
+			void Close();
+			/// <summary>
 			/// Returns the current running state of the application. This is usually tied to the state of the window
 			/// </summary>
 			/// <returns>Really?</returns>

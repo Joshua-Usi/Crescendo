@@ -35,7 +35,7 @@ namespace Crescendo
 		}
 		Application::~Application()
 		{
-
+			delete window;
 		}
 		void Application::Run()
 		{
@@ -47,6 +47,10 @@ namespace Crescendo
 				this->layerManager.Update(time);
 			}
 			this->OnExit();
+		}
+		void Application::Close()
+		{
+			this->GetWindow()->Close();
 		}
 		bool Application::IsRunning()
 		{

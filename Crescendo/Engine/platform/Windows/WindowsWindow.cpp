@@ -18,7 +18,7 @@ namespace Crescendo::Engine
 	}
 	WindowsWindow::~WindowsWindow()
 	{
-		Shutdown();
+		this->Close();
 	}
 	void WindowsWindow::Init(const WindowProps& props)
 	{
@@ -55,7 +55,7 @@ namespace Crescendo::Engine
 		glfwSetWindowCloseCallback(this->window, [](GLFWwindow* window)
 		{
 			WindowData windowPointer = CastVoid(WindowData, glfwGetWindowUserPointer(window));
-			windowPointer.windowPointer->Shutdown();
+			windowPointer.windowPointer->Close();
 		});
 
 		// Set API
@@ -67,11 +67,13 @@ namespace Crescendo::Engine
 		this->SetVSync(true);
 		this->SetCursorLock(true);
 	}
-	void WindowsWindow::Shutdown()
+	void WindowsWindow::Close()
 	{
-
-		this->data.isOpen = false;
-		glfwDestroyWindow(this->window);
+		if (this->data.isOpen)
+		{
+			this->data.isOpen = false;
+			glfwDestroyWindow(this->window);
+		}
 	}
 	void WindowsWindow::OnUpdate()
 	{
