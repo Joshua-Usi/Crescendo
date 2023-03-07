@@ -14,7 +14,7 @@
 
 namespace Crescendo::Tools::XML
 {
-	void Parse(Document* xmlDoc, const char* xmlString)
+	void Parse(Document& xmlDoc, const char* xmlString)
 	{
 		// Heap allocate as this takes up quite a bit of stack space
 		rapidxml::xml_document<char>* doc = new rapidxml::xml_document<char>;
@@ -22,7 +22,7 @@ namespace Crescendo::Tools::XML
 		util::RapidToCrescendo(xmlDoc, doc);
 		delete doc;
 	}
-	void ParseFromFile(Document* xmlDoc, const char* filePath)
+	void ParseFromFile(Document& xmlDoc, const char* filePath)
 	{
 		std::fstream file;
 		std::stringstream data;
@@ -34,12 +34,12 @@ namespace Crescendo::Tools::XML
 		Parse(xmlDoc, data.str().c_str());
 		Crescendo::Engine::FileSystem::Close(file);
 	}
-	void Stringify(Document* xmlDoc, std::string* outputString)
+	void Stringify(Document& xmlDoc, std::string& outputString)
 	{
 		// Heap allocate as this takes up quite a bit of stack space
 		rapidxml::xml_document<char>* doc = new rapidxml::xml_document<char>;
 		util::CrescendoToRapid(xmlDoc, doc);
-		rapidxml::print(outputString, *doc, 0);
+		rapidxml::print(&outputString, *doc, 0);
 		delete doc;
 	}
 }

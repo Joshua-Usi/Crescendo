@@ -10,7 +10,6 @@
  *          the wheel is such a waste of time!         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "core/core.h"
-
 #include "datatypes/XMLDocument.h"
 
 namespace Crescendo::Tools::XML
@@ -20,17 +19,17 @@ namespace Crescendo::Tools::XML
 	/// </summary>
 	/// <param name="xmlDoc">A reference to the document to parse into</param>
 	/// <param name="xmlString">A reference to the string to be parsed</param>
-	void Parse(Document* xmlDoc, const char* xmlString);
+	void Parse(Document& xmlDoc, const char* xmlString);
 	/// <summary>
 	/// Parses an XML document directly from a file. Requires no explicit string declarations
 	/// </summary>
 	/// <param name="xmlDoc">A reference to the document to parse into</param>
 	/// <param name="filePath">A file path to the file that is to be parsed</param>
-	void ParseFromFile(Document* xmlDoc, const char* filePath);
+	void ParseFromFile(Document& xmlDoc, const char* filePath);
 	/// <summary>
 	/// Takes an XML document and converts it into a serialised and saveable string
 	/// </summary>
 	/// <param name="xmlDoc">A reference of the XML document to build the serialised document</param>
 	/// <param name="outputString">A reference to the string that will be output</param>
-	void Stringify(Document* xmlDoc, std::string* outputString);
+	void Stringify(Document& xmlDoc, std::string& outputString);
 }

@@ -24,17 +24,17 @@ namespace Crescendo::Tools::XML::util
 		}
 		return node;
 	};
-	void CrescendoToRapid(Document* crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
+	void CrescendoToRapid(Document& crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
 	{
-		Node* csWorkingNode = crescendoDoc->root.get();
+		Node* csWorkingNode = crescendoDoc.root.get();
 		rapidxml::xml_node<>* workingNode = rapidDoc;
 
 		// Move declaration node, if declarations exist
-		if (crescendoDoc->AttributeCount() > 0)
+		if (crescendoDoc.AttributeCount() > 0)
 		{
 			rapidxml::xml_node<>* declarationNode = rapidDoc->allocate_node(rapidxml::node_declaration);
 			// Move individual declarations over
-			for (auto const& attribute : crescendoDoc->attributes)
+			for (auto const& attribute : crescendoDoc.attributes)
 			{
 				rapidxml::xml_attribute<>* rapidAttribute = rapidDoc->allocate_attribute(attribute.first, attribute.second);
 				declarationNode->append_attribute(rapidAttribute);
@@ -82,6 +82,6 @@ namespace Crescendo::Tools::XML::util
 				csWorkingNode = csWorkingNode->_parent();
 				workingNode = workingNode->parent();
 			}
-		} while (csWorkingNode != crescendoDoc->root.get());
+		} while (csWorkingNode != crescendoDoc.root.get());
 	};
 }

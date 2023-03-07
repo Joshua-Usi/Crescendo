@@ -9,9 +9,9 @@
 namespace Crescendo::Tools::XML::util
 {
 	// Convert a RapidXML document to a CrescendoXML document
-	void RapidToCrescendo(Document* crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
+	void RapidToCrescendo(Document& crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
 	{
-		Node* csWorkingNode = crescendoDoc->root.get();
+		Node* csWorkingNode = crescendoDoc.root.get();
 		rapidxml::xml_node<>* workingNode = rapidDoc->first_node();
 
 		// Move declaration node, if declarations exist
@@ -19,7 +19,7 @@ namespace Crescendo::Tools::XML::util
 		{
 			for (rapidxml::xml_attribute<>* attr = workingNode->first_attribute(); attr; attr = attr->next_attribute())
 			{
-				crescendoDoc->attributes[attr->name()] = attr->value();
+				crescendoDoc.attributes[attr->name()] = attr->value();
 			}
 			// Move to root node
 			workingNode = workingNode->next_sibling();
