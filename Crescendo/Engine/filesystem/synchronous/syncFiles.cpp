@@ -32,6 +32,14 @@ namespace Crescendo::Engine::FileSystem
 		data = buffer.str();
 	}
 
+	void Read(const char* fileName, std::string& data)
+	{
+		std::fstream file;
+		FileSystem::Open(file, fileName);
+		FileSystem::Read(file, data);
+		FileSystem::Close(file);
+	}
+
 	void Write(std::fstream& file, const char* data)
 	{
 		SeekToEnd(file);

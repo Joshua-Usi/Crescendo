@@ -21,6 +21,8 @@ namespace Crescendo::Engine::FileSystem
 	// Read Methods
 	// Reads the entire file
 	void Read(std::fstream& file, std::string& data);
+	// Reads the entire file no fuss without exposing a file stream
+	void Read(const char* fileName, std::string& data);
 
 	// Write Methods
 	// Appends and writes data to a file

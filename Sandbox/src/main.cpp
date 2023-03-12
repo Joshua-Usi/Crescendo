@@ -8,7 +8,7 @@ namespace Rendering = Crescendo::Rendering;
 class Sandbox : public Application
 {
 private:
-	Rendering::PerspectiveCamera camera = Rendering::PerspectiveCamera(45.0f, 16.0f / 9.0f);
+	Rendering::PerspectiveCamera camera = Rendering::PerspectiveCamera(glm::radians(45.0f), 16.0f / 9.0f);
 
 	glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
 
@@ -62,14 +62,10 @@ public:
 		std::shared_ptr<Rendering::IndexBuffer> cubeIndexBuffer;
 		cubeIndexBuffer.reset(Rendering::IndexBuffer::Create(cubeIndices.data(), cubeIndices.size()));
 		this->cubeVertexArray->SetIndexBuffer(cubeIndexBuffer);
-		std::fstream shader;
 		std::string vertexSource;
 		std::string fragmentSource;
-		FileSystem::Open(shader, "../Crescendo/Rendering/shaders/base.vert");
-		FileSystem::Read(shader, vertexSource);
-		FileSystem::Open(shader, "../Crescendo/Rendering/shaders/base.frag");
-		FileSystem::Read(shader, fragmentSource);
-		FileSystem::Close(shader);
+		FileSystem::Read("../Crescendo/Rendering/shaders/base.vert", vertexSource);
+		FileSystem::Read("../Crescendo/Rendering/shaders/base.frag", fragmentSource);
 		this->shaderProgram.reset(Rendering::ShaderProgram::Create(vertexSource.data(), fragmentSource.data()));
 	}
 	void OnUpdate()
