@@ -1,32 +1,30 @@
 #pragma once
 
 #include "core/core.h"
-#include "interfaces/ShaderProgram.h"
+#include "interfaces/Shader.h"
 
 #include <vector>
 #include <unordered_map>
 
 namespace Crescendo::Rendering
 {
-	class OpenGLShaderProgram : public ShaderProgram
+	class OpenGLShader : public Shader
 	{
 	private:
-		uint32_t shaderProgramID;
+		uint32_t shaderID;
 		std::vector<uint32_t> shaderIDs;
-		std::unordered_map<const char*, uint32_t> uniformCache;
 
-		uint32_t GetUniformLocation(const char* name);
 	public:
-		OpenGLShaderProgram();
+		OpenGLShader();
 		/// <summary>
 		/// Option to create shaders directly without having to call other methods
 		/// </summary>
 		/// <param name="vertexSource">Vertex shader source</param>
 		/// <param name="fragmentSource">Fragment shader source</param>
-		OpenGLShaderProgram(const char* vertexSource, const char* fragmentSource);
-		virtual ~OpenGLShaderProgram();
+		OpenGLShader(const char* vertexSource, const char* fragmentSource);
+		virtual ~OpenGLShader();
 
-		virtual void AttachShader(ShaderType type, const char* shaderSource) override;
+		virtual void AttachShader(Shader::Type type, const char* shaderSource) override;
 		virtual void Link() override;
 		virtual void Bind() override;
 		virtual void Unbind() override;

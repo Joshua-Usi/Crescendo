@@ -49,7 +49,7 @@ namespace Crescendo
 			/// <summary>
 			/// Runs 60 times every second (60Hz)
 			/// </summary>
-			virtual void OnUpdate();
+			virtual void OnUpdate(double dt);
 			/// <summary>
 			/// Runs once when the application starts up, useful for initialisations
 			/// </summary>

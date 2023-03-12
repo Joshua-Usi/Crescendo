@@ -1,25 +1,25 @@
-#include "ShaderProgram.h"
+#include "Shader.h"
 
-#include "platform/OpenGL/OpenGLShaderProgram.h"
+#include "platform/OpenGL/OpenGLShader.h"
 #include "Renderer.h"
 
 namespace Crescendo::Rendering
 {
-	ShaderProgram* ShaderProgram::Create()
+	Shader* Shader::Create()
 	{
 		switch (Renderer::GetAPI())
 		{
 		case RendererAPI::API::None: CS_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-		case RendererAPI::API::OpenGL: return new OpenGLShaderProgram();
+		case RendererAPI::API::OpenGL: return new OpenGLShader();
 		default: throw "Invalid Graphics API";
 		}
 	}
-	ShaderProgram* ShaderProgram::Create(const char* vertexSource, const char* fragmentSource)
+	Shader* Shader::Create(const char* vertexSource, const char* fragmentSource)
 	{
 		switch (Renderer::GetAPI())
 		{
 		case RendererAPI::API::None: CS_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-		case RendererAPI::API::OpenGL: return new OpenGLShaderProgram(vertexSource, fragmentSource);
+		case RendererAPI::API::OpenGL: return new OpenGLShader(vertexSource, fragmentSource);
 		default: throw "Invalid Graphics API";
 		}
 	}

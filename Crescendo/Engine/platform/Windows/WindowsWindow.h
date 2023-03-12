@@ -2,7 +2,7 @@
 
 #include "interfaces/Window.h"
 #include "interfaces/GraphicsContext.h"
-#include "interfaces/ShaderProgram.h"
+#include "interfaces/Shader.h"
 #include "interfaces/Buffers.h"
 #include "interfaces/VertexArray.h"
 

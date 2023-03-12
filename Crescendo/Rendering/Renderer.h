@@ -29,7 +29,7 @@ namespace Crescendo::Rendering
 		/// Submit geometry to be drawn
 		/// </summary>
 		/// <param name="vertexArray">vertexArray to be drawn</param>
-		static void Submit(const std::shared_ptr<ShaderProgram>& shader, const std::shared_ptr<VertexArray>& vertexArray, const glm::mat4& transform = glm::mat4(1.0f));
+		static void Submit(const std::shared_ptr<Shader>& shader, const std::shared_ptr<VertexArray>& vertexArray, const glm::mat4& transform = glm::mat4(1.0f));
 
 		/// <summary>
 		/// Get the currently set API

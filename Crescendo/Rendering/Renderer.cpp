@@ -11,7 +11,7 @@ namespace Crescendo::Rendering
 	{
 
 	}
-	void Renderer::Submit(const std::shared_ptr<ShaderProgram>& shader, const std::shared_ptr<VertexArray>& vertexArray, const glm::mat4& transform)
+	void Renderer::Submit(const std::shared_ptr<Shader>& shader, const std::shared_ptr<VertexArray>& vertexArray, const glm::mat4& transform)
 	{
 		shader->Bind();
 		shader->SetMat4("uProjectionView", sceneData->viewProjectionMatrix);

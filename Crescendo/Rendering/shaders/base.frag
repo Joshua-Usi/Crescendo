@@ -1,9 +1,9 @@
 #version 460 core
 out vec4 fragment;
 
-in vec4 vColor;
+uniform vec4 uColor;
 
 void main()
 {
-    fragment = vColor;
+    fragment = uColor;
 } 

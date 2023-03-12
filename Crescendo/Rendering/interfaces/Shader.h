@@ -6,22 +6,23 @@
 
 namespace Crescendo::Rendering
 {
-	enum class ShaderType
-	{
-		Vertex,
-		Fragment,
-	};
-	class ShaderProgram
+	class Shader
 	{
 	public:
-		virtual ~ShaderProgram() {}
+		enum class Type
+		{
+			Vertex,
+			Fragment,
+		};
+	public:
+		virtual ~Shader() {}
 
 		/// <summary>
 		/// Attaches a shader to the program via shader source text
 		/// </summary>
 		/// <param name="type">the type of shader to attach</param>
 		/// <param name="shaderSource">pointer to the source of the shader data</param>
-		virtual void AttachShader(ShaderType type, const char* shaderSource) = 0;
+		virtual void AttachShader(Shader::Type type, const char* shaderSource) = 0;
 		/// <summary>
 		/// Once all shaders are attached, link must be called at least once to compile the shader
 		/// </summary>
@@ -51,16 +52,16 @@ namespace Crescendo::Rendering
 		virtual void SetMat4(const char* name, const glm::mat4& value) = 0;
 
 		/// <summary>
-		/// Creates a RenderAPI specific ShaderProgram
+		/// Creates a RenderAPI specific Shader
 		/// </summary>
-		/// <returns>A polymorphic ShaderProgram</returns>
-		static ShaderProgram* Create();
+		/// <returns>A polymorphic Shader</returns>
+		static Shader* Create();
 		/// <summary>
-		/// Creates a RenderAPI specific ShaderProgram taking vertex and fragment shaders and automatically compiling and linking
+		/// Creates a RenderAPI specific Shadertaking vertex and fragment shaders and automatically compiling and linking
 		/// </summary>
 		/// <param name="vertexSource">Source text of vertex shader</param>
 		/// <param name="fragmentSource">Source text of fragment shader</param>
 		/// <returns></returns>
-		static ShaderProgram* Create(const char* vertexSource, const char* fragmentSource);
+		static Shader* Create(const char* vertexSource, const char* fragmentSource);
 	};
 }

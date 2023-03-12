@@ -14,7 +14,7 @@ namespace Crescendo::Engine {
 		void OnDetach() {}
 		void OnInit() {}
 		void OnUpdate(double dt) {
-			Application::Get()->OnUpdate();
+			Application::Get()->OnUpdate(dt);
 		}
 	};
 }

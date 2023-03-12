@@ -18,14 +18,14 @@ private:
 
 	std::vector<glm::vec3> cubePositions;
 
-	std::shared_ptr<Rendering::ShaderProgram> shaderProgram;
+	std::shared_ptr<Rendering::Shader> shader;
 	std::shared_ptr<Rendering::VertexArray> cubeVertexArray;
 public:
 	void OnStartup()
 	{
 		cubePositions.push_back(glm::vec3(0.0f, 5.0f, 0.0f));
 		cubePositions.push_back(glm::vec3(0.0f, -5.0f, 0.0f));
-		for (int32_t i = 0; i < 500; i++)
+		for (int32_t i = 0; i < 50; i++)
 		{
 			cubePositions.push_back(glm::vec3(Crescendo::Random::Float(-5, 5), Crescendo::Random::Float(0, 0), Crescendo::Random::Float(-100, 100)));
 		}
@@ -34,21 +34,20 @@ public:
 		this->cubeVertexArray.reset(Rendering::VertexArray::Create());
 		std::vector<float> cubeVertices = {
 			// front
-			-0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
-			 0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-			 0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f,
-			-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f,
+			-0.5f, -0.5f,  0.5f,
+			 0.5f, -0.5f,  0.5f, 
+			 0.5f,  0.5f,  0.5f, 
+			-0.5f,  0.5f,  0.5f, 
 			// back 
-			-0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
-			 0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-			 0.5f,  0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f,
-			-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f,
+			-0.5f, -0.5f, -0.5f, 
+			 0.5f, -0.5f, -0.5f, 
+			 0.5f,  0.5f, -0.5f, 
+			-0.5f,  0.5f, -0.5f,
 		};
 		std::shared_ptr<Rendering::VertexBuffer> cubeVertexBuffer;
 		cubeVertexBuffer.reset(Rendering::VertexBuffer::Create(cubeVertices.data(), cubeVertices.size()));
 		cubeVertexBuffer->SetLayout({
 			{Rendering::ShaderDataType::Float3, "aPosition"},
-			{Rendering::ShaderDataType::Float4, "aColor"},
 		});
 		this->cubeVertexArray->AddVertexBuffer(cubeVertexBuffer);
 		std::vector<uint32_t> cubeIndices = {
@@ -66,9 +65,9 @@ public:
 		std::string fragmentSource;
 		FileSystem::Read("../Crescendo/Rendering/shaders/base.vert", vertexSource);
 		FileSystem::Read("../Crescendo/Rendering/shaders/base.frag", fragmentSource);
-		this->shaderProgram.reset(Rendering::ShaderProgram::Create(vertexSource.data(), fragmentSource.data()));
+		this->shader.reset(Rendering::Shader::Create(vertexSource.data(), fragmentSource.data()));
 	}
-	void OnUpdate()
+	void OnUpdate(double dt)
 	{
 		Window* appWindow = Application::GetWindow();
 
@@ -87,16 +86,20 @@ public:
 
 		glm::vec3 rotation = this->camera.GetRotation();
 
-		if (Input::GetKeyPressed(Key::Space)) this->position.y += 0.1f;
-		if (Input::GetKeyPressed(Key::ShiftLeft)) this->position.y -= 0.1f;
+		glm::vec3 velocity = glm::vec3(0.0f, 0.0f, 0.0f);
 
-		if (Input::GetKeyPressed(Key::W)) this->position.x -= 0.1f * sin(this->yaw), this->position.z -= 0.1f * cos(this->yaw);
-		if (Input::GetKeyPressed(Key::S)) this->position.x += 0.1f * sin(this->yaw), this->position.z += 0.1f * cos(this->yaw);
+		if (Input::GetKeyPressed(Key::W)) velocity.x -= sin(this->yaw) * dt, velocity.z -= cos(this->yaw) * dt;
+		if (Input::GetKeyPressed(Key::S)) velocity.x += sin(this->yaw) * dt, velocity.z += cos(this->yaw) * dt;
 
-		if (Input::GetKeyPressed(Key::A)) this->position.x -= 0.1f * sin(this->yaw + 3.14159f / 2.0f), this->position.z -= 0.1f * cos(this->yaw + 3.14159f / 2.0f);
-		if (Input::GetKeyPressed(Key::D)) this->position.x += 0.1f * sin(this->yaw + 3.14159f / 2.0f), this->position.z += 0.1f * cos(this->yaw + 3.14159f / 2.0f); 
+		if (Input::GetKeyPressed(Key::A)) velocity.x -= sin(this->yaw + 3.14159f / 2.0f) * dt, velocity.z -= cos(this->yaw + 3.14159f / 2.0f) * dt;
+		if (Input::GetKeyPressed(Key::D)) velocity.x += sin(this->yaw + 3.14159f / 2.0f) * dt, velocity.z += cos(this->yaw + 3.14159f / 2.0f) * dt;
+
+		if (Input::GetKeyPressed(Key::Space)) velocity.y += dt;
+		if (Input::GetKeyPressed(Key::ShiftLeft)) velocity.y -= dt;
 		
 		if (Input::GetKeyPressed(Key::Escape)) this->Close();
+
+		this->position += velocity * 10.0f;
 
 		this->camera.SetPosition(this->position);
 
@@ -111,8 +114,13 @@ public:
 			glm::mat4 model = glm::mat4(1.0f);
 			model = glm::translate(model, cubePositions[i]);
 			float angle = 20.0f * i;
-			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-			Rendering::Renderer::Submit(this->shaderProgram, this->cubeVertexArray, model);
+			model = glm::rotate(model, glm::radians(angle), { 1.0f, 0.3f, 0.5f });
+			float r = ((i + 0) % 3 == 0) ? 1.0f : 0.0f;
+			float g = ((i + 1) % 3 == 0) ? 1.0f : 0.0f;
+			float b = ((i + 2) % 3 == 0) ? 1.0f : 0.0f;
+			this->shader->SetFloat4("uColor", { r, g, b, 1.0f });
+
+			Rendering::Renderer::Submit(this->shader, this->cubeVertexArray, model);
 		}
 
 		Rendering::Renderer::EndScene();

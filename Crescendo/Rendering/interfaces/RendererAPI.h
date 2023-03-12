@@ -2,7 +2,7 @@
 
 #include "core/core.h"
 #include "VertexArray.h"
-#include "ShaderProgram.h"
+#include "Shader.h"
 
 #include <memory>
 
