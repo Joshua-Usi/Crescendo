@@ -17,7 +17,7 @@ namespace Crescendo::Core
 	protected:
 		std::filesystem::path path;
 		std::fstream file;
-		inline File(std::filesystem::path filePath) { this->path = filePath; }
+		inline File(const std::filesystem::path& filePath) { this->path = filePath; }
 	public:
 		inline virtual ~File() { this->Close(); }
 		/// <summary>
@@ -107,7 +107,7 @@ namespace Crescendo::Core
 		/// Creates a file stream associated with a file
 		/// </summary>
 		/// <param name="filePath">File path</param>
-		inline BinaryFile(std::filesystem::path& filePath) : File(filePath) {}
+		inline BinaryFile(const std::filesystem::path& filePath) : File(filePath) {}
 		/// <summary>
 		/// Opens the file stream, In this class, opens in Binary mode
 		/// </summary>
@@ -158,7 +158,7 @@ namespace Crescendo::Core
 		/// Creates a file stream associated with a file
 		/// </summary>
 		/// <param name="filePath">File path</param>
-		inline TextFile(std::filesystem::path filePath) : File(filePath) {}
+		inline TextFile(const std::filesystem::path& filePath) : File(filePath) {}
 		/// <summary>
 		/// Opens the file stream, In this class, opens in Text mode
 		/// </summary>

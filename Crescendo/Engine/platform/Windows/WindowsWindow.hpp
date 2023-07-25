@@ -22,8 +22,8 @@ namespace Crescendo::Engine
 		virtual void OnUpdate() override final;
 		virtual void OnLateUpdate() override final;
 
-		virtual int32_t GetWidth() const override final;
-		virtual int32_t GetHeight() const override final;
+		virtual uint32_t GetWidth() const override final;
+		virtual uint32_t GetHeight() const override final;
 		virtual void* GetNative() const override final;
 		virtual int32_t GetRefreshRate() const override final;
 		virtual std::string GetName() const override final;

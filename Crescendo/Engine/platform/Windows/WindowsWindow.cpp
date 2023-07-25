@@ -64,11 +64,11 @@ namespace Crescendo::Engine
 			// Should be buffer swap
 		}
 	}
-	int32_t WindowsWindow::GetWidth() const
+	uint32_t WindowsWindow::GetWidth() const
 	{
 		return this->data.width;
 	}
-	int32_t WindowsWindow::GetHeight() const
+	uint32_t WindowsWindow::GetHeight() const
 	{
 		return this->data.height;
 	}

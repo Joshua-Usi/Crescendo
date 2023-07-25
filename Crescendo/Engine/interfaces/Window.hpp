@@ -10,12 +10,12 @@ namespace Crescendo::Engine
 	struct WindowProperties
 	{
 		std::string title;
-		int32_t width, height;
+		uint32_t width, height;
 
 		WindowProperties(
 			const std::string& windowTitle = "Crescendo",
-			int32_t windowWidth = 1280,
-			int32_t windowHeight = 720
+			uint32_t windowWidth = 1280,
+			uint32_t windowHeight = 720
 		) : title(windowTitle), width(windowWidth), height(windowHeight) {};
 	};
 
@@ -29,7 +29,7 @@ namespace Crescendo::Engine
 		{
 			std::string title = "";
 			Window* windowPointer = NULL;
-			int32_t width = 0, height = 0;
+			uint32_t width = 0, height = 0;
 			bool vSync = false, isCursorLocked = false, isOpen = false;
 		} data;
 	public:
@@ -55,12 +55,12 @@ namespace Crescendo::Engine
 		/// Get the width of the window
 		/// </summary>
 		/// <returns>Width of the window as an integer</returns>
-		virtual int32_t GetWidth() const = 0;
+		virtual uint32_t GetWidth() const = 0;
 		/// <summary>
 		/// Get the height of the window
 		/// </summary>
 		/// <returns>Height of the window as an integer</returns>
-		virtual int32_t GetHeight() const = 0;
+		virtual uint32_t GetHeight() const = 0;
 		/// <summary>
 		/// Returns a void pointer to the native window pointer
 		/// </summary>
