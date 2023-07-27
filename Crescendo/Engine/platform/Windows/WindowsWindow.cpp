@@ -20,8 +20,7 @@ namespace Crescendo::Engine
 		}
 		// Hint no api for creating a vulkan interface
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		// Disable resizing for now
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
 		// Create window
 		this->window = glfwCreateWindow(this->data.width, this->data.height, this->data.title.c_str(), NULL, NULL);

@@ -1,4 +1,5 @@
 @echo off
+echo Note! you will need to download or have downloaded the VulkanSDK
 echo Generating Project Files...
 :: Create folder if not exists
 if not exist "vendor\bins\premake" mkdir "vendor\bins\premake"
