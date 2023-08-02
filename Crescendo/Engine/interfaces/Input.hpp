@@ -33,7 +33,7 @@ namespace Crescendo::Engine
 		/// Return the current mouse position x relative to the top-left of the window
 		/// </summary>
 		/// <returns>X position of mouse as a double</returns>
-		inline static double GetMousePositionX()
+		inline static double GetMouseX()
 		{
 			return self->MousePositionXImpl();
 		}
@@ -41,11 +41,10 @@ namespace Crescendo::Engine
 		/// Return the current mouse position y relative to the top-left of the window
 		/// </summary>
 		/// <returns>Y position of mouse as a double</returns>
-		inline static double GetMousePositionY()
+		inline static double GetMouseY()
 		{
 			return self->MousePositionYImpl();
 		}
-
 		// TODO CRESCENDO maybe at some point add some vector2 functions for mouse position
 
 		/// <summary>

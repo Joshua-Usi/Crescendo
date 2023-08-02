@@ -71,6 +71,10 @@ namespace Crescendo::Engine
 	{
 		return this->data.height;
 	}
+	float WindowsWindow::GetAspectRatio() const
+	{
+		return static_cast<float>(this->GetWidth()) / static_cast<float>(this->GetHeight());
+	}
 	void* WindowsWindow::GetNative() const
 	{
 		return this->window;

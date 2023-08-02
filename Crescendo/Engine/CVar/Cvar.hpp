@@ -45,11 +45,6 @@ namespace Crescendo::Engine
 			CS_ASSERT(data.count(name) != 0, "CVar does not exist / Was not registered");
 			data[name] = std::to_string(value);
 		}
-		inline static void Set(const std::string& name, int32_t value)
-		{
-			CS_ASSERT(data.count(name) != 0, "CVar does not exist / Was not registered");
-			data[name] = std::to_string(value);
-		}
 		inline static void Set(const std::string& name, double value)
 		{
 			CS_ASSERT(data.count(name) != 0, "CVar does not exist / Was not registered");

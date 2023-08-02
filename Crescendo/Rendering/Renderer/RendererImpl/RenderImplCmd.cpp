@@ -99,9 +99,9 @@ namespace Crescendo
 		vkCmdBindVertexBuffers(cmd, 0, vertexBuffers.size(), vertexBuffers.data(), offsets.data());
 		vkCmdBindIndexBuffer(cmd, this->indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-		uint32_t vertexCount = (this->offsets[mesh + 1] - this->offsets[mesh]) * INDICES_PER_TRIANGLE;
+		uint32_t vertexCount = (this->indiceOffsets[mesh + 1] - this->indiceOffsets[mesh]) * INDICES_PER_TRIANGLE;
 
-		vkCmdDrawIndexed(cmd, vertexCount, 1, this->indiceOffsets[mesh] * INDICES_PER_TRIANGLE, this->offsets[mesh] * VERTICES_PER_INDEX, 0);
+		vkCmdDrawIndexed(cmd, vertexCount, 1, this->indiceOffsets[mesh] * INDICES_PER_TRIANGLE, this->offsets[mesh], 0);
 	}
 	void Renderer::RendererImpl::PresentFrame()
 	{
@@ -119,5 +119,7 @@ namespace Crescendo
 			RecreateSwapchain();
 		}
 		else CS_ASSERT(presentResult == VK_SUCCESS, "Failed to present!");
+		// Advance the frame index to use the next buffer
+		this->state.frameIndex = (this->state.frameIndex + 1) % this->state.framesInFlight;
 	}
 }

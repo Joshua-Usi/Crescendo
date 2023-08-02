@@ -79,10 +79,14 @@ namespace Crescendo
 
 		struct State
 		{
-			FrameData frameData;
+			std::vector<FrameData> frameData;
 
+			uint32_t framesInFlight;
+			uint32_t frameIndex;
 			uint32_t swapchainImageIndex;
 			uint32_t boundPipelineIndex;
+			// Maximum number of triangles for each vertex buffer
+			uint32_t maxBufferSize;
 
 			bool didFramebufferResize = false;
 
@@ -107,10 +111,10 @@ namespace Crescendo
 		Buffer indexBuffer;
 
 		// Offsets for the other buffers
-		std::vector<uint32_t> offsets = { 0 };
+		std::vector<uint32_t> offsets;
 		// Stores offsets of a mesh's data in the universal buffers
 		// Each unit is based on a triangle, this is the offset buffer for the indices
-		std::vector<uint32_t> indiceOffsets = { 0 };
+		std::vector<uint32_t> indiceOffsets;
  
 	public:
 		RendererImpl() = default;

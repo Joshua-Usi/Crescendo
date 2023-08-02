@@ -8,6 +8,8 @@ namespace Crescendo::Engine
 {
 	class WindowsInput : public Input
 	{
+	private:
+		double mouseX = 0, mouseY = 0, pMouseX = 0, pMouseY = 0;
 	protected:
 		// implementations for platform specific
 		virtual bool KeyDownImpl(Key keyCode) const override final;

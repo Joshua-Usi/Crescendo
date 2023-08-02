@@ -1,3 +1,6 @@
 [submodule "Crescendo/Libraries/Thirdparty"]
 	path = Crescendo/Libraries/Thirdparty
 	url = https://github.com/Joshua-Usi/Crescendo-Thirdparty.git
+[submodule "Crescendo/Libraries/Construct"]
+	path = Crescendo/Libraries/Construct
+	url = https://github.com/Joshua-Usi/Construct.git

@@ -48,6 +48,12 @@ namespace Crescendo
 		allocatorInfo.device = this->device;
 		allocatorInfo.instance = this->instance;
 		vmaCreateAllocator(&allocatorInfo, &this->allocator);
+		
+		// Set values
+		this->state.framesInFlight = info.framesInFlight;
+		this->state.frameIndex = 0;
+		this->state.frameData.resize(info.framesInFlight);
+		this->state.maxBufferSize = info.triangleBufferSize;
 
 		// Push to deletion queue
 		this->mainDeletionQueue.Push([&]() {
@@ -102,14 +108,16 @@ namespace Crescendo
 	{
 		// Create the command pool
 		VkCommandPoolCreateInfo commandPoolInfo = Create::CommandPoolCreateInfo(this->queues.universalFamily);
-		CS_ASSERT(vkCreateCommandPool(this->device, &commandPoolInfo, nullptr, &this->state.frameData.commandPool) == VK_SUCCESS, "Failed to create command pool!");
-	
-		// Create the command buffer
-		VkCommandBufferAllocateInfo cmdBufferInfo = Create::CommandBufferAllocateInfo(this->state.frameData.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
-		CS_ASSERT(vkAllocateCommandBuffers(this->device, &cmdBufferInfo, &this->state.frameData.commandBuffer) == VK_SUCCESS, "Failed to allocate command buffers!");
+		for (uint32_t i = 0; i < this->state.framesInFlight; i++)
+		{
+			CS_ASSERT(vkCreateCommandPool(this->device, &commandPoolInfo, nullptr, &this->state.frameData[i].commandPool) == VK_SUCCESS, "Failed to create command pool!");
 
+			// Create the command buffer
+			VkCommandBufferAllocateInfo cmdBufferInfo = Create::CommandBufferAllocateInfo(this->state.frameData[i].commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
+			CS_ASSERT(vkAllocateCommandBuffers(this->device, &cmdBufferInfo, &this->state.frameData[i].commandBuffer) == VK_SUCCESS, "Failed to allocate command buffers!");
+		}
 		this->mainDeletionQueue.Push([&]() {
-			vkDestroyCommandPool(this->device, this->state.frameData.commandPool, nullptr);
+			for (auto& frame : this->state.frameData) vkDestroyCommandPool(this->device, frame.commandPool, nullptr);
 		});
 	}
 	void Renderer::RendererImpl::InitialiseRenderpasses(const BuilderInfo& info)
@@ -177,14 +185,19 @@ namespace Crescendo
 		const VkFenceCreateInfo fenceInfo = Create::FenceCreateInfo(true);
 		const VkSemaphoreCreateInfo semaphoreInfo = Create::SemaphoreCreateInfo();
 		
-		CS_ASSERT(vkCreateSemaphore(this->device, &semaphoreInfo, nullptr, &this->state.frameData.presentSemaphore) == VK_SUCCESS, "Failed to create image available semaphore");
-		CS_ASSERT(vkCreateSemaphore(this->device, &semaphoreInfo, nullptr, &this->state.frameData.renderSemaphore) == VK_SUCCESS, "Failed to create render finished semaphore");
-		CS_ASSERT(vkCreateFence(this->device, &fenceInfo, nullptr, &this->state.frameData.renderFence) == VK_SUCCESS, "Failed to create in flight fences");
-	
+		for (uint32_t i = 0; i < info.framesInFlight; i++)
+		{
+			CS_ASSERT(vkCreateSemaphore(this->device, &semaphoreInfo, nullptr, &this->state.frameData[i].presentSemaphore) == VK_SUCCESS, "Failed to create image available semaphore");
+			CS_ASSERT(vkCreateSemaphore(this->device, &semaphoreInfo, nullptr, &this->state.frameData[i].renderSemaphore) == VK_SUCCESS, "Failed to create render finished semaphore");
+			CS_ASSERT(vkCreateFence(this->device, &fenceInfo, nullptr, &this->state.frameData[i].renderFence) == VK_SUCCESS, "Failed to create in flight fences");
+		}
 		this->mainDeletionQueue.Push([&]() {
-			vkDestroySemaphore(this->device, this->state.frameData.presentSemaphore, nullptr);
-			vkDestroySemaphore(this->device, this->state.frameData.renderSemaphore, nullptr);
-			vkDestroyFence(this->device, this->state.frameData.renderFence, nullptr);
+			for (auto& frame : this->state.frameData)
+			{
+				vkDestroySemaphore(this->device, frame.presentSemaphore, nullptr);
+				vkDestroySemaphore(this->device, frame.renderSemaphore, nullptr);
+				vkDestroyFence(this->device, frame.renderFence, nullptr);
+			}
 		});
 	}
 	void Renderer::RendererImpl::InitialisePipelines(const BuilderInfo& info)
@@ -267,11 +280,14 @@ namespace Crescendo
 		constexpr size_t INDICES_PER_TRIANGLE =  3;
 		constexpr size_t VERTICES_PER_TRIANGLE = 3 * INDICES_PER_TRIANGLE;
 		constexpr size_t NORMALS_PER_TRIANGLE =  3 * INDICES_PER_TRIANGLE;
-		constexpr size_t UVS_PER_TRAINGLE =      2 * INDICES_PER_TRIANGLE;
+		constexpr size_t UVS_PER_TRIANGLE =      2 * INDICES_PER_TRIANGLE;
+
+		this->offsets = std::vector<uint32_t>(1, 0);
+		this->indiceOffsets = std::vector<uint32_t>(1, 0);
 
 		this->positionBuffer =  this->CreateBuffer(sizeof(float) *    VERTICES_PER_TRIANGLE  * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 		this->normalBuffer =    this->CreateBuffer(sizeof(float) *    NORMALS_PER_TRIANGLE   * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		this->textureUVBuffer = this->CreateBuffer(sizeof(float) *	  UVS_PER_TRAINGLE       * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		this->textureUVBuffer = this->CreateBuffer(sizeof(float) *	  UVS_PER_TRIANGLE       * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 		this->indexBuffer =		this->CreateBuffer(sizeof(uint32_t) * INDICES_PER_TRIANGLE   * info.triangleBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,  VMA_MEMORY_USAGE_CPU_TO_GPU);
 	
 		this->mainDeletionQueue.Push([&]() {

@@ -62,6 +62,11 @@ namespace Crescendo::Engine
 		/// <returns>Height of the window as an integer</returns>
 		virtual uint32_t GetHeight() const = 0;
 		/// <summary>
+		/// Get the aspect ratio of the window
+		/// </summary>
+		/// <returns>Aspect ratio of the float</returns>
+		virtual float GetAspectRatio() const = 0;
+		/// <summary>
 		/// Returns a void pointer to the native window pointer
 		/// </summary>
 		/// <returns>Pointer to native window</returns>
