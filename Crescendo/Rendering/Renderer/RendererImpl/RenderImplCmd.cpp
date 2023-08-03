@@ -90,14 +90,20 @@ namespace Crescendo
 		constexpr uint32_t INDICES_PER_TRIANGLE = 3;
 		constexpr uint32_t VERTICES_PER_INDEX = 3;
 
+		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
+
 		FrameData& currentFrame = this->GetCurrentFrameData();
 		VkCommandBuffer cmd = currentFrame.commandBuffer;
 
-		std::array<VkBuffer, 3> vertexBuffers = { this->positionBuffer.buffer, this->normalBuffer.buffer, this->textureUVBuffer.buffer };
+		std::array<VkBuffer, 3> vertexBuffers = {
+			this->vertexBuffers[POSITION].buffer,
+			this->vertexBuffers[NORMALS].buffer,
+			this->vertexBuffers[TEXTURE_UVS].buffer
+		};
 		std::array<VkDeviceSize, 3> offsets = { 0, 0, 0 };
 
 		vkCmdBindVertexBuffers(cmd, 0, vertexBuffers.size(), vertexBuffers.data(), offsets.data());
-		vkCmdBindIndexBuffer(cmd, this->indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(cmd, this->vertexBuffers[INDICES].buffer, 0, VK_INDEX_TYPE_UINT32);
 
 		uint32_t vertexCount = (this->indiceOffsets[mesh + 1] - this->indiceOffsets[mesh]) * INDICES_PER_TRIANGLE;
 

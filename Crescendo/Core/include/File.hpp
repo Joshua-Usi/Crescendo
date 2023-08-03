@@ -19,6 +19,7 @@ namespace Crescendo::Core
 		std::fstream file;
 		inline File(const std::filesystem::path& filePath) { this->path = filePath; }
 	public:
+		File() = delete;
 		inline virtual ~File() { this->Close(); }
 		/// <summary>
 		/// Close the file stream

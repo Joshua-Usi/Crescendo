@@ -2,7 +2,7 @@
 
 #include "RandomEngine.hpp"
 
-namespace Crescendo
+namespace Crescendo::Math
 {
 	class Random
 	{
@@ -10,7 +10,7 @@ namespace Crescendo
 		static RandomEngine defaultEngine;
 	public:
 		static void SetSeed(int64_t seed) { defaultEngine.SetSeed(seed); }
-		// Returns a random integer between 0 and randMax
+		// Returns a random integer between 0 and randMax, don't see why this would be useful
 		static int64_t Int() { return defaultEngine.Int(); }
 		// returns a random integer between min and max inclusive
 		static int64_t Int(int64_t min, int64_t max) { return defaultEngine.Int(min, max); }

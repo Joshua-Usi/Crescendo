@@ -73,28 +73,30 @@ namespace Crescendo
 		vmaMapMemory(this->allocator, buffer.allocation, &buffer.memoryLocation);
 		return buffer;
 	}
-	void Renderer::RendererImpl::UploadMesh(const Mesh& mesh)
+	void Renderer::RendererImpl::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices)
 	{
 		constexpr size_t INDICES_PER_TRIANGLE =  3;
 		constexpr size_t VERTICES_PER_INDEX =    3;
 		constexpr size_t NORMALS_PER_INDEX =     3;
 		constexpr size_t UVS_PER_INDEX =         2;
 
-		CS_ASSERT(mesh.vertices.size()   % 3 == 0, "Invalid mesh vertices!");
-		CS_ASSERT(mesh.normals.size()    % 3 == 0, "Invalid mesh normals!");
-		CS_ASSERT(mesh.textureUVs.size() % 2 == 0, "Invalid mesh texture UVs!");
-		CS_ASSERT(mesh.indices.size()    % 3 == 0, "Invalid mesh indices!");
-		CS_ASSERT(this->offsets.back() + mesh.vertices.size() / 3 <= this->state.maxBufferSize, "Mesh would overflow buffer!");
+		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
 
-		std::memcpy(static_cast<char*>(this->positionBuffer.memoryLocation) +  this->offsets.back() *       sizeof(float) *    VERTICES_PER_INDEX,    mesh.vertices.data(),   mesh.vertices.size() *   sizeof(float));
-		std::memcpy(static_cast<char*>(this->normalBuffer.memoryLocation) +    this->offsets.back() *       sizeof(float) *    NORMALS_PER_INDEX,     mesh.normals.data(),    mesh.normals.size() *    sizeof(float));
-		std::memcpy(static_cast<char*>(this->textureUVBuffer.memoryLocation) + this->offsets.back() *       sizeof(float) *    UVS_PER_INDEX,         mesh.textureUVs.data(), mesh.textureUVs.size() * sizeof(float));
-		std::memcpy(static_cast<char*>(this->indexBuffer.memoryLocation) +     this->indiceOffsets.back() * sizeof(uint32_t) * INDICES_PER_TRIANGLE,  mesh.indices.data(),    mesh.indices.size() *    sizeof(uint32_t));
+		CS_ASSERT(indices.size() % 3 == 0, "Invalid mesh indices!");
+		CS_ASSERT(vertices.size()   % 3 == 0, "Invalid mesh vertices!");
+		CS_ASSERT(normals.size()    % 3 == 0, "Invalid mesh normals!");
+		CS_ASSERT(textureUVs.size() % 2 == 0, "Invalid mesh texture UVs!");
+		CS_ASSERT(this->offsets.back() + vertices.size() / 3 <= this->state.maxBufferSize, "Mesh would overflow buffer!");
+
+		std::memcpy(static_cast<uint32_t*>(this->vertexBuffers[INDICES].memoryLocation)  + this->indiceOffsets.back() * INDICES_PER_TRIANGLE, indices.data(),    indices.size()    * sizeof(uint32_t));
+		std::memcpy(static_cast<float*>   (this->vertexBuffers[POSITION].memoryLocation)    + this->offsets.back()       * VERTICES_PER_INDEX,   vertices.data(),   vertices.size()   * sizeof(float));
+		std::memcpy(static_cast<float*>   (this->vertexBuffers[NORMALS].memoryLocation)     + this->offsets.back()       * NORMALS_PER_INDEX,    normals.data(),    normals.size()    * sizeof(float));
+		std::memcpy(static_cast<float*>   (this->vertexBuffers[TEXTURE_UVS].memoryLocation) + this->offsets.back()       * UVS_PER_INDEX,        textureUVs.data(), textureUVs.size() * sizeof(float));
 
 		uint32_t last = this->offsets.back();
 		uint32_t lastIndices = this->indiceOffsets.back();
-		uint32_t uniqueVerticeCount = mesh.vertices.size() / VERTICES_PER_INDEX;
-		uint32_t triangleCount = mesh.indices.size() / INDICES_PER_TRIANGLE;
+		uint32_t uniqueVerticeCount = vertices.size() / VERTICES_PER_INDEX;
+		uint32_t triangleCount = indices.size() / INDICES_PER_TRIANGLE;
 
 		this->offsets.push_back(last + uniqueVerticeCount);
 		this->indiceOffsets.push_back(lastIndices + triangleCount);

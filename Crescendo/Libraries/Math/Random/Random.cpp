@@ -1,6 +1,6 @@
 #include "Random.hpp"
 
-namespace Crescendo
+namespace Crescendo::Math
 {
 	RandomEngine Random::defaultEngine = RandomEngine();
 }

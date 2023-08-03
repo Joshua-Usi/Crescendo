@@ -41,6 +41,9 @@ namespace Crescendo
 
 	struct FrameData
 	{
+		Buffer descriptorBuffer;
+		VkDescriptorSet descriptorSet;
+
 		VkSemaphore presentSemaphore, renderSemaphore;
 		VkFence renderFence;
 
@@ -81,6 +84,11 @@ namespace Crescendo
 		{
 			std::vector<FrameData> frameData;
 
+			struct Temp
+			{
+				BuilderInfo::WindowExtent sizeToResize;
+			} temp;
+
 			uint32_t framesInFlight;
 			uint32_t frameIndex;
 			uint32_t swapchainImageIndex;
@@ -89,11 +97,6 @@ namespace Crescendo
 			uint32_t maxBufferSize;
 
 			bool didFramebufferResize = false;
-
-			struct Temp
-			{
-				BuilderInfo::WindowExtent sizeToResize;
-			} temp;
 		} state;
 
 		Swapchain swapchain;
@@ -105,16 +108,17 @@ namespace Crescendo
 		std::vector<VkPipeline> pipelines;
 
 		// universal buffers that contain all the data for the respective vertex attribute
-		Buffer positionBuffer;
-		Buffer normalBuffer;
-		Buffer textureUVBuffer;
-		Buffer indexBuffer;
+		// By default holds 4 buffers, one for each vertex attribute: position, normal, textureUV, indices
+		std::vector<Buffer> vertexBuffers;
 
 		// Offsets for the other buffers
 		std::vector<uint32_t> offsets;
 		// Stores offsets of a mesh's data in the universal buffers
 		// Each unit is based on a triangle, this is the offset buffer for the indices
 		std::vector<uint32_t> indiceOffsets;
+
+		VkDescriptorPool descriptorPool;
+		std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
  
 	public:
 		RendererImpl() = default;
@@ -125,13 +129,16 @@ namespace Crescendo
 		void InitialiseInstance(const BuilderInfo& info);
 		void InitialiseSwapchain(const BuilderInfo& info);
 		void InitialiseCommands(const BuilderInfo& info);
-		// Also initialises the default render pass
-		void InitialiseRenderpasses(const BuilderInfo& info);
-		void InitialiseFramebuffers(const BuilderInfo& info);
 		void InitialiseSyncStructures(const BuilderInfo& info);
+
+		void InitialiseRenderpasses(const BuilderInfo& info); // Also initialises the default renderpass
+		void InitialiseFramebuffers(const BuilderInfo& info);
+		void InitialiseDescriptors(const BuilderInfo& info);
 		void InitialisePipelines(const BuilderInfo& info);
 		// Doesn't necessarily load buffers with data. But it does create and allocate them
 		void InitialiseBuffers(const BuilderInfo& info);
+
+
 		void RecreateSwapchain();
 		inline void Resize(const BuilderInfo::WindowExtent& windowExtent) { this->state.didFramebufferResize = true; this->state.temp.sizeToResize = windowExtent; }
 
@@ -147,6 +154,6 @@ namespace Crescendo
 		VkPipeline CreatePipeline(PipelineBuilderInfo& info);
 		Buffer CreateBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
-		void UploadMesh(const Mesh& mesh);
+		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
 	};
 }

@@ -132,7 +132,7 @@ namespace Crescendo
 		std::vector<VkVertexInputAttributeDescription> attributes(this->inputVariables.size());
 		for (uint32_t i = 0; i < this->inputVariables.size(); i++)
 		{
-			attributes[i] = { this->inputVariables[i].location, 0, GetFormatFromSize(this->inputVariables[i].size), 0};
+			attributes[i] = { this->inputVariables[i].location, this->inputVariables[i].location, GetFormatFromSize(this->inputVariables[i].size), 0};
 		}
 		return attributes;
 	}

@@ -2,7 +2,8 @@
 
 #include "Core/common.hpp"
 
-namespace Crescendo {
+namespace Crescendo::Math
+{
 	/*
 	 *	Uses splitmix algorithm to generate random numbers, insanely fast and efficient,
 	 *	good enough to pass Bigcrush but for some seeds it can fail

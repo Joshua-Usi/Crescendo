@@ -15,6 +15,8 @@
 #include "Core/Core.hpp"
 #include "Engine/Engine.hpp"
 #include "Graphics/Graphics.hpp"
+#include "IO/IO.hpp"
 #include "Libraries/Libraries.hpp"
+#include "Rendering/Rendering.hpp"
 
 #define CrescendoRegisterApp(app) shared<Crescendo::Engine::Application> Crescendo::Engine::CreateApplication() { return std::make_shared<app>(); }

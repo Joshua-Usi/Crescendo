@@ -120,6 +120,27 @@ namespace Crescendo
 			for (auto& frame : this->state.frameData) vkDestroyCommandPool(this->device, frame.commandPool, nullptr);
 		});
 	}
+	void Renderer::RendererImpl::InitialiseSyncStructures(const BuilderInfo& info)
+	{
+		// Create sync structures for frames in flight
+		const VkFenceCreateInfo fenceInfo = Create::FenceCreateInfo(true);
+		const VkSemaphoreCreateInfo semaphoreInfo = Create::SemaphoreCreateInfo();
+
+		for (uint32_t i = 0; i < info.framesInFlight; i++)
+		{
+			CS_ASSERT(vkCreateSemaphore(this->device, &semaphoreInfo, nullptr, &this->state.frameData[i].presentSemaphore) == VK_SUCCESS, "Failed to create image available semaphore");
+			CS_ASSERT(vkCreateSemaphore(this->device, &semaphoreInfo, nullptr, &this->state.frameData[i].renderSemaphore) == VK_SUCCESS, "Failed to create render finished semaphore");
+			CS_ASSERT(vkCreateFence(this->device, &fenceInfo, nullptr, &this->state.frameData[i].renderFence) == VK_SUCCESS, "Failed to create in flight fences");
+		}
+		this->mainDeletionQueue.Push([&]() {
+			for (auto& frame : this->state.frameData)
+			{
+				vkDestroySemaphore(this->device, frame.presentSemaphore, nullptr);
+				vkDestroySemaphore(this->device, frame.renderSemaphore, nullptr);
+				vkDestroyFence(this->device, frame.renderFence, nullptr);
+			}
+			});
+	}
 	void Renderer::RendererImpl::InitialiseRenderpasses(const BuilderInfo& info)
 	{
 		// Create the default renderpass
@@ -179,24 +200,39 @@ namespace Crescendo
 			this->framebuffers.clear();
 			});
 	}
-	void Renderer::RendererImpl::InitialiseSyncStructures(const BuilderInfo& info)
+	void Renderer::RendererImpl::InitialiseDescriptors(const BuilderInfo& info)
 	{
-		// Create sync structures for frames in flight
-		const VkFenceCreateInfo fenceInfo = Create::FenceCreateInfo(true);
-		const VkSemaphoreCreateInfo semaphoreInfo = Create::SemaphoreCreateInfo();
-		
-		for (uint32_t i = 0; i < info.framesInFlight; i++)
+		// Calculate the required size for the descriptor buffer;
+		size_t descriptorSize = 0;
+		for (const auto& shader : info.shaderData)
 		{
-			CS_ASSERT(vkCreateSemaphore(this->device, &semaphoreInfo, nullptr, &this->state.frameData[i].presentSemaphore) == VK_SUCCESS, "Failed to create image available semaphore");
-			CS_ASSERT(vkCreateSemaphore(this->device, &semaphoreInfo, nullptr, &this->state.frameData[i].renderSemaphore) == VK_SUCCESS, "Failed to create render finished semaphore");
-			CS_ASSERT(vkCreateFence(this->device, &fenceInfo, nullptr, &this->state.frameData[i].renderFence) == VK_SUCCESS, "Failed to create in flight fences");
+			for (const auto& set : shader.vertexReflection.descriptorSets) descriptorSize += set.GetSize();
+			for (const auto& set : shader.fragmentReflection.descriptorSets) descriptorSize += set.GetSize();
 		}
-		this->mainDeletionQueue.Push([&]() {
-			for (auto& frame : this->state.frameData)
+
+		std::cout << "Descriptor buffer size: " << descriptorSize << std::endl;
+		std::cout << "Total size: " << descriptorSize * info.framesInFlight << std::endl;
+	
+		// Create the buffers that will store the descriptor buffer data
+		for (auto& frameData : this->state.frameData)
+		{
+			frameData.descriptorBuffer = this->CreateBuffer(descriptorSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		}
+
+		this->descriptorSetLayouts.resize(1);
+
+		std::vector<VkDescriptorSetLayoutBinding> cameraBinding = info.shaderData[0].vertexReflection.GetDescriptorBindings(VK_SHADER_STAGE_VERTEX_BIT);
+
+		VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(cameraBinding);
+
+		CS_ASSERT(vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &this->descriptorSetLayouts[0]) == VK_SUCCESS, "Failed to create descriptor set layout");
+
+		mainDeletionQueue.Push([&]() {
+			for (auto& set : this->descriptorSetLayouts) vkDestroyDescriptorSetLayout(this->device, set, nullptr);
+			for (auto& frameData : this->state.frameData)
 			{
-				vkDestroySemaphore(this->device, frame.presentSemaphore, nullptr);
-				vkDestroySemaphore(this->device, frame.renderSemaphore, nullptr);
-				vkDestroyFence(this->device, frame.renderFence, nullptr);
+				vmaUnmapMemory(this->allocator, frameData.descriptorBuffer.allocation);
+				vmaDestroyBuffer(this->allocator, frameData.descriptorBuffer.buffer, frameData.descriptorBuffer.allocation);
 			}
 		});
 	}
@@ -282,24 +318,24 @@ namespace Crescendo
 		constexpr size_t NORMALS_PER_TRIANGLE =  3 * INDICES_PER_TRIANGLE;
 		constexpr size_t UVS_PER_TRIANGLE =      2 * INDICES_PER_TRIANGLE;
 
+		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
+
+		this->vertexBuffers.resize(4);
+
 		this->offsets = std::vector<uint32_t>(1, 0);
 		this->indiceOffsets = std::vector<uint32_t>(1, 0);
 
-		this->positionBuffer =  this->CreateBuffer(sizeof(float) *    VERTICES_PER_TRIANGLE  * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		this->normalBuffer =    this->CreateBuffer(sizeof(float) *    NORMALS_PER_TRIANGLE   * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		this->textureUVBuffer = this->CreateBuffer(sizeof(float) *	  UVS_PER_TRIANGLE       * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		this->indexBuffer =		this->CreateBuffer(sizeof(uint32_t) * INDICES_PER_TRIANGLE   * info.triangleBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,  VMA_MEMORY_USAGE_CPU_TO_GPU);
+		this->vertexBuffers[INDICES]     = this->CreateBuffer(sizeof(uint32_t) * INDICES_PER_TRIANGLE   * info.triangleBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,  VMA_MEMORY_USAGE_CPU_TO_GPU);
+		this->vertexBuffers[POSITION]    = this->CreateBuffer(sizeof(float)    * VERTICES_PER_TRIANGLE  * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		this->vertexBuffers[NORMALS]     = this->CreateBuffer(sizeof(float)    * NORMALS_PER_TRIANGLE   * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		this->vertexBuffers[TEXTURE_UVS] = this->CreateBuffer(sizeof(float)    * UVS_PER_TRIANGLE       * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	
 		this->mainDeletionQueue.Push([&]() {
-			vmaUnmapMemory(this->allocator, this->positionBuffer.allocation);
-			vmaUnmapMemory(this->allocator, this->normalBuffer.allocation);
-			vmaUnmapMemory(this->allocator, this->textureUVBuffer.allocation);
-			vmaUnmapMemory(this->allocator, this->indexBuffer.allocation);
-
-			vmaDestroyBuffer(this->allocator, this->positionBuffer.buffer,  this->positionBuffer.allocation);
-			vmaDestroyBuffer(this->allocator, this->normalBuffer.buffer,    this->normalBuffer.allocation);
-			vmaDestroyBuffer(this->allocator, this->textureUVBuffer.buffer, this->textureUVBuffer.allocation);
-			vmaDestroyBuffer(this->allocator, this->indexBuffer.buffer,     this->indexBuffer.allocation);
+			for (auto& vertexBuffer : this->vertexBuffers)
+			{
+				vmaUnmapMemory(this->allocator, vertexBuffer.allocation);
+				vmaDestroyBuffer(this->allocator, vertexBuffer.buffer, vertexBuffer.allocation);
+			}
 		});
 	}
 }

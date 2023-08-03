@@ -16,11 +16,6 @@ namespace Crescendo
 		unique<RendererImpl> impl;
 	public:
 		enum class ShaderStage { Vertex, Fragment };
-		struct Mesh
-		{
-			std::vector<float> vertices, normals, textureUVs;
-			std::vector<uint32_t> indices;
-		};
 		/// <summary>
 		/// Outlines instructions for how the renderer should be built
 		/// </summary>
@@ -65,6 +60,12 @@ namespace Crescendo
 
 			std::vector<ShaderStageData> shaderData;
 		};
+		struct PipelineVariantBuilderInfo
+		{
+			int dummy;
+		};
+	private:
+		void UpdatePushConstant(ShaderStage stage, const void* data, size_t size);
 	public:
 		Renderer();
 		~Renderer();
@@ -79,18 +80,18 @@ namespace Crescendo
 
 		void Init(const BuilderInfo& info);
 
-		void BeginFrame(float r, float g, float b, float a);
-		void EndFrame();
-		void BindPipeline(uint32_t pipelineIndex);
+		void CmdBeginFrame(float r, float g, float b, float a);
+		void CmdEndFrame();
+		void CmdBindPipeline(uint32_t pipelineIndex);
 		template<typename T>
-		void UpdatePushConstant(ShaderStage stage, const T& data) { this->UpdatePushConstant(stage, &data, sizeof(data)); }
-		void UpdatePushConstant(ShaderStage stage, const void* data, size_t size);
-		void Draw(uint32_t mesh);
-		void PresentFrame();
+		void CmdUpdatePushConstant(ShaderStage stage, const T& data) { this->UpdatePushConstant(stage, &data, sizeof(data)); }
+		void CmdDraw(uint32_t mesh);
+		void CmdPresentFrame();
 
 		void Resize(const BuilderInfo::WindowExtent& extent);
 
-		void UploadMesh(const Mesh& mesh);
+		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
+		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info);
 
 		static Renderer Create(const BuilderInfo& info);
 		static void Destroy(Renderer& renderer);

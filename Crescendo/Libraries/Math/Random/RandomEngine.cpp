@@ -5,7 +5,8 @@
 // 2 ** 63
 #define CS_RAND_MAX	9223372036854775808
 
-namespace Crescendo {
+namespace Crescendo:: Math
+{
 	RandomEngine::RandomEngine(int64_t seed)
 	{
 		this->SetSeed(seed);
