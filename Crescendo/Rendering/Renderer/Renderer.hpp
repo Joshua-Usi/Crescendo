@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core/common.hpp"
-#include "Rendering/Reflection/Reflection.hpp"
 
 #include <vector>
 
@@ -27,14 +26,6 @@ namespace Crescendo
 				Mailbox = 0, // The displayed image will always be the most recent image
 				FIFO = 1 // Images are placed in a queue and the oldest image is displayed. Guaranteed to be supported
 			};
-			struct ShaderStageData
-			{
-				std::vector<uint8_t> vertex, fragment;
-				SpirvReflection vertexReflection, fragmentReflection;
-				inline ShaderStageData(std::vector<uint8_t> vertex, std::vector<uint8_t> fragment) :
-					vertex(vertex), fragment(fragment),
-					vertexReflection(ReflectSpirv(vertex)), fragmentReflection(ReflectSpirv(fragment)) {}
-			};
 			struct WindowExtent { uint32_t width, height; };
 			// Whether or not the application should use validation layers
 			bool useValidationLayers;
@@ -56,13 +47,18 @@ namespace Crescendo
 			 *	36 * 3 = 108 bytes per triangle
 			 *	Allocates 108 * triangleBufferSize bytes total spread accross 4 different buffers
 			 */
-			uint32_t triangleBufferSize;
-
-			std::vector<ShaderStageData> shaderData;
+			uint64_t triangleBufferSize;
+			/*
+			 *	Specfies the maximum size of the descriptor buffer for all frames that can be stored without resizing
+			 *	Size is in bytes
+			 */
+			uint64_t descriptorBufferSize;
 		};
 		struct PipelineVariantBuilderInfo
 		{
-			int dummy;
+			enum class FillModes : uint32_t { Solid = 0, Wireframe = 1, Point = 2 };
+			std::vector<FillModes> fillModeVariants;
+			PipelineVariantBuilderInfo() = default;
 		};
 	private:
 		void UpdatePushConstant(ShaderStage stage, const void* data, size_t size);
@@ -91,7 +87,7 @@ namespace Crescendo
 		void Resize(const BuilderInfo::WindowExtent& extent);
 
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
-		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info);
+		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info = PipelineVariantBuilderInfo());
 
 		static Renderer Create(const BuilderInfo& info);
 		static void Destroy(Renderer& renderer);

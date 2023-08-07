@@ -27,11 +27,17 @@ namespace Crescendo
 		// Create surface
 		CS_ASSERT(glfwCreateWindowSurface(this->instance, static_cast<GLFWwindow*>(info.window), nullptr, &this->surface) == VK_SUCCESS, "Failed to create window surface!");
 
+		// Device features
+		VkPhysicalDeviceFeatures deviceFeatures = {};
+		deviceFeatures.fillModeNonSolid = VK_TRUE;
+		deviceFeatures.samplerAnisotropy = VK_TRUE;
+
 		// Select physical device
 		const vkb::PhysicalDevice physicalDeviceResult = vkb::PhysicalDeviceSelector(instance)
 			.set_minimum_version(1, 3)
 			.prefer_gpu_device_type(DEVICE_TYPE_MAPPING[static_cast<uint32_t>(info.preferredDeviceType)])
 			.set_surface(this->surface)
+			.set_required_features(deviceFeatures)
 			.select().value();
 		this->physicalDevice = physicalDeviceResult.physical_device;
 
@@ -200,110 +206,8 @@ namespace Crescendo
 			this->framebuffers.clear();
 			});
 	}
-	void Renderer::RendererImpl::InitialiseDescriptors(const BuilderInfo& info)
-	{
-		// Calculate the required size for the descriptor buffer;
-		size_t descriptorSize = 0;
-		for (const auto& shader : info.shaderData)
-		{
-			for (const auto& set : shader.vertexReflection.descriptorSets) descriptorSize += set.GetSize();
-			for (const auto& set : shader.fragmentReflection.descriptorSets) descriptorSize += set.GetSize();
-		}
-
-		std::cout << "Descriptor buffer size: " << descriptorSize << std::endl;
-		std::cout << "Total size: " << descriptorSize * info.framesInFlight << std::endl;
-	
-		// Create the buffers that will store the descriptor buffer data
-		for (auto& frameData : this->state.frameData)
-		{
-			frameData.descriptorBuffer = this->CreateBuffer(descriptorSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		}
-
-		this->descriptorSetLayouts.resize(1);
-
-		std::vector<VkDescriptorSetLayoutBinding> cameraBinding = info.shaderData[0].vertexReflection.GetDescriptorBindings(VK_SHADER_STAGE_VERTEX_BIT);
-
-		VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(cameraBinding);
-
-		CS_ASSERT(vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &this->descriptorSetLayouts[0]) == VK_SUCCESS, "Failed to create descriptor set layout");
-
-		mainDeletionQueue.Push([&]() {
-			for (auto& set : this->descriptorSetLayouts) vkDestroyDescriptorSetLayout(this->device, set, nullptr);
-			for (auto& frameData : this->state.frameData)
-			{
-				vmaUnmapMemory(this->allocator, frameData.descriptorBuffer.allocation);
-				vmaDestroyBuffer(this->allocator, frameData.descriptorBuffer.buffer, frameData.descriptorBuffer.allocation);
-			}
-		});
-	}
 	void Renderer::RendererImpl::InitialisePipelines(const BuilderInfo& info)
 	{
-		this->pipelineLayouts.resize(info.shaderData.size());
-		this->pipelines.resize(info.shaderData.size());
-		
-		for (size_t i = 0, size = info.shaderData.size(); i < size; i++)
-		{
-			const BuilderInfo::ShaderStageData shaders = info.shaderData[i];
-			// Load shader modules
-			VkShaderModule vertShaderModule = this->CreateShaderModule(shaders.vertex);
-			VkShaderModule fragShaderModule = this->CreateShaderModule(shaders.fragment);
-
-			// Get binding and attribute descriptions
-			std::vector<VkVertexInputBindingDescription> bindingDescriptions = shaders.vertexReflection.GetVertexBindings();
-			std::vector<VkVertexInputAttributeDescription> attributeDescriptions = shaders.vertexReflection.GetVertexAttributes();
-
-			// Get push constant range
-			VkPushConstantRange pushConstantRange = shaders.vertexReflection.GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT);
-
-			// Create the pipeline layout
-			VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(0, 0, nullptr, 1, &pushConstantRange);
-			CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &this->pipelineLayouts[i]) == VK_SUCCESS, "Failed to create pipeline layout!");
-
-			// We we always use dyanmic states, there is no performance penalty for just viewports and scissors
-			const std::vector<VkDynamicState> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-			// Create the information required to build the pipeline
-			PipelineBuilderInfo pipelineBuilderInfo = {};
-			pipelineBuilderInfo.dynamicState = Create::PipelineDynamicStateCreateInfo(
-				dynamicStates.size(), dynamicStates.data()
-			);
-			pipelineBuilderInfo.renderPass = this->defaultRenderPass;
-			pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(
-				nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule, "main", nullptr
-			));
-			pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(
-				nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule, "main", nullptr
-			));
-			pipelineBuilderInfo.vertexInputInfo = Create::PipelineVertexInputStateCreateInfo(
-				nullptr, static_cast<uint32_t>(bindingDescriptions.size()), bindingDescriptions.data(), static_cast<uint32_t>(attributeDescriptions.size()), attributeDescriptions.data()
-			);
-			pipelineBuilderInfo.inputAssemblyInfo = Create::PipelineInputAssemblyStateCreateInfo(
-				VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE
-			);
-			pipelineBuilderInfo.rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(
-				nullptr, VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE,
-				VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
-			);
-			pipelineBuilderInfo.multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(
-				nullptr, VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0f, nullptr, VK_FALSE, VK_FALSE
-			);
-			pipelineBuilderInfo.colorBlendAttachment = Create::PipelineColorBlendAttachmentState(
-				VK_TRUE, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
-				VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
-				VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
-			);
-			pipelineBuilderInfo.depthStencilInfo = Create::PipelineDepthStencilStateCreateInfo(
-				0, VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS, VK_FALSE, VK_FALSE, {}, {}, 0.0f, 1.0f
-			);
-			pipelineBuilderInfo.pipelineLayout = this->pipelineLayouts[i];
-
-			// Create the pipeline
-			this->pipelines[i] = this->CreatePipeline(pipelineBuilderInfo);
-
-			// Destroy shader modules
-			vkDestroyShaderModule(this->device, fragShaderModule, nullptr);
-			vkDestroyShaderModule(this->device, vertShaderModule, nullptr);
-		}
-
 		this->mainDeletionQueue.Push([&]() {
 			for (auto& pipeline : this->pipelines) vkDestroyPipeline(this->device, pipeline, nullptr);
 			for (auto& pipelineLayout : this->pipelineLayouts) vkDestroyPipelineLayout(this->device, pipelineLayout, nullptr);

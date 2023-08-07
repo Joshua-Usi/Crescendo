@@ -22,8 +22,6 @@ namespace Crescendo
 		CS_TIME(this->impl->InitialiseSyncStructures(info), "Sync Structures Initialisation");
 		CS_TIME(this->impl->InitialiseRenderpasses(info), "Renderpasses Initialisation");
 		CS_TIME(this->impl->InitialiseFramebuffers(info), "Framebuffers Initialisation");
-
-		//CS_TIME(this->impl->InitialiseDescriptors(info), "Descriptor Initialisation");
 		CS_TIME(this->impl->InitialisePipelines(info), "Pipelines Initialisation");
 		CS_TIME(this->impl->InitialiseBuffers(info), "Buffer initialisation");
 
@@ -37,6 +35,7 @@ namespace Crescendo
 
 	void Renderer::Resize(const BuilderInfo::WindowExtent& extent) { this->impl->Resize(extent); }
 	void Renderer::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices) { this->impl->UploadMesh(vertices, normals, textureUVs, indices); }
+	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info) { this->impl->UploadPipeline(vertexShader, fragmentShader, info); }
 	Renderer Renderer::Create(const Renderer::BuilderInfo& info)
 	{
 		Renderer renderer;

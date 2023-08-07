@@ -110,7 +110,6 @@ namespace Crescendo
 		// universal buffers that contain all the data for the respective vertex attribute
 		// By default holds 4 buffers, one for each vertex attribute: position, normal, textureUV, indices
 		std::vector<Buffer> vertexBuffers;
-
 		// Offsets for the other buffers
 		std::vector<uint32_t> offsets;
 		// Stores offsets of a mesh's data in the universal buffers
@@ -119,6 +118,10 @@ namespace Crescendo
 
 		VkDescriptorPool descriptorPool;
 		std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
+		Buffer descriptorSetBuffer;
+		// Offset into buffer for a specific set on a specific frame is 
+		std::vector<uint32_t> descriptorSetOffsets; // Offset in bytes, offset is 3 x the size of the descriptor set
+		std::vector<uint32_t> descriptorSetSize; // Size of a single buffer in bytes
  
 	public:
 		RendererImpl() = default;
@@ -133,15 +136,14 @@ namespace Crescendo
 
 		void InitialiseRenderpasses(const BuilderInfo& info); // Also initialises the default renderpass
 		void InitialiseFramebuffers(const BuilderInfo& info);
-		void InitialiseDescriptors(const BuilderInfo& info);
 		void InitialisePipelines(const BuilderInfo& info);
 		// Doesn't necessarily load buffers with data. But it does create and allocate them
 		void InitialiseBuffers(const BuilderInfo& info);
 
-
 		void RecreateSwapchain();
 		inline void Resize(const BuilderInfo::WindowExtent& windowExtent) { this->state.didFramebufferResize = true; this->state.temp.sizeToResize = windowExtent; }
 
+		// Commands
 		void BeginFrame(const VkClearValue& clearColor);
 		void EndFrame();
 		void BindPipeline(uint32_t pipelineIndex);
@@ -149,11 +151,14 @@ namespace Crescendo
 		void Draw(uint32_t mesh);
 		void PresentFrame();
 
+		// Creation abstraction
 		VkShaderModule CreateShaderModule(const std::vector<uint8_t>& code);
 		VkRenderPass CreateRenderPass(const std::vector<VkAttachmentDescription>& attachments, const std::vector<VkSubpassDescription>& subpasses, const std::vector<VkSubpassDependency>& subpassDependencies);
 		VkPipeline CreatePipeline(PipelineBuilderInfo& info);
 		Buffer CreateBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
+		// Upload commands
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
+		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info);
 	};
 }

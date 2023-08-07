@@ -1,6 +1,7 @@
 #include "RendererImpl.hpp"
 
-#include "./internal/Create.hpp"
+#include "internal/Create.hpp"
+#include "Rendering/Reflection/Reflection.hpp"
 
 namespace Crescendo
 {
@@ -72,6 +73,79 @@ namespace Crescendo
 		// You'll also need to explicitly unmap
 		vmaMapMemory(this->allocator, buffer.allocation, &buffer.memoryLocation);
 		return buffer;
+	}
+	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info)
+	{
+		// Allocate space for new pipeline
+		this->pipelines.resize(this->pipelines.size() + 1);
+		this->pipelineLayouts.resize(this->pipelineLayouts.size() + 1);
+
+		// Load shader modules
+		VkShaderModule vertModule = this->CreateShaderModule(vertexShader);
+		VkShaderModule fragModule = this->CreateShaderModule(fragmentShader);
+
+		// Create reflection data
+		SpirvReflection vertReflection = ReflectSpirv(vertexShader);
+		SpirvReflection fragReflection = ReflectSpirv(fragmentShader);
+
+		// Get binding and attribute descriptions
+		std::vector<VkVertexInputBindingDescription> bindingDescriptions = vertReflection.GetVertexBindings();
+		std::vector<VkVertexInputAttributeDescription> attributeDescriptions = vertReflection.GetVertexAttributes();
+
+		// Get push constant range
+		VkPushConstantRange pushConstantRange = vertReflection.GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT);
+
+		// Get descriptor set create info
+		// VkDescriptorSetLayoutCreateInfo setInfo = vertReflection.GetDescriptorSetLayouts(VK_SHADER_STAGE_VERTEX_BIT);
+
+		// Create the pipeline layout
+		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(0, 0, nullptr, 1, &pushConstantRange);
+		CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &this->pipelineLayouts.back()) == VK_SUCCESS, "Failed to create pipeline layout!");
+
+		// We we always use dyanmic states, there is really no performance penalty for just viewports and scissors and it means we don't need to recreate pipelines when resizing
+		constexpr std::array<VkDynamicState, 2> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+		// Create the information required to build the pipeline
+		PipelineBuilderInfo pipelineBuilderInfo = {};
+		pipelineBuilderInfo.dynamicState = Create::PipelineDynamicStateCreateInfo(
+			dynamicStates.size(), dynamicStates.data()
+		);
+		pipelineBuilderInfo.renderPass = this->defaultRenderPass;
+		pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(
+			nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vertModule, "main", nullptr
+		));
+		pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(
+			nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, fragModule, "main", nullptr
+		));
+		pipelineBuilderInfo.vertexInputInfo = Create::PipelineVertexInputStateCreateInfo(
+			nullptr, static_cast<uint32_t>(bindingDescriptions.size()), bindingDescriptions.data(), static_cast<uint32_t>(attributeDescriptions.size()), attributeDescriptions.data()
+		);
+		pipelineBuilderInfo.inputAssemblyInfo = Create::PipelineInputAssemblyStateCreateInfo(
+			VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE
+		);
+		pipelineBuilderInfo.rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(
+			nullptr, VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE,
+			VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
+		);
+		pipelineBuilderInfo.multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(
+			nullptr, VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0f, nullptr, VK_FALSE, VK_FALSE
+		);
+		pipelineBuilderInfo.colorBlendAttachment = Create::PipelineColorBlendAttachmentState(
+			VK_TRUE, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
+			VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+			VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+		);
+		pipelineBuilderInfo.depthStencilInfo = Create::PipelineDepthStencilStateCreateInfo(
+			0, VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS, VK_FALSE, VK_FALSE, {}, {}, 0.0f, 1.0f
+		);
+		pipelineBuilderInfo.pipelineLayout = this->pipelineLayouts.back();
+
+		// Create the pipeline
+		this->pipelines.back() = this->CreatePipeline(pipelineBuilderInfo);
+
+		// Destroy shader modules, reflection will delete itself
+		vkDestroyShaderModule(this->device, fragModule, nullptr);
+		vkDestroyShaderModule(this->device, vertModule, nullptr);
 	}
 	void Renderer::RendererImpl::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices)
 	{

@@ -3,6 +3,7 @@
 #include <vector>
 
 struct VkDescriptorSetLayoutBinding;
+struct VkDescriptorSetLayoutCreateInfo;
 struct VkVertexInputBindingDescription;
 struct VkVertexInputAttributeDescription;
 struct VkPushConstantRange;
@@ -42,7 +43,8 @@ namespace Crescendo
 		std::vector<InterfaceVariable> outputVariables;
 		std::vector<DescriptorSetLayout> descriptorSets;
 		PushConstantLayout pushConstant;
-		const std::vector<VkDescriptorSetLayoutBinding> GetDescriptorBindings(uint32_t shaderStage) const;
+		const std::vector<VkDescriptorSetLayoutBinding> GetDescriptorSetBindings(uint32_t shaderStage) const;
+		VkDescriptorSetLayoutCreateInfo GetDescriptorSetLayouts(uint32_t shaderStage) const;
 		const std::vector<VkVertexInputBindingDescription> GetVertexBindings() const;
 		const std::vector<VkVertexInputAttributeDescription> GetVertexAttributes() const;
 		VkPushConstantRange GetPushConstantRange(uint32_t shaderStage) const;

@@ -4,6 +4,9 @@
 
 #include "vulkan/vulkan.h"
 #include "SPIRV-reflect/spirv_reflect.h"
+
+#include "Rendering/Renderer/RendererImpl/internal/Create.hpp"
+
 namespace Crescendo
 {
 	VkFormat GetFormatFromSize(uint32_t size)
@@ -108,7 +111,7 @@ namespace Crescendo
 		spvReflectDestroyShaderModule(&reflectionModule);
 		return reflection;
 	}
-	const std::vector<VkDescriptorSetLayoutBinding> SpirvReflection::GetDescriptorBindings(uint32_t shaderStage) const
+	const std::vector<VkDescriptorSetLayoutBinding> SpirvReflection::GetDescriptorSetBindings(uint32_t shaderStage) const
 	{
 		std::vector<VkDescriptorSetLayoutBinding> bindings;
 		for (const auto& layout : this->descriptorSets)
@@ -117,6 +120,10 @@ namespace Crescendo
 			bindings.emplace_back(layout.binding, descriptorType, 1, shaderStage, nullptr);
 		}
 		return bindings;
+	}
+	VkDescriptorSetLayoutCreateInfo SpirvReflection::GetDescriptorSetLayouts(uint32_t shaderStage) const
+	{
+		return internal::Create::DescriptorSetLayoutCreateInfo(this->GetDescriptorSetBindings(shaderStage));
 	}
 	const std::vector<VkVertexInputBindingDescription> SpirvReflection::GetVertexBindings() const
 	{
