@@ -29,10 +29,10 @@ namespace Crescendo::IO
 			size_t indexOffset = 0;
 			for (size_t f = 0, fSize = shapes[s].mesh.num_face_vertices.size(); f < fSize; f++)
 			{
-				constexpr int VERTICES_PER_FACE = 3;
+				constexpr uint32_t VERTICES_PER_FACE = 3;
 				for (size_t v = 0; v < VERTICES_PER_FACE; v++)
 				{
-					tinyobj::index_t index = shapes[s].mesh.indices[indexOffset + v];
+					const tinyobj::index_t& index = shapes[s].mesh.indices[indexOffset + v];
 					// Positions
 					mesh.vertices.push_back(attrib.vertices[index.vertex_index * 3 + 0]);
 					mesh.vertices.push_back(attrib.vertices[index.vertex_index * 3 + 1]);

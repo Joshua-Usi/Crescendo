@@ -121,10 +121,6 @@ namespace Crescendo
 		}
 		return bindings;
 	}
-	VkDescriptorSetLayoutCreateInfo SpirvReflection::GetDescriptorSetLayouts(uint32_t shaderStage) const
-	{
-		return internal::Create::DescriptorSetLayoutCreateInfo(this->GetDescriptorSetBindings(shaderStage));
-	}
 	const std::vector<VkVertexInputBindingDescription> SpirvReflection::GetVertexBindings() const
 	{
 		std::vector<VkVertexInputBindingDescription> bindings(this->inputVariables.size());

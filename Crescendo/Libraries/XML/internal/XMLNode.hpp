@@ -25,7 +25,7 @@ namespace Crescendo::Tools::XML
 		inline Node* _next_sibling()
 		{
 			if (!this->GetParent()) return nullptr;
-			unsigned int i = 0;
+			uint64_t i = 0;
 			while (i < this->GetParent()->GetChildCount())
 			{
 				if ((this->GetParent()->children[i].get() == this) && i + 1 < this->GetParent()->GetChildCount())

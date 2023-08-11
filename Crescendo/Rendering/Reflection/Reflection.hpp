@@ -44,7 +44,6 @@ namespace Crescendo
 		std::vector<DescriptorSetLayout> descriptorSets;
 		PushConstantLayout pushConstant;
 		const std::vector<VkDescriptorSetLayoutBinding> GetDescriptorSetBindings(uint32_t shaderStage) const;
-		VkDescriptorSetLayoutCreateInfo GetDescriptorSetLayouts(uint32_t shaderStage) const;
 		const std::vector<VkVertexInputBindingDescription> GetVertexBindings() const;
 		const std::vector<VkVertexInputAttributeDescription> GetVertexAttributes() const;
 		VkPushConstantRange GetPushConstantRange(uint32_t shaderStage) const;

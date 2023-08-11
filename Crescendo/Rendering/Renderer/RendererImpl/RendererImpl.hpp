@@ -71,6 +71,8 @@ namespace Crescendo
 	public:
 		internal::FunctionQueue mainDeletionQueue, swapChainDeletionQueue;
 
+		VkPhysicalDeviceProperties physicalDeviceProperties;
+
 		// Instance related members
 		VmaAllocator allocator;
 		VkInstance instance;
@@ -79,22 +81,16 @@ namespace Crescendo
 		VkPhysicalDevice physicalDevice;
 		VkDevice device;
 		internal::QueueManager queues;
+		GLFWwindow* window;
 
 		struct State
 		{
 			std::vector<FrameData> frameData;
 
-			struct Temp
-			{
-				BuilderInfo::WindowExtent sizeToResize;
-			} temp;
-
 			uint32_t framesInFlight;
 			uint32_t frameIndex;
 			uint32_t swapchainImageIndex;
 			uint32_t boundPipelineIndex;
-			// Maximum number of triangles for each vertex buffer
-			uint32_t maxBufferSize;
 
 			bool didFramebufferResize = false;
 		} state;
@@ -118,15 +114,16 @@ namespace Crescendo
 
 		VkDescriptorPool descriptorPool;
 		std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
-		Buffer descriptorSetBuffer;
-		// Offset into buffer for a specific set on a specific frame is 
-		std::vector<uint32_t> descriptorSetOffsets; // Offset in bytes, offset is 3 x the size of the descriptor set
-		std::vector<uint32_t> descriptorSetSize; // Size of a single buffer in bytes
+		std::vector<std::vector<uint32_t>> descriptorSetLayoutOffsets;
+		// One per frame in flight
+		std::vector<Buffer> descriptorSetBuffers;
+		std::vector<VkDescriptorSet> descriptorSets;
  
 	public:
 		RendererImpl() = default;
 		~RendererImpl() = default;
 
+		inline uint32_t GetFrameIndex() const { return this->state.frameIndex; };
 		FrameData& GetCurrentFrameData();
 
 		void InitialiseInstance(const BuilderInfo& info);
@@ -136,12 +133,13 @@ namespace Crescendo
 
 		void InitialiseRenderpasses(const BuilderInfo& info); // Also initialises the default renderpass
 		void InitialiseFramebuffers(const BuilderInfo& info);
+		void InitialiseDescriptors(const BuilderInfo& info);
 		void InitialisePipelines(const BuilderInfo& info);
 		// Doesn't necessarily load buffers with data. But it does create and allocate them
 		void InitialiseBuffers(const BuilderInfo& info);
 
 		void RecreateSwapchain();
-		inline void Resize(const BuilderInfo::WindowExtent& windowExtent) { this->state.didFramebufferResize = true; this->state.temp.sizeToResize = windowExtent; }
+		inline void Resize() { this->state.didFramebufferResize = true; }
 
 		// Commands
 		void BeginFrame(const VkClearValue& clearColor);
@@ -150,6 +148,8 @@ namespace Crescendo
 		void UpdatePushConstant(ShaderStage stage, const void* data, size_t size);
 		void Draw(uint32_t mesh);
 		void PresentFrame();
+		void BindDescriptorSet(uint32_t descriptorSetIndex);
+		void UpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size);
 
 		// Creation abstraction
 		VkShaderModule CreateShaderModule(const std::vector<uint8_t>& code);

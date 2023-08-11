@@ -40,6 +40,7 @@ namespace Crescendo
 			.set_required_features(deviceFeatures)
 			.select().value();
 		this->physicalDevice = physicalDeviceResult.physical_device;
+		this->physicalDeviceProperties = physicalDeviceResult.properties;
 
 		// Create logical device
 		const vkb::Device deviceResult = vkb::DeviceBuilder(physicalDeviceResult).build().value();
@@ -59,7 +60,14 @@ namespace Crescendo
 		this->state.framesInFlight = info.framesInFlight;
 		this->state.frameIndex = 0;
 		this->state.frameData.resize(info.framesInFlight);
-		this->state.maxBufferSize = info.triangleBufferSize;
+		this->window = static_cast<GLFWwindow*>(info.window);
+
+		std::cout << "Renderer Stats:" << "\n";
+		std::cout << "\tDevice: " << physicalDeviceResult.name << "\n";
+		std::cout << "\tFrames in flight: " << info.framesInFlight << "\n";
+		std::cout << "\tVertex Buffer Block Size: 4 x " << info.vertexBufferBlockSize / 1024 / 1024 << "MB\n";
+		std::cout << "\tDescriptor Buffer Block Size: " << info.framesInFlight << " x " << info.descriptorBufferBlockSize / 1024 << "KB\n";
+		std::cout << "\tMinimum uniform buffer offset alignment: " << this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment << "B\n";
 
 		// Push to deletion queue
 		this->mainDeletionQueue.Push([&]() {
@@ -206,6 +214,22 @@ namespace Crescendo
 			this->framebuffers.clear();
 			});
 	}
+	void Renderer::RendererImpl::InitialiseDescriptors(const BuilderInfo& info)
+	{
+		constexpr uint32_t MAX_SETS = 128;
+		// Initialise descriptor pool
+		const std::vector<VkDescriptorPoolSize> sizes =
+		{
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, MAX_SETS } // We exclusively use dynamic uniform buffers
+		};
+		VkDescriptorPoolCreateInfo poolInfo = Create::DescriptorPoolCreateInfo(0, MAX_SETS, sizes);
+		vkCreateDescriptorPool(this->device, &poolInfo, nullptr, &this->descriptorPool);
+
+		this->mainDeletionQueue.Push([&]() {
+			for (auto& descriptorSetLayout : this->descriptorSetLayouts) vkDestroyDescriptorSetLayout(this->device, descriptorSetLayout, nullptr);
+			vkDestroyDescriptorPool(this->device, this->descriptorPool, nullptr);
+		});
+	}
 	void Renderer::RendererImpl::InitialisePipelines(const BuilderInfo& info)
 	{
 		this->mainDeletionQueue.Push([&]() {
@@ -217,6 +241,7 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseBuffers(const BuilderInfo& info)
 	{
+		// Vertex buffer initialisation
 		constexpr size_t INDICES_PER_TRIANGLE =  3;
 		constexpr size_t VERTICES_PER_TRIANGLE = 3 * INDICES_PER_TRIANGLE;
 		constexpr size_t NORMALS_PER_TRIANGLE =  3 * INDICES_PER_TRIANGLE;
@@ -229,16 +254,29 @@ namespace Crescendo
 		this->offsets = std::vector<uint32_t>(1, 0);
 		this->indiceOffsets = std::vector<uint32_t>(1, 0);
 
-		this->vertexBuffers[INDICES]     = this->CreateBuffer(sizeof(uint32_t) * INDICES_PER_TRIANGLE   * info.triangleBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,  VMA_MEMORY_USAGE_CPU_TO_GPU);
-		this->vertexBuffers[POSITION]    = this->CreateBuffer(sizeof(float)    * VERTICES_PER_TRIANGLE  * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		this->vertexBuffers[NORMALS]     = this->CreateBuffer(sizeof(float)    * NORMALS_PER_TRIANGLE   * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		this->vertexBuffers[TEXTURE_UVS] = this->CreateBuffer(sizeof(float)    * UVS_PER_TRIANGLE       * info.triangleBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		this->vertexBuffers[INDICES]     = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,  VMA_MEMORY_USAGE_CPU_TO_GPU);
+		this->vertexBuffers[POSITION]    = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		this->vertexBuffers[NORMALS]     = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		this->vertexBuffers[TEXTURE_UVS] = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	
+		// Descriptor buffer initialisation
+		for (uint32_t i = 0; i < info.framesInFlight; i++)
+		{
+			this->descriptorSetBuffers.push_back(this->CreateBuffer(info.descriptorBufferBlockSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU));
+		}
+
 		this->mainDeletionQueue.Push([&]() {
+			// Delete vertex buffers
 			for (auto& vertexBuffer : this->vertexBuffers)
 			{
 				vmaUnmapMemory(this->allocator, vertexBuffer.allocation);
 				vmaDestroyBuffer(this->allocator, vertexBuffer.buffer, vertexBuffer.allocation);
+			}
+			// Delete descriptor buffers
+			for (auto& descriptorSetBuffer : this->descriptorSetBuffers)
+			{
+				vmaUnmapMemory(this->allocator, descriptorSetBuffer.allocation);
+				vmaDestroyBuffer(this->allocator, descriptorSetBuffer.buffer, descriptorSetBuffer.allocation);
 			}
 		});
 	}

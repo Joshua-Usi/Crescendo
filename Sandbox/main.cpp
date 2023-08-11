@@ -31,7 +31,7 @@ public:
 
 		Crescendo::Renderer::BuilderInfo info;
 
-		info.useValidationLayers = true;
+		info.useValidationLayers = false;
 		info.preferredDeviceType = Crescendo::Renderer::BuilderInfo::DeviceType::Discrete;
 		info.appName = "Sandbox";
 		info.engineName = "Crescendo";
@@ -39,26 +39,14 @@ public:
 		info.windowExtent = { this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight() };
 		info.preferredPresentMode = Crescendo::Renderer::BuilderInfo::PresentMode::Mailbox;
 		info.framesInFlight = 3; // Triple buffering
-		/*
-		 *	1 million unique vertices, 1 million indices
-		 *	3 position floats, 3 normal floats, 2 texture UV floats, 1 indice uint32_t
-		 *	9 * 4 bytes = 36 bytes per vertex, 36 * 1000000 = 36,000,000 bytes = 36MB
-		*/
-		info.triangleBufferSize = 1000000;
-
-		/* 
-		 *	Size in bytes
-		 *	65536
-		 */
-		info.descriptorBufferSize = std::powl(2, 16);
+		info.vertexBufferBlockSize = std::powl(2, 25); // 32MB
+		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
 
 		this->renderer = Crescendo::Renderer::Create(info);
-
 
 		// Upload meshes
 		Crescendo::IO::Model model = Crescendo::IO::LoadOBJ("./assets/sponza.obj");
 		this->meshCount = model.meshes.size();
-
 		for (const auto& mesh : model.meshes)
 		{
 			this->renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
@@ -80,8 +68,6 @@ public:
 	}
 	void OnUpdate(double dt)
 	{
-		if (Input::GetKeyDown(Key::Escape)) this->Exit();
-
 		// Frame counter
 		frame++;
 		if (this->GetTime() - this->lastTime >= 1.0)
@@ -116,20 +102,34 @@ public:
 		this->camera.MovePosition(movement);
 
 		// Render prep
+		struct VP
+		{
+			glm::mat4 view;
+			glm::mat4 projection;
+		} vp { this->camera.GetViewMatrix(), this->camera.GetProjectionMatrix() };
 		glm::mat4 model = glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 viewProjection = this->camera.GetViewProjectionMatrix();
-		glm::mat4 mvp = viewProjection * model;
+
+		struct Lighting
+		{
+			glm::vec4 lightColor;
+			float ambient;
+		} lighting;
+		lighting.lightColor = glm::vec4(0.75f, 0.75f, 1.0f, 1.0f);
+		lighting.ambient = 0.1f;
+
+		this->renderer.CmdUpdateDescriptorSet(0, 0, vp);
+		this->renderer.CmdUpdateDescriptorSet(0, 1, lighting);
 
 		// Render commands
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.1f, 1.0f);
 		this->renderer.CmdBindPipeline(0);
-		this->renderer.CmdUpdatePushConstant(Crescendo::Renderer::ShaderStage::Vertex, mvp);
-		for (uint32_t i = 0; i < this->meshCount; i++)
-		{
-			this->renderer.CmdDraw(i);
-		}
+		this->renderer.CmdBindDescriptorSet(0);
+		this->renderer.CmdUpdatePushConstant(Crescendo::Renderer::ShaderStage::Vertex, model);
+		for (uint32_t i = 0; i < this->meshCount; i++) this->renderer.CmdDraw(i);
 		this->renderer.CmdEndFrame();
 		this->renderer.CmdPresentFrame();
+
+		if (Input::GetKeyDown(Key::Escape)) this->Exit();
 	}
 	void OnExit()
 	{

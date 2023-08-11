@@ -38,21 +38,21 @@ namespace Crescendo
 			// Window framebuffer size
 			WindowExtent windowExtent;
 			PresentMode preferredPresentMode;
-			// Number of frames in flight, 1 command pool and one command buffer is allocated per frame in flight
+			/*
+			 *	Number of frames in flight. For each frame in flight, the following resources are allocated:
+			 *	Command Pool, Command Buffer, Descriptor Set
+			 */
 			uint32_t framesInFlight;
 			/*
-			 *	Specifies the number of triangles the vertex buffers can store without resizing
-			 *	3 vertices per triangle
-			 *	9 4-byte data types per vertex = 36 bytes per vertex
-			 *	36 * 3 = 108 bytes per triangle
-			 *	Allocates 108 * triangleBufferSize bytes total spread accross 4 different buffers
-			 */
-			uint64_t triangleBufferSize;
-			/*
-			 *	Specfies the maximum size of the descriptor buffer for all frames that can be stored without resizing
+			 *	Specifies the size of each vertex attributes
 			 *	Size is in bytes
 			 */
-			uint64_t descriptorBufferSize;
+			uint64_t vertexBufferBlockSize;
+			/*
+			 *	Specfies the maximum size of the descriptor buffer for 1 frame that can be stored without resizing
+			 *	Size is in bytes
+			 */
+			uint64_t descriptorBufferBlockSize;
 		};
 		struct PipelineVariantBuilderInfo
 		{
@@ -61,7 +61,6 @@ namespace Crescendo
 			PipelineVariantBuilderInfo() = default;
 		};
 	private:
-		void UpdatePushConstant(ShaderStage stage, const void* data, size_t size);
 	public:
 		Renderer();
 		~Renderer();
@@ -79,12 +78,18 @@ namespace Crescendo
 		void CmdBeginFrame(float r, float g, float b, float a);
 		void CmdEndFrame();
 		void CmdBindPipeline(uint32_t pipelineIndex);
+		void CmdUpdatePushConstant(ShaderStage stage, const void* data, size_t size);
 		template<typename T>
-		void CmdUpdatePushConstant(ShaderStage stage, const T& data) { this->UpdatePushConstant(stage, &data, sizeof(data)); }
+		void CmdUpdatePushConstant(ShaderStage stage, const T& data) { this->CmdUpdatePushConstant(stage, &data, sizeof(data)); }
 		void CmdDraw(uint32_t mesh);
 		void CmdPresentFrame();
 
-		void Resize(const BuilderInfo::WindowExtent& extent);
+		void CmdBindDescriptorSet(uint32_t descriptorSetIndex);
+		void CmdUpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size);
+		template<typename T>
+		void CmdUpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const T& data) { this->CmdUpdateDescriptorSet(descriptorSetIndex, binding, &data, sizeof(data)); }
+
+		void Resize();
 
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info = PipelineVariantBuilderInfo());

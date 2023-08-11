@@ -6,19 +6,30 @@
 namespace Crescendo
 {
 	namespace Create = internal::Create;
+	size_t PaddedSize(size_t size, size_t alignmentRequirement)
+	{
+		return (alignmentRequirement > 0) ? (size + alignmentRequirement - 1) & ~(alignmentRequirement - 1) : size;
+	}
 	FrameData& Renderer::RendererImpl::GetCurrentFrameData()
 	{
 		return this->state.frameData[this->state.frameIndex];
 	}
 	void Renderer::RendererImpl::RecreateSwapchain()
 	{
-		if (this->state.temp.sizeToResize.width == 0 || this->state.temp.sizeToResize.height == 0) return;
 		vkDeviceWaitIdle(this->device);
+		// Get glfw window size
+		int width = 0, height = 0;
+		while (width == 0 || height == 0)
+		{
+			glfwGetFramebufferSize(this->window, &width, &height);
+			glfwWaitEvents();
+		}
+
 		// Destroy old buffers
 		this->swapChainDeletionQueue.Flush();
 		// Create new info, with new extent. This could be a little slow since it is a massive struct but it's not like we're recreating the swapchain every frame
 		BuilderInfo info = {};
-		info.windowExtent = this->state.temp.sizeToResize;
+		info.windowExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 		// Create swapchain and framebuffers again
 		this->InitialiseSwapchain(info);
 		this->InitialiseFramebuffers(info);
@@ -76,9 +87,12 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info)
 	{
+		const VkDeviceSize UNIFORM_ALIGNMENT = this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
+
 		// Allocate space for new pipeline
 		this->pipelines.resize(this->pipelines.size() + 1);
 		this->pipelineLayouts.resize(this->pipelineLayouts.size() + 1);
+		this->descriptorSetLayouts.resize(this->descriptorSetLayouts.size() + 1);
 
 		// Load shader modules
 		VkShaderModule vertModule = this->CreateShaderModule(vertexShader);
@@ -95,11 +109,57 @@ namespace Crescendo
 		// Get push constant range
 		VkPushConstantRange pushConstantRange = vertReflection.GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT);
 
-		// Get descriptor set create info
-		// VkDescriptorSetLayoutCreateInfo setInfo = vertReflection.GetDescriptorSetLayouts(VK_SHADER_STAGE_VERTEX_BIT);
+		// Collect descriptor set layout bindings
+		const std::vector<VkDescriptorSetLayoutBinding> fraglayoutBindings = fragReflection.GetDescriptorSetBindings(VK_SHADER_STAGE_FRAGMENT_BIT);
+		std::vector<VkDescriptorSetLayoutBinding> layoutBindings(vertReflection.GetDescriptorSetBindings(VK_SHADER_STAGE_VERTEX_BIT));
+		layoutBindings.insert(layoutBindings.end(), fraglayoutBindings.begin(), fraglayoutBindings.end());
+
+		// Collect layout binding
+		std::vector<DescriptorSetLayout> sets(vertReflection.descriptorSets);
+		sets.insert(sets.end(), fragReflection.descriptorSets.begin(), fragReflection.descriptorSets.end());
+
+		// Create the set layout
+		VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(layoutBindings);
+		vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &this->descriptorSetLayouts.back());
+
+		// Generate descriptor offsets
+		{
+			std::vector<uint32_t> offsets(1, 0);
+			for (const auto& set : sets)
+			{
+				offsets.push_back(offsets.back() + PaddedSize(set.GetSize(), UNIFORM_ALIGNMENT));
+			}
+			this->descriptorSetLayoutOffsets.push_back(offsets);
+		}
+
+		// Create descriptor sets for each frame in flight	
+		size_t lastSetSize = this->descriptorSets.size();
+		this->descriptorSets.resize(lastSetSize + this->state.framesInFlight);
+		for (uint32_t i = 0; i < this->state.framesInFlight; i++)
+		{
+			// Allocate descriptor set
+			VkDescriptorSetAllocateInfo allocInfo = Create::DescriptorSetAllocateInfo(this->descriptorPool, this->descriptorSetLayouts.back());
+			vkAllocateDescriptorSets(this->device, &allocInfo, &this->descriptorSets[lastSetSize + i]);
+			
+			for (uint32_t j = 0; j < sets.size(); j++)
+			{
+				// Show where it points in the buffer
+				VkDescriptorBufferInfo bufferInfo = Create::DescriptorBufferInfo(
+					this->descriptorSetBuffers[i].buffer, 0, sets[j].GetSize()
+				);
+				// Write to set
+				VkWriteDescriptorSet setWrite = Create::WriteDescriptorSet(
+					this->descriptorSets[lastSetSize + i], sets[j].binding, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, nullptr, &bufferInfo, nullptr
+				);
+				// Update set
+				vkUpdateDescriptorSets(this->device, 1, &setWrite, 0, nullptr);
+			}
+		}
 
 		// Create the pipeline layout
-		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(0, 0, nullptr, 1, &pushConstantRange);
+		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(
+			0, 1, &this->descriptorSetLayouts.back(), 1, &pushConstantRange
+		);
 		CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &this->pipelineLayouts.back()) == VK_SUCCESS, "Failed to create pipeline layout!");
 
 		// We we always use dyanmic states, there is really no performance penalty for just viewports and scissors and it means we don't need to recreate pipelines when resizing
@@ -160,7 +220,7 @@ namespace Crescendo
 		CS_ASSERT(vertices.size()   % 3 == 0, "Invalid mesh vertices!");
 		CS_ASSERT(normals.size()    % 3 == 0, "Invalid mesh normals!");
 		CS_ASSERT(textureUVs.size() % 2 == 0, "Invalid mesh texture UVs!");
-		CS_ASSERT(this->offsets.back() + vertices.size() / 3 <= this->state.maxBufferSize, "Mesh would overflow buffer!");
+		// TODO assert for potential buffer overflow
 
 		std::memcpy(static_cast<uint32_t*>(this->vertexBuffers[INDICES].memoryLocation)  + this->indiceOffsets.back() * INDICES_PER_TRIANGLE, indices.data(),    indices.size()    * sizeof(uint32_t));
 		std::memcpy(static_cast<float*>   (this->vertexBuffers[POSITION].memoryLocation)    + this->offsets.back()       * VERTICES_PER_INDEX,   vertices.data(),   vertices.size()   * sizeof(float));

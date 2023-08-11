@@ -573,31 +573,40 @@ namespace Crescendo::internal::Create
 		return descriptorPoolSize;
 	}
 	inline constexpr VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo(
-		const void* pNext,
 		VkDescriptorPoolCreateFlags flags,
 		uint32_t maxSets,
-		uint32_t poolSizeCount,
-		const VkDescriptorPoolSize* pPoolSizes
+		const std::vector<VkDescriptorPoolSize>& poolSizes
 	) {
 		VkDescriptorPoolCreateInfo createInfo;
 
 		createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-		createInfo.pNext = pNext;
+		createInfo.pNext = nullptr;
 		createInfo.flags = flags;
 		createInfo.maxSets = maxSets;
-		createInfo.poolSizeCount = poolSizeCount;
-		createInfo.pPoolSizes = pPoolSizes;
+		createInfo.poolSizeCount = poolSizes.size();
+		createInfo.pPoolSizes = poolSizes.data();
 
 		return createInfo;
 	}
-	inline constexpr VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo(VkDescriptorPool descriptorPool, uint32_t descriptorSetCount, const VkDescriptorSetLayout* pSetLayouts) {
+	inline constexpr VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo(VkDescriptorPool descriptorPool, const std::vector<VkDescriptorSetLayout>& setLayouts) {
 		VkDescriptorSetAllocateInfo allocateInfo;
 
 		allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		allocateInfo.pNext = nullptr;
 		allocateInfo.descriptorPool = descriptorPool;
-		allocateInfo.descriptorSetCount = descriptorSetCount;
-		allocateInfo.pSetLayouts = pSetLayouts;
+		allocateInfo.descriptorSetCount = setLayouts.size();
+		allocateInfo.pSetLayouts = setLayouts.data();
+
+		return allocateInfo;
+	}
+	inline constexpr VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo(VkDescriptorPool descriptorPool, const VkDescriptorSetLayout& setLayout) {
+		VkDescriptorSetAllocateInfo allocateInfo;
+
+		allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocateInfo.pNext = nullptr;
+		allocateInfo.descriptorPool = descriptorPool;
+		allocateInfo.descriptorSetCount = 1;
+		allocateInfo.pSetLayouts = &setLayout;
 
 		return allocateInfo;
 	}

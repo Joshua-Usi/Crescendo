@@ -128,4 +128,28 @@ namespace Crescendo
 		// Advance the frame index to use the next buffer
 		this->state.frameIndex = (this->state.frameIndex + 1) % this->state.framesInFlight;
 	}
+	void Renderer::RendererImpl::BindDescriptorSet(uint32_t descriptorSetIndex)
+	{
+		const FrameData& currentFrame = this->GetCurrentFrameData();
+		const VkCommandBuffer cmd = currentFrame.commandBuffer;
+
+		const VkPipelineLayout currentLayout = this->pipelineLayouts[this->state.boundPipelineIndex];
+		const VkDescriptorSet currentSet = this->descriptorSets[descriptorSetIndex * this->state.framesInFlight + this->GetFrameIndex()];
+
+		const std::vector<uint32_t>& dynamicOffsets = this->descriptorSetLayoutOffsets[descriptorSetIndex];
+
+		// Ignore last element of dynamic offsets because it shows the end of the buffer
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, currentLayout, 0, 1, &currentSet, dynamicOffsets.size() - 1, dynamicOffsets.data());
+	}
+	void Renderer::RendererImpl::UpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size)
+	{
+		CS_ASSERT(size <= (this->descriptorSetLayoutOffsets[descriptorSetIndex][binding + 1] - this->descriptorSetLayoutOffsets[descriptorSetIndex][binding]), "Provided data is larger than the descriptor set size, This can lead to buffer overflow!");
+
+		const FrameData& currentFrame = this->GetCurrentFrameData();
+		const VkCommandBuffer cmd = currentFrame.commandBuffer;
+
+		uint32_t memOffset = this->descriptorSetLayoutOffsets[descriptorSetIndex][binding];
+
+		memcpy(static_cast<char*>(this->descriptorSetBuffers[this->GetFrameIndex()].memoryLocation) + memOffset, data, size);
+	}
 }
