@@ -45,7 +45,10 @@ public:
 		this->renderer = Crescendo::Renderer::Create(info);
 
 		// Upload meshes
-		Crescendo::IO::Model model = Crescendo::IO::LoadOBJ("./assets/sponza.obj");
+		Crescendo::IO::Model model;
+
+		CS_TIME(model = Crescendo::IO::LoadOBJ("./assets/sponza.obj"), "Model load");
+
 		this->meshCount = model.meshes.size();
 		for (const auto& mesh : model.meshes)
 		{
