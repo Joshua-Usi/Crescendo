@@ -40,7 +40,7 @@ namespace Crescendo
 			PresentMode preferredPresentMode;
 			/*
 			 *	Number of frames in flight. For each frame in flight, the following resources are allocated:
-			 *	Command Pool, Command Buffer, Descriptor Set
+			 *	Command Pool, Command Buffer, Descriptor data buffer, Descriptor Set
 			 */
 			uint32_t framesInFlight;
 			/*
@@ -54,11 +54,11 @@ namespace Crescendo
 			 */
 			uint64_t descriptorBufferBlockSize;
 		};
-		struct PipelineVariantBuilderInfo
+		struct PipelineVariant
 		{
-			enum class FillModes : uint32_t { Solid = 0, Wireframe = 1, Point = 2 };
-			std::vector<FillModes> fillModeVariants;
-			PipelineVariantBuilderInfo() = default;
+			enum class FillMode { Solid = 0, Wireframe = 1, Point = 2 };
+			FillMode fillMode;
+			PipelineVariant() = default;
 		};
 	private:
 	public:
@@ -84,15 +84,14 @@ namespace Crescendo
 		void CmdDraw(uint32_t mesh);
 		void CmdPresentFrame();
 
-		void CmdBindDescriptorSet(uint32_t descriptorSetIndex);
-		void CmdUpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size);
+		void UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size);
 		template<typename T>
-		void CmdUpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const T& data) { this->CmdUpdateDescriptorSet(descriptorSetIndex, binding, &data, sizeof(data)); }
+		void UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const T& data) { this->UpdateDescriptorSetData(descriptorSetIndex, binding, &data, sizeof(data)); }
 
 		void Resize();
 
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
-		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info = PipelineVariantBuilderInfo());
+		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& info = PipelineVariant());
 
 		static Renderer Create(const BuilderInfo& info);
 		static void Destroy(Renderer& renderer);

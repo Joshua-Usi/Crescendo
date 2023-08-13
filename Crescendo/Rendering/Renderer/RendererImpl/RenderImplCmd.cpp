@@ -72,6 +72,14 @@ namespace Crescendo
 		VkCommandBuffer cmd = currentFrame.commandBuffer;
 
 		this->state.boundPipelineIndex = pipelineIndex;
+
+		const VkPipelineLayout currentLayout = this->pipelineLayouts[pipelineIndex];
+		const VkDescriptorSet currentSet = this->descriptorSets[pipelineIndex * this->state.framesInFlight + this->GetFrameIndex()];
+
+		const std::vector<uint32_t>& dynamicOffsets = this->descriptorSetLayoutOffsets[pipelineIndex];
+
+		// Ignore last element of dynamic offsets because it shows the end of the buffer
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, currentLayout, 0, 1, &currentSet, dynamicOffsets.size() - 1, dynamicOffsets.data());
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines[pipelineIndex]);
 	}
 	void Renderer::RendererImpl::UpdatePushConstant(ShaderStage stage, const void* data, size_t size)
@@ -87,27 +95,23 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::Draw(uint32_t mesh)
 	{
-		constexpr uint32_t INDICES_PER_TRIANGLE = 3;
-		constexpr uint32_t VERTICES_PER_INDEX = 3;
-
 		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
 
 		FrameData& currentFrame = this->GetCurrentFrameData();
 		VkCommandBuffer cmd = currentFrame.commandBuffer;
 
-		std::array<VkBuffer, 3> vertexBuffers = {
+		const std::array<VkBuffer, 3> vertexBuffers = {
 			this->vertexBuffers[POSITION].buffer,
 			this->vertexBuffers[NORMALS].buffer,
 			this->vertexBuffers[TEXTURE_UVS].buffer
 		};
-		std::array<VkDeviceSize, 3> offsets = { 0, 0, 0 };
+		const std::array<VkDeviceSize, 3> offsets = { 0, 0, 0 };
+		uint32_t vertexCount = (this->indiceOffsets[mesh + 1] - this->indiceOffsets[mesh]);
 
 		vkCmdBindVertexBuffers(cmd, 0, vertexBuffers.size(), vertexBuffers.data(), offsets.data());
 		vkCmdBindIndexBuffer(cmd, this->vertexBuffers[INDICES].buffer, 0, VK_INDEX_TYPE_UINT32);
 
-		uint32_t vertexCount = (this->indiceOffsets[mesh + 1] - this->indiceOffsets[mesh]) * INDICES_PER_TRIANGLE;
-
-		vkCmdDrawIndexed(cmd, vertexCount, 1, this->indiceOffsets[mesh] * INDICES_PER_TRIANGLE, this->offsets[mesh], 0);
+		vkCmdDrawIndexed(cmd, vertexCount, 1, this->indiceOffsets[mesh], this->offsets[mesh], 0);
 	}
 	void Renderer::RendererImpl::PresentFrame()
 	{
@@ -127,19 +131,6 @@ namespace Crescendo
 		else CS_ASSERT(presentResult == VK_SUCCESS, "Failed to present!");
 		// Advance the frame index to use the next buffer
 		this->state.frameIndex = (this->state.frameIndex + 1) % this->state.framesInFlight;
-	}
-	void Renderer::RendererImpl::BindDescriptorSet(uint32_t descriptorSetIndex)
-	{
-		const FrameData& currentFrame = this->GetCurrentFrameData();
-		const VkCommandBuffer cmd = currentFrame.commandBuffer;
-
-		const VkPipelineLayout currentLayout = this->pipelineLayouts[this->state.boundPipelineIndex];
-		const VkDescriptorSet currentSet = this->descriptorSets[descriptorSetIndex * this->state.framesInFlight + this->GetFrameIndex()];
-
-		const std::vector<uint32_t>& dynamicOffsets = this->descriptorSetLayoutOffsets[descriptorSetIndex];
-
-		// Ignore last element of dynamic offsets because it shows the end of the buffer
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, currentLayout, 0, 1, &currentSet, dynamicOffsets.size() - 1, dynamicOffsets.data());
 	}
 	void Renderer::RendererImpl::UpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size)
 	{

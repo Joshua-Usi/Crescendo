@@ -1,7 +1,10 @@
 #include "Crescendo.hpp"
 
 using namespace Crescendo::Engine;
+typedef Crescendo::Renderer Renderer;
+namespace Graphics = Crescendo::Graphics;
 namespace Math = Crescendo::Math;
+namespace IO = Crescendo::IO;
 
 #include "glm/gtx/common.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -14,40 +17,40 @@ private:
 
 	uint32_t meshCount = 0;
 
-	Crescendo::Renderer renderer;
+	Renderer renderer;
 
 	int frame = 0;
 	double lastTime = 0.0;
 public:
 	void OnStartup()
 	{
-		Crescendo::Engine::CVar::LoadConfigXML("Config.xml");
+		CVar::LoadConfigXML("Config.xml");
 
 		this->GetWindow()->SetCursorLock(true);
 
-		this->sens = Crescendo::Engine::CVar::Get<double>("sensitivity");
-		this->camera = Crescendo::Graphics::Camera(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 10000.0f });
+		this->sens = CVar::Get<double>("sensitivity");
+		this->camera = Graphics::Camera(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 100000.0f });
 		this->camera.SetRotation(glm::vec3(0.0f, 0.0f, 0.0f));
 
-		Crescendo::Renderer::BuilderInfo info;
+		Renderer::BuilderInfo info;
 
-		info.useValidationLayers = false;
-		info.preferredDeviceType = Crescendo::Renderer::BuilderInfo::DeviceType::Discrete;
+		info.useValidationLayers = true;
+		info.preferredDeviceType = Renderer::BuilderInfo::DeviceType::Discrete;
 		info.appName = "Sandbox";
 		info.engineName = "Crescendo";
 		info.window = this->GetWindow()->GetNative();
 		info.windowExtent = { this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight() };
-		info.preferredPresentMode = Crescendo::Renderer::BuilderInfo::PresentMode::Mailbox;
+		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
 		info.framesInFlight = 3; // Triple buffering
 		info.vertexBufferBlockSize = std::powl(2, 25); // 32MB
 		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
 
-		this->renderer = Crescendo::Renderer::Create(info);
+		this->renderer = Renderer::Create(info);
 
 		// Upload meshes
-		Crescendo::IO::Model model;
+		IO::Model model;
 
-		CS_TIME(model = Crescendo::IO::LoadOBJ("./assets/sponza.obj"), "Model load");
+		CS_TIME(model = IO::LoadOBJ("./assets/sponza.obj"), "Model load");
 
 		this->meshCount = model.meshes.size();
 		for (const auto& mesh : model.meshes)
@@ -60,6 +63,7 @@ public:
 		std::vector<std::string> shaderList =
 		{
 			"./shaders/compiled/mesh",
+			"./shaders/compiled/mesh-unlit",
 		};
 		for (size_t i = 0; i < shaderList.size(); i++)
 		{
@@ -105,29 +109,18 @@ public:
 		this->camera.MovePosition(movement);
 
 		// Render prep
-		struct VP
-		{
-			glm::mat4 view;
-			glm::mat4 projection;
-		} vp { this->camera.GetViewMatrix(), this->camera.GetProjectionMatrix() };
+		struct VP { glm::mat4 view, projection; } vp { this->camera.GetViewMatrix(), this->camera.GetProjectionMatrix() };
+		struct Lighting { glm::vec4 lightColor; float ambient; } lighting { glm::vec4(0.75f, 0.75f, 1.0f, 1.0f), 0.1f };
 		glm::mat4 model = glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f));
 
-		struct Lighting
-		{
-			glm::vec4 lightColor;
-			float ambient;
-		} lighting;
-		lighting.lightColor = glm::vec4(0.75f, 0.75f, 1.0f, 1.0f);
-		lighting.ambient = 0.1f;
-
-		this->renderer.CmdUpdateDescriptorSet(0, 0, vp);
-		this->renderer.CmdUpdateDescriptorSet(0, 1, lighting);
+		this->renderer.UpdateDescriptorSetData(0, 0, vp);
+		this->renderer.UpdateDescriptorSetData(0, 1, lighting);
+		this->renderer.UpdateDescriptorSetData(1, 0, vp);
 
 		// Render commands
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.1f, 1.0f);
-		this->renderer.CmdBindPipeline(0);
-		this->renderer.CmdBindDescriptorSet(0);
-		this->renderer.CmdUpdatePushConstant(Crescendo::Renderer::ShaderStage::Vertex, model);
+		this->renderer.CmdBindPipeline(Input::GetKeyDown(Key::One) ? 1 : 0);
+		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, model);
 		for (uint32_t i = 0; i < this->meshCount; i++) this->renderer.CmdDraw(i);
 		this->renderer.CmdEndFrame();
 		this->renderer.CmdPresentFrame();
@@ -136,7 +129,7 @@ public:
 	}
 	void OnExit()
 	{
-		Crescendo::Renderer::Destroy(this->renderer);
+		Renderer::Destroy(this->renderer);
 	}
 };
 

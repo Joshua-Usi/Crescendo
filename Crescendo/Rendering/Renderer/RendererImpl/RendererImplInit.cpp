@@ -60,6 +60,7 @@ namespace Crescendo
 		this->state.framesInFlight = info.framesInFlight;
 		this->state.frameIndex = 0;
 		this->state.frameData.resize(info.framesInFlight);
+
 		this->window = static_cast<GLFWwindow*>(info.window);
 
 		std::cout << "Renderer Stats:" << "\n";
@@ -241,12 +242,6 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseBuffers(const BuilderInfo& info)
 	{
-		// Vertex buffer initialisation
-		constexpr size_t INDICES_PER_TRIANGLE =  3;
-		constexpr size_t VERTICES_PER_TRIANGLE = 3 * INDICES_PER_TRIANGLE;
-		constexpr size_t NORMALS_PER_TRIANGLE =  3 * INDICES_PER_TRIANGLE;
-		constexpr size_t UVS_PER_TRIANGLE =      2 * INDICES_PER_TRIANGLE;
-
 		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
 
 		this->vertexBuffers.resize(4);

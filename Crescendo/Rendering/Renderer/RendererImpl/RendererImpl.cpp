@@ -85,12 +85,11 @@ namespace Crescendo
 		vmaMapMemory(this->allocator, buffer.allocation, &buffer.memoryLocation);
 		return buffer;
 	}
-	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info)
+	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant)
 	{
 		const VkDeviceSize UNIFORM_ALIGNMENT = this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
 
 		// Allocate space for new pipeline
-		this->pipelines.resize(this->pipelines.size() + 1);
 		this->pipelineLayouts.resize(this->pipelineLayouts.size() + 1);
 		this->descriptorSetLayouts.resize(this->descriptorSetLayouts.size() + 1);
 
@@ -184,7 +183,7 @@ namespace Crescendo
 			VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE
 		);
 		pipelineBuilderInfo.rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(
-			nullptr, VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE,
+			nullptr, VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT,
 			VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
 		);
 		pipelineBuilderInfo.multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(
@@ -201,7 +200,7 @@ namespace Crescendo
 		pipelineBuilderInfo.pipelineLayout = this->pipelineLayouts.back();
 
 		// Create the pipeline
-		this->pipelines.back() = this->CreatePipeline(pipelineBuilderInfo);
+		this->pipelines.push_back(this->CreatePipeline(pipelineBuilderInfo));
 
 		// Destroy shader modules, reflection will delete itself
 		vkDestroyShaderModule(this->device, fragModule, nullptr);
@@ -222,18 +221,16 @@ namespace Crescendo
 		CS_ASSERT(textureUVs.size() % 2 == 0, "Invalid mesh texture UVs!");
 		// TODO assert for potential buffer overflow
 
-		std::memcpy(static_cast<uint32_t*>(this->vertexBuffers[INDICES].memoryLocation)  + this->indiceOffsets.back() * INDICES_PER_TRIANGLE, indices.data(),    indices.size()    * sizeof(uint32_t));
+		std::memcpy(static_cast<uint32_t*>(this->vertexBuffers[INDICES].memoryLocation)     + this->indiceOffsets.back(),                        indices.data(),    indices.size()    * sizeof(uint32_t));
 		std::memcpy(static_cast<float*>   (this->vertexBuffers[POSITION].memoryLocation)    + this->offsets.back()       * VERTICES_PER_INDEX,   vertices.data(),   vertices.size()   * sizeof(float));
 		std::memcpy(static_cast<float*>   (this->vertexBuffers[NORMALS].memoryLocation)     + this->offsets.back()       * NORMALS_PER_INDEX,    normals.data(),    normals.size()    * sizeof(float));
 		std::memcpy(static_cast<float*>   (this->vertexBuffers[TEXTURE_UVS].memoryLocation) + this->offsets.back()       * UVS_PER_INDEX,        textureUVs.data(), textureUVs.size() * sizeof(float));
 
-		uint32_t last = this->offsets.back();
-		uint32_t lastIndices = this->indiceOffsets.back();
 		uint32_t uniqueVerticeCount = vertices.size() / VERTICES_PER_INDEX;
-		uint32_t triangleCount = indices.size() / INDICES_PER_TRIANGLE;
+		uint32_t indicesOffset = indices.size();
 
-		this->offsets.push_back(last + uniqueVerticeCount);
-		this->indiceOffsets.push_back(lastIndices + triangleCount);
+		this->offsets.push_back(this->offsets.back() + uniqueVerticeCount);
+		this->indiceOffsets.push_back(this->indiceOffsets.back() + indicesOffset);
 
 	}
 }

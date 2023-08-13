@@ -66,6 +66,20 @@ namespace Crescendo
 		VkRenderPass renderPass;
 	};
 
+	struct RendererState
+	{
+		std::vector<FrameData> frameData;
+
+		uint32_t framesInFlight;
+		uint32_t frameIndex;
+		uint32_t swapchainImageIndex;
+		uint32_t boundPipelineIndex;
+
+		bool didFramebufferResize;
+
+		inline RendererState() : frameData({}), framesInFlight(0), frameIndex(0), swapchainImageIndex(0), boundPipelineIndex(0), didFramebufferResize(false) {};
+	};
+
 	class Renderer::RendererImpl
 	{
 	public:
@@ -80,20 +94,11 @@ namespace Crescendo
 		VkSurfaceKHR surface;
 		VkPhysicalDevice physicalDevice;
 		VkDevice device;
-		internal::QueueManager queues;
 		GLFWwindow* window;
 
-		struct State
-		{
-			std::vector<FrameData> frameData;
+		internal::QueueManager queues;
 
-			uint32_t framesInFlight;
-			uint32_t frameIndex;
-			uint32_t swapchainImageIndex;
-			uint32_t boundPipelineIndex;
-
-			bool didFramebufferResize = false;
-		} state;
+		RendererState state;
 
 		Swapchain swapchain;
 		Image depthBuffer;
@@ -106,16 +111,16 @@ namespace Crescendo
 		// universal buffers that contain all the data for the respective vertex attribute
 		// By default holds 4 buffers, one for each vertex attribute: position, normal, textureUV, indices
 		std::vector<Buffer> vertexBuffers;
-		// Offsets for the other buffers
+		// Offsets for the start of each meshes vertex data
 		std::vector<uint32_t> offsets;
-		// Stores offsets of a mesh's data in the universal buffers
-		// Each unit is based on a triangle, this is the offset buffer for the indices
+		// Offsets for each meshes indices
 		std::vector<uint32_t> indiceOffsets;
 
 		VkDescriptorPool descriptorPool;
 		std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
+		// Offsets of each set within a specific layout
 		std::vector<std::vector<uint32_t>> descriptorSetLayoutOffsets;
-		// One per frame in flight
+		// One per frame in flight, each descriptor set is stored in a contiguous block of memory
 		std::vector<Buffer> descriptorSetBuffers;
 		std::vector<VkDescriptorSet> descriptorSets;
  
@@ -148,7 +153,6 @@ namespace Crescendo
 		void UpdatePushConstant(ShaderStage stage, const void* data, size_t size);
 		void Draw(uint32_t mesh);
 		void PresentFrame();
-		void BindDescriptorSet(uint32_t descriptorSetIndex);
 		void UpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size);
 
 		// Creation abstraction
@@ -159,6 +163,6 @@ namespace Crescendo
 
 		// Upload commands
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
-		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info);
+		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant);
 	};
 }

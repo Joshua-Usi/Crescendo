@@ -29,18 +29,17 @@ namespace Crescendo
 	}
 
 	void Renderer::CmdUpdatePushConstant(ShaderStage stage, const void* data, size_t size) { this->impl->UpdatePushConstant(stage, data, size); }
-	void Renderer::CmdUpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size) { this->impl->UpdateDescriptorSet(descriptorSetIndex, binding, data, size); }
+	void Renderer::UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size) { this->impl->UpdateDescriptorSet(descriptorSetIndex, binding, data, size); }
 
 	void Renderer::CmdBeginFrame(float r, float g, float b, float a) { this->impl->BeginFrame({ r, g, b, a }); }
 	void Renderer::CmdEndFrame() { this->impl->EndFrame(); }
 	void Renderer::CmdBindPipeline(uint32_t pipelineIndex) { this->impl->BindPipeline(pipelineIndex); }
 	void Renderer::CmdDraw(uint32_t mesh) { this->impl->Draw(mesh); }
 	void Renderer::CmdPresentFrame() { this->impl->PresentFrame(); }
-	void Renderer::CmdBindDescriptorSet(uint32_t descriptorSetIndex) { this->impl->BindDescriptorSet(descriptorSetIndex); }
 
 	void Renderer::Resize() { this->impl->Resize(); }
 	void Renderer::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices) { this->impl->UploadMesh(vertices, normals, textureUVs, indices); }
-	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariantBuilderInfo& info) { this->impl->UploadPipeline(vertexShader, fragmentShader, info); }
+	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant) { this->impl->UploadPipeline(vertexShader, fragmentShader, variant); }
 	Renderer Renderer::Create(const Renderer::BuilderInfo& info)
 	{
 		Renderer renderer;
