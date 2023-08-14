@@ -1,21 +1,18 @@
 #include "RendererImpl.hpp"
 
-#include "./internal/Create.hpp"
-
 namespace Crescendo
 {
-	namespace Create = internal::Create;
 	void Renderer::RendererImpl::BeginFrame(const VkClearValue& clearColor)
 	{
 		// One second in nanoseconds
 		constexpr uint64_t ONE_SECOND = 1000000000;
 
 		FrameData& currentFrame = this->GetCurrentFrameData();
-		VkCommandBuffer cmd = currentFrame.commandBuffer;
+		VkCommandBuffer cmd = currentFrame.commandQueue.commandBuffer;
 
 		// Wait for previous frame to finish
-		vkWaitForFences(this->device, 1, &currentFrame.renderFence, true, ONE_SECOND);
-		vkResetFences(this->device, 1, &currentFrame.renderFence);
+		vkWaitForFences(this->device, 1, &currentFrame.commandQueue.completionFence, true, ONE_SECOND);
+		vkResetFences(this->device, 1, &currentFrame.commandQueue.completionFence);
 
 		// Acquire image from swapchain
 		VkResult imageAcquireResult = vkAcquireNextImageKHR(this->device, this->swapchain.swapchain, ONE_SECOND, currentFrame.presentSemaphore, VK_NULL_HANDLE, &this->state.swapchainImageIndex);
@@ -28,9 +25,7 @@ namespace Crescendo
 
 		// Reset the command buffer for use again
 		CS_ASSERT(vkResetCommandBuffer(cmd, 0) == VK_SUCCESS, "Failed to reset command buffer!");
-		VkCommandBufferBeginInfo beginInfo = Create::CommandBufferBeginInfo(
-			nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr
-		);
+		VkCommandBufferBeginInfo beginInfo = Create::CommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 		CS_ASSERT(vkBeginCommandBuffer(cmd, &beginInfo) == VK_SUCCESS, "Failed to begin command buffer!");
 
 		// Set dynamic viewport and scissor, negative height to flip the viewport
@@ -47,11 +42,22 @@ namespace Crescendo
 			nullptr, this->defaultRenderPass, this->framebuffers[this->state.swapchainImageIndex], { {0, 0}, this->swapchain.extent }, 2, &clearValues[0]
 		);
 		vkCmdBeginRenderPass(cmd, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	
+		// Bind the vertex buffers
+		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
+		const std::array<VkBuffer, 3> vertexBuffers = {
+			this->vertexBuffers[POSITION].buffer,
+			this->vertexBuffers[NORMALS].buffer,
+			this->vertexBuffers[TEXTURE_UVS].buffer
+		};
+		const std::array<VkDeviceSize, 3> offsets = { 0, 0, 0 };
+		vkCmdBindVertexBuffers(cmd, 0, vertexBuffers.size(), vertexBuffers.data(), offsets.data());
+		vkCmdBindIndexBuffer(cmd, this->vertexBuffers[INDICES].buffer, 0, VK_INDEX_TYPE_UINT32);
 	}
 	void Renderer::RendererImpl::EndFrame()
 	{
 		FrameData& currentFrame = this->GetCurrentFrameData();
-		VkCommandBuffer cmd = currentFrame.commandBuffer;
+		VkCommandBuffer cmd = currentFrame.commandQueue.commandBuffer;
 
 		// End render pass and command buffers
 		vkCmdEndRenderPass(cmd);
@@ -62,14 +68,14 @@ namespace Crescendo
 		VkSubmitInfo submitInfo = Create::SubmitInfo(
 			nullptr, 1, &currentFrame.presentSemaphore, &waitStages, 1, &cmd, 1, &currentFrame.renderSemaphore
 		);
-		CS_ASSERT(vkQueueSubmit(this->queues.universal, 1, &submitInfo, currentFrame.renderFence) == VK_SUCCESS, "Failed to submit to queue!");
+		CS_ASSERT(vkQueueSubmit(this->queues.universal, 1, &submitInfo, currentFrame.commandQueue.completionFence) == VK_SUCCESS, "Failed to submit to queue!");
 	}
 	void Renderer::RendererImpl::BindPipeline(uint32_t pipelineIndex)
 	{
 		CS_ASSERT(pipelineIndex < this->pipelines.size(), "Index " + std::to_string(pipelineIndex) + " is an Invalid pipeline index, pipeline count: " + std::to_string(this->pipelines.size()));
 
 		FrameData& currentFrame = this->GetCurrentFrameData();
-		VkCommandBuffer cmd = currentFrame.commandBuffer;
+		VkCommandBuffer cmd = currentFrame.commandQueue.commandBuffer;
 
 		this->state.boundPipelineIndex = pipelineIndex;
 
@@ -84,6 +90,9 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::UpdatePushConstant(ShaderStage stage, const void* data, size_t size)
 	{
+		FrameData& currentFrame = this->GetCurrentFrameData();
+		VkCommandBuffer cmd = currentFrame.commandQueue.commandBuffer;
+
 		VkShaderStageFlags stageFlags = 0;
 		switch (stage)
 		{
@@ -91,32 +100,22 @@ namespace Crescendo
 			case ShaderStage::Fragment: stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; break;
 			default: { CS_ASSERT(false, "Unknown shader stage"); }
 		}
-		vkCmdPushConstants(this->GetCurrentFrameData().commandBuffer, this->pipelineLayouts[this->state.boundPipelineIndex], stageFlags, 0, size, data);
+		vkCmdPushConstants(cmd, this->pipelineLayouts[this->state.boundPipelineIndex], stageFlags, 0, size, data);
 	}
 	void Renderer::RendererImpl::Draw(uint32_t mesh)
 	{
-		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
-
 		FrameData& currentFrame = this->GetCurrentFrameData();
-		VkCommandBuffer cmd = currentFrame.commandBuffer;
+		VkCommandBuffer cmd = currentFrame.commandQueue.commandBuffer;
 
-		const std::array<VkBuffer, 3> vertexBuffers = {
-			this->vertexBuffers[POSITION].buffer,
-			this->vertexBuffers[NORMALS].buffer,
-			this->vertexBuffers[TEXTURE_UVS].buffer
-		};
-		const std::array<VkDeviceSize, 3> offsets = { 0, 0, 0 };
 		uint32_t vertexCount = (this->indiceOffsets[mesh + 1] - this->indiceOffsets[mesh]);
-
-		vkCmdBindVertexBuffers(cmd, 0, vertexBuffers.size(), vertexBuffers.data(), offsets.data());
-		vkCmdBindIndexBuffer(cmd, this->vertexBuffers[INDICES].buffer, 0, VK_INDEX_TYPE_UINT32);
 
 		vkCmdDrawIndexed(cmd, vertexCount, 1, this->indiceOffsets[mesh], this->offsets[mesh], 0);
 	}
 	void Renderer::RendererImpl::PresentFrame()
 	{
 		const FrameData& currentFrame = this->GetCurrentFrameData();
-		const VkCommandBuffer cmd = currentFrame.commandBuffer;
+		const VkCommandBuffer cmd = currentFrame.commandQueue.commandBuffer;
+
 		// Attempt to present the image, if the swapchain is out of date or suboptimal, recreate it
 		// We can't present again however because the framebuffers are invalid, so we just pass
 		const VkPresentInfoKHR presentInfo = Create::PresentInfoKHR(
@@ -137,7 +136,7 @@ namespace Crescendo
 		CS_ASSERT(size <= (this->descriptorSetLayoutOffsets[descriptorSetIndex][binding + 1] - this->descriptorSetLayoutOffsets[descriptorSetIndex][binding]), "Provided data is larger than the descriptor set size, This can lead to buffer overflow!");
 
 		const FrameData& currentFrame = this->GetCurrentFrameData();
-		const VkCommandBuffer cmd = currentFrame.commandBuffer;
+		const VkCommandBuffer cmd = currentFrame.commandQueue.commandBuffer;
 
 		uint32_t memOffset = this->descriptorSetLayoutOffsets[descriptorSetIndex][binding];
 

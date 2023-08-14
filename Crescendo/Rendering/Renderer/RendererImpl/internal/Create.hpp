@@ -384,14 +384,14 @@ namespace Crescendo::internal::Create
 
 		return createInfo;
 	}
-	inline constexpr VkCommandBufferBeginInfo CommandBufferBeginInfo(const void* pNext, VkCommandBufferUsageFlags flags, const VkCommandBufferInheritanceInfo* pInheritanceInfo)
+	inline constexpr VkCommandBufferBeginInfo CommandBufferBeginInfo(VkCommandBufferUsageFlags flags)
 	{
 		VkCommandBufferBeginInfo createInfo;
 		
 		createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		createInfo.pNext = pNext;
+		createInfo.pNext = nullptr;
 		createInfo.flags = flags;
-		createInfo.pInheritanceInfo = pInheritanceInfo;
+		createInfo.pInheritanceInfo = nullptr;
 
 		return createInfo;
 	}

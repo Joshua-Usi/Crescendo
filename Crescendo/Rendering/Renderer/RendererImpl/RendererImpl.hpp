@@ -10,9 +10,15 @@
 #include "Rendering/Renderer/Renderer.hpp"
 #include "internal/DeletionQueue.hpp"
 #include "internal/QueueManager.hpp"
+#include "internal/CommandQueue.hpp"
+
+#include "./internal/Create.hpp"
+
+#include <functional>
 
 namespace Crescendo
 {
+	namespace Create = internal::Create;
 	struct Buffer
 	{
 		VkBuffer buffer;
@@ -41,14 +47,8 @@ namespace Crescendo
 
 	struct FrameData
 	{
-		Buffer descriptorBuffer;
-		VkDescriptorSet descriptorSet;
-
 		VkSemaphore presentSemaphore, renderSemaphore;
-		VkFence renderFence;
-
-		VkCommandPool commandPool;
-		VkCommandBuffer commandBuffer;
+		internal::CommandQueue commandQueue;
 	};
 
 	struct PipelineBuilderInfo
@@ -105,9 +105,6 @@ namespace Crescendo
 		VkRenderPass defaultRenderPass;
 		std::vector<VkFramebuffer> framebuffers;
 
-		std::vector<VkPipelineLayout> pipelineLayouts;
-		std::vector<VkPipeline> pipelines;
-
 		// universal buffers that contain all the data for the respective vertex attribute
 		// By default holds 4 buffers, one for each vertex attribute: position, normal, textureUV, indices
 		std::vector<Buffer> vertexBuffers;
@@ -116,6 +113,9 @@ namespace Crescendo
 		// Offsets for each meshes indices
 		std::vector<uint32_t> indiceOffsets;
 
+		std::vector<VkPipelineLayout> pipelineLayouts;
+		std::vector<VkPipeline> pipelines;
+
 		VkDescriptorPool descriptorPool;
 		std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
 		// Offsets of each set within a specific layout
@@ -123,6 +123,8 @@ namespace Crescendo
 		// One per frame in flight, each descriptor set is stored in a contiguous block of memory
 		std::vector<Buffer> descriptorSetBuffers;
 		std::vector<VkDescriptorSet> descriptorSets;
+
+		internal::CommandQueue uploadQueue;
  
 	public:
 		RendererImpl() = default;
@@ -164,5 +166,7 @@ namespace Crescendo
 		// Upload commands
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant);
+		
+		void OneTimeSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 	};
 }

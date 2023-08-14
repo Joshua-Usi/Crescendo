@@ -2,15 +2,13 @@
 
 #define VMA_IMPLEMENTATION
 #include "VMA/vk_mem_alloc.h"
-#include "internal/Create.hpp"
 
 namespace Crescendo
 {
 	constexpr vkb::PreferredDeviceType DEVICE_TYPE_MAPPING[2] = { vkb::PreferredDeviceType::discrete, vkb::PreferredDeviceType::integrated };
 	constexpr VkPresentModeKHR PRESENT_MODE_MAPPING[2] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR };
-	constexpr VkFormat DEFAULT_DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
+	constexpr VkFormat DEFAULT_DEPTH_FORMAT = VK_FORMAT_D24_UNORM_S8_UINT;
 
-	namespace Create = internal::Create;
 	void Renderer::RendererImpl::InitialiseInstance(const BuilderInfo& info)
 	{
 		// Create instance and debug messenger
@@ -121,40 +119,36 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseCommands(const BuilderInfo& info)
 	{
-		// Create the command pool
-		VkCommandPoolCreateInfo commandPoolInfo = Create::CommandPoolCreateInfo(this->queues.universalFamily);
 		for (uint32_t i = 0; i < this->state.framesInFlight; i++)
 		{
-			CS_ASSERT(vkCreateCommandPool(this->device, &commandPoolInfo, nullptr, &this->state.frameData[i].commandPool) == VK_SUCCESS, "Failed to create command pool!");
-
-			// Create the command buffer
-			VkCommandBufferAllocateInfo cmdBufferInfo = Create::CommandBufferAllocateInfo(this->state.frameData[i].commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
-			CS_ASSERT(vkAllocateCommandBuffers(this->device, &cmdBufferInfo, &this->state.frameData[i].commandBuffer) == VK_SUCCESS, "Failed to allocate command buffers!");
+			this->state.frameData[i].commandQueue = internal::CommandQueue(this->device, this->queues.universalFamily);
+			this->state.frameData[i].commandQueue.Initialise(true);
 		}
+
+		this->uploadQueue = internal::CommandQueue(this->device, this->queues.universalFamily);
+		this->uploadQueue.Initialise(false);
+
 		this->mainDeletionQueue.Push([&]() {
-			for (auto& frame : this->state.frameData) vkDestroyCommandPool(this->device, frame.commandPool, nullptr);
+			for (auto& frame : this->state.frameData) frame.commandQueue.Destroy();
+			this->uploadQueue.Destroy();
 		});
 	}
 	void Renderer::RendererImpl::InitialiseSyncStructures(const BuilderInfo& info)
 	{
 		// Create sync structures for frames in flight
-		const VkFenceCreateInfo fenceInfo = Create::FenceCreateInfo(true);
 		const VkSemaphoreCreateInfo semaphoreInfo = Create::SemaphoreCreateInfo();
-
 		for (uint32_t i = 0; i < info.framesInFlight; i++)
 		{
 			CS_ASSERT(vkCreateSemaphore(this->device, &semaphoreInfo, nullptr, &this->state.frameData[i].presentSemaphore) == VK_SUCCESS, "Failed to create image available semaphore");
 			CS_ASSERT(vkCreateSemaphore(this->device, &semaphoreInfo, nullptr, &this->state.frameData[i].renderSemaphore) == VK_SUCCESS, "Failed to create render finished semaphore");
-			CS_ASSERT(vkCreateFence(this->device, &fenceInfo, nullptr, &this->state.frameData[i].renderFence) == VK_SUCCESS, "Failed to create in flight fences");
 		}
 		this->mainDeletionQueue.Push([&]() {
 			for (auto& frame : this->state.frameData)
 			{
 				vkDestroySemaphore(this->device, frame.presentSemaphore, nullptr);
 				vkDestroySemaphore(this->device, frame.renderSemaphore, nullptr);
-				vkDestroyFence(this->device, frame.renderFence, nullptr);
 			}
-			});
+		});
 	}
 	void Renderer::RendererImpl::InitialiseRenderpasses(const BuilderInfo& info)
 	{
@@ -213,7 +207,7 @@ namespace Crescendo
 		this->swapChainDeletionQueue.Push([&]() {
 			for (auto& framebuffer : this->framebuffers) vkDestroyFramebuffer(device, framebuffer, nullptr);
 			this->framebuffers.clear();
-			});
+		});
 	}
 	void Renderer::RendererImpl::InitialiseDescriptors(const BuilderInfo& info)
 	{
@@ -249,10 +243,10 @@ namespace Crescendo
 		this->offsets = std::vector<uint32_t>(1, 0);
 		this->indiceOffsets = std::vector<uint32_t>(1, 0);
 
-		this->vertexBuffers[INDICES]     = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,  VMA_MEMORY_USAGE_CPU_TO_GPU);
-		this->vertexBuffers[POSITION]    = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		this->vertexBuffers[NORMALS]     = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		this->vertexBuffers[TEXTURE_UVS] = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		this->vertexBuffers[INDICES]     = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT  | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
+		this->vertexBuffers[POSITION]    = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
+		this->vertexBuffers[NORMALS]     = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
+		this->vertexBuffers[TEXTURE_UVS] = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
 	
 		// Descriptor buffer initialisation
 		for (uint32_t i = 0; i < info.framesInFlight; i++)
@@ -264,7 +258,6 @@ namespace Crescendo
 			// Delete vertex buffers
 			for (auto& vertexBuffer : this->vertexBuffers)
 			{
-				vmaUnmapMemory(this->allocator, vertexBuffer.allocation);
 				vmaDestroyBuffer(this->allocator, vertexBuffer.buffer, vertexBuffer.allocation);
 			}
 			// Delete descriptor buffers

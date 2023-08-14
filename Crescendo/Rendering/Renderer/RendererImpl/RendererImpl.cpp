@@ -1,11 +1,9 @@
 #include "RendererImpl.hpp"
 
-#include "internal/Create.hpp"
 #include "Rendering/Reflection/Reflection.hpp"
 
 namespace Crescendo
 {
-	namespace Create = internal::Create;
 	size_t PaddedSize(size_t size, size_t alignmentRequirement)
 	{
 		return (alignmentRequirement > 0) ? (size + alignmentRequirement - 1) & ~(alignmentRequirement - 1) : size;
@@ -81,8 +79,10 @@ namespace Crescendo
 		vmaAllocInfo.usage = memoryUsage;
 		Buffer buffer = { nullptr, nullptr };
 		CS_ASSERT(vmaCreateBuffer(this->allocator, &bufferInfo, &vmaAllocInfo, &buffer.buffer, &buffer.allocation, nullptr) == VK_SUCCESS, "Failed to create buffer!");
-		// You'll also need to explicitly unmap
-		vmaMapMemory(this->allocator, buffer.allocation, &buffer.memoryLocation);
+		// You don't need to unmap since deletion implicitly unmap
+		// NEVERMIND, VMA WANTS ME TO UNMAP
+		// Only map if not GPU only
+		if (memoryUsage != VMA_MEMORY_USAGE_GPU_ONLY) vmaMapMemory(this->allocator, buffer.allocation, &buffer.memoryLocation);
 		return buffer;
 	}
 	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant)
@@ -208,23 +208,39 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices)
 	{
-		constexpr size_t INDICES_PER_TRIANGLE =  3;
-		constexpr size_t VERTICES_PER_INDEX =    3;
-		constexpr size_t NORMALS_PER_INDEX =     3;
-		constexpr size_t UVS_PER_INDEX =         2;
+		constexpr size_t VERTICES_PER_INDEX = 3;
+		constexpr size_t NORMALS_PER_INDEX = 3;
+		constexpr size_t UVS_PER_INDEX = 2;
 
 		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
-
-		CS_ASSERT(indices.size() % 3 == 0, "Invalid mesh indices!");
+		
+		CS_ASSERT(indices.size()    % 3 == 0, "Invalid mesh indices!");
 		CS_ASSERT(vertices.size()   % 3 == 0, "Invalid mesh vertices!");
 		CS_ASSERT(normals.size()    % 3 == 0, "Invalid mesh normals!");
 		CS_ASSERT(textureUVs.size() % 2 == 0, "Invalid mesh texture UVs!");
 		// TODO assert for potential buffer overflow
 
-		std::memcpy(static_cast<uint32_t*>(this->vertexBuffers[INDICES].memoryLocation)     + this->indiceOffsets.back(),                        indices.data(),    indices.size()    * sizeof(uint32_t));
-		std::memcpy(static_cast<float*>   (this->vertexBuffers[POSITION].memoryLocation)    + this->offsets.back()       * VERTICES_PER_INDEX,   vertices.data(),   vertices.size()   * sizeof(float));
-		std::memcpy(static_cast<float*>   (this->vertexBuffers[NORMALS].memoryLocation)     + this->offsets.back()       * NORMALS_PER_INDEX,    normals.data(),    normals.size()    * sizeof(float));
-		std::memcpy(static_cast<float*>   (this->vertexBuffers[TEXTURE_UVS].memoryLocation) + this->offsets.back()       * UVS_PER_INDEX,        textureUVs.data(), textureUVs.size() * sizeof(float));
+		Buffer stagingIndices    = this->CreateBuffer(indices.size()    * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		Buffer stagingVertices   = this->CreateBuffer(vertices.size()   * sizeof(float),    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		Buffer stagingNormals    = this->CreateBuffer(normals.size()    * sizeof(float),    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		Buffer stagingTextureUVs = this->CreateBuffer(textureUVs.size() * sizeof(float),    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+
+		memcpy(stagingIndices.memoryLocation,    indices.data(),    indices.size()    * sizeof(uint32_t));
+		memcpy(stagingVertices.memoryLocation,   vertices.data(),   vertices.size()   * sizeof(float));
+		memcpy(stagingNormals.memoryLocation,    normals.data(),    normals.size()    * sizeof(float));
+		memcpy(stagingTextureUVs.memoryLocation, textureUVs.data(), textureUVs.size() * sizeof(float));
+
+		this->OneTimeSubmit([=](VkCommandBuffer cmd) {
+			VkBufferCopy copyIndices    = Create::BufferCopy(0, this->indiceOffsets.back() * sizeof(uint32_t),                   indices.size()    * sizeof(uint32_t));
+			VkBufferCopy copyVertices   = Create::BufferCopy(0, this->offsets.back()       * sizeof(float) * VERTICES_PER_INDEX, vertices.size()   * sizeof(float));
+			VkBufferCopy copyNormals    = Create::BufferCopy(0, this->offsets.back()       * sizeof(float) * NORMALS_PER_INDEX,  normals.size()    * sizeof(float));
+			VkBufferCopy copyTextureUVs = Create::BufferCopy(0, this->offsets.back()       * sizeof(float) * UVS_PER_INDEX,      textureUVs.size() * sizeof(float));
+		
+			vkCmdCopyBuffer(cmd, stagingIndices.buffer,    this->vertexBuffers[INDICES].buffer,     1, &copyIndices);
+			vkCmdCopyBuffer(cmd, stagingVertices.buffer,   this->vertexBuffers[POSITION].buffer,    1, &copyVertices);
+			vkCmdCopyBuffer(cmd, stagingNormals.buffer,    this->vertexBuffers[NORMALS].buffer,     1, &copyNormals);
+			vkCmdCopyBuffer(cmd, stagingTextureUVs.buffer, this->vertexBuffers[TEXTURE_UVS].buffer, 1, &copyTextureUVs);
+		});
 
 		uint32_t uniqueVerticeCount = vertices.size() / VERTICES_PER_INDEX;
 		uint32_t indicesOffset = indices.size();
@@ -232,5 +248,32 @@ namespace Crescendo
 		this->offsets.push_back(this->offsets.back() + uniqueVerticeCount);
 		this->indiceOffsets.push_back(this->indiceOffsets.back() + indicesOffset);
 
+		vmaUnmapMemory(this->allocator, stagingIndices.allocation);
+		vmaUnmapMemory(this->allocator, stagingVertices.allocation);
+		vmaUnmapMemory(this->allocator, stagingNormals.allocation);
+		vmaUnmapMemory(this->allocator, stagingTextureUVs.allocation);
+
+		vmaDestroyBuffer(this->allocator, stagingIndices.buffer,    stagingIndices.allocation);
+		vmaDestroyBuffer(this->allocator, stagingVertices.buffer,   stagingVertices.allocation);
+		vmaDestroyBuffer(this->allocator, stagingNormals.buffer,    stagingNormals.allocation);
+		vmaDestroyBuffer(this->allocator, stagingTextureUVs.buffer, stagingTextureUVs.allocation);
+	}
+	void Renderer::RendererImpl::OneTimeSubmit(std::function<void(VkCommandBuffer cmd)>&& function)
+	{
+		const VkCommandBuffer cmd = this->uploadQueue.commandBuffer;
+
+		// Begin the command buffer
+		VkCommandBufferBeginInfo beginInfo = Create::CommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+		CS_ASSERT(vkBeginCommandBuffer(cmd, &beginInfo) == VK_SUCCESS, "Failed to begin one time submit!");
+		function(cmd);
+		CS_ASSERT(vkEndCommandBuffer(cmd) == VK_SUCCESS, "Failed to end one time submit!");
+
+		VkSubmitInfo submit = Create::SubmitInfo(nullptr, 0, nullptr, nullptr, 1, &cmd, 0, nullptr);
+		CS_ASSERT(vkQueueSubmit(this->queues.universal, 1, &submit, this->uploadQueue.completionFence) == VK_SUCCESS, "Failed to submit one time submit!");
+
+		vkWaitForFences(this->device, 1, &this->uploadQueue.completionFence, VK_TRUE, UINT64_MAX);
+		vkResetFences(this->device, 1, &this->uploadQueue.completionFence);
+
+		CS_ASSERT(vkResetCommandPool(this->device, this->uploadQueue.commandPool, 0) == VK_SUCCESS, "Failed to reset upload command pool!");
 	}
 }
