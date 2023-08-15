@@ -12,7 +12,7 @@ namespace Crescendo::internal
 		 *	Transfer is transfer dedicated
 		 *	Compute is compute dedicated
 		 */
-		VkQueue universal, transfer, compute;
+		VkQueue universal, transfer, compute, present;
 		uint32_t universalFamily, transferFamily, computeFamily;
 
 		inline void GetQueues(const vkb::Device& device)

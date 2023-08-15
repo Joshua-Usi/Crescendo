@@ -10,12 +10,12 @@
 /// </summary>
 namespace Crescendo::internal::Create
 {
-	inline constexpr VkSubmitInfo SubmitInfo(const void* pNext, uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, const VkPipelineStageFlags* pWaitDstStageMask, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers, uint32_t signalSemaphoreCount, const VkSemaphore* pSignalSemaphores)
+	inline constexpr VkSubmitInfo SubmitInfo(uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, const VkPipelineStageFlags* pWaitDstStageMask, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers, uint32_t signalSemaphoreCount, const VkSemaphore* pSignalSemaphores)
 	{
 		VkSubmitInfo submitInfo;
 
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.pNext = pNext;
+		submitInfo.pNext = nullptr;
 		submitInfo.waitSemaphoreCount = waitSemaphoreCount;
 		submitInfo.pWaitSemaphores = pWaitSemaphores;
 		submitInfo.pWaitDstStageMask = pWaitDstStageMask;

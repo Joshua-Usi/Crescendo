@@ -262,18 +262,11 @@ namespace Crescendo
 	{
 		const VkCommandBuffer cmd = this->uploadQueue.commandBuffer;
 
-		// Begin the command buffer
-		VkCommandBufferBeginInfo beginInfo = Create::CommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-		CS_ASSERT(vkBeginCommandBuffer(cmd, &beginInfo) == VK_SUCCESS, "Failed to begin one time submit!");
+		this->uploadQueue.Begin();
 		function(cmd);
-		CS_ASSERT(vkEndCommandBuffer(cmd) == VK_SUCCESS, "Failed to end one time submit!");
-
-		VkSubmitInfo submit = Create::SubmitInfo(nullptr, 0, nullptr, nullptr, 1, &cmd, 0, nullptr);
-		CS_ASSERT(vkQueueSubmit(this->queues.universal, 1, &submit, this->uploadQueue.completionFence) == VK_SUCCESS, "Failed to submit one time submit!");
-
-		vkWaitForFences(this->device, 1, &this->uploadQueue.completionFence, VK_TRUE, UINT64_MAX);
-		vkResetFences(this->device, 1, &this->uploadQueue.completionFence);
-
-		CS_ASSERT(vkResetCommandPool(this->device, this->uploadQueue.commandPool, 0) == VK_SUCCESS, "Failed to reset upload command pool!");
+		this->uploadQueue.End();
+		this->uploadQueue.Submit();
+		this->uploadQueue.WaitCompletion(UINT64_MAX);
+		this->uploadQueue.ResetPool();
 	}
 }

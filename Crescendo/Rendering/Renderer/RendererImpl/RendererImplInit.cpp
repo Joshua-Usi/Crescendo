@@ -119,15 +119,13 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseCommands(const BuilderInfo& info)
 	{
+		// Render command queues
 		for (uint32_t i = 0; i < this->state.framesInFlight; i++)
 		{
-			this->state.frameData[i].commandQueue = internal::CommandQueue(this->device, this->queues.universalFamily);
-			this->state.frameData[i].commandQueue.Initialise(true);
+			this->state.frameData[i].commandQueue = internal::CommandQueue(this->device, this->queues.universal, this->queues.universalFamily).Initialise(true);
 		}
-
-		this->uploadQueue = internal::CommandQueue(this->device, this->queues.universalFamily);
-		this->uploadQueue.Initialise(false);
-
+		// Upload command queues
+		this->uploadQueue = internal::CommandQueue(this->device, this->queues.transfer, this->queues.transferFamily).Initialise(false);
 		this->mainDeletionQueue.Push([&]() {
 			for (auto& frame : this->state.frameData) frame.commandQueue.Destroy();
 			this->uploadQueue.Destroy();
