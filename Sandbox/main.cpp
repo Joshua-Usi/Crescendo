@@ -42,7 +42,7 @@ public:
 		info.windowExtent = { this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight() };
 		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
 		info.framesInFlight = 3; // Triple buffering
-		info.vertexBufferBlockSize = std::powl(2, 25); // 32MB
+		info.vertexBufferBlockSize = std::powl(2, 29); // 512MB
 		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
 
 		this->renderer = Renderer::Create(info);
@@ -50,12 +50,31 @@ public:
 		// Upload meshes
 		IO::Model model;
 
-		CS_TIME(model = IO::LoadOBJ("./assets/sponza.obj"), "Model load");
+		CS_TIME(model = IO::LoadOBJ("./assets/sponza.obj"), "Sponza Model load");
+		//CS_TIME(model = IO::LoadOBJ("./assets/rungholt.obj"), "Rungholt Model load");
+		//CS_TIME(model = IO::LoadOBJ("./assets/san-miguel.obj"), "San Miguel Model load");
 
 		this->meshCount = model.meshes.size();
+		uint32_t triangleCount = 0, bufferSpace = 0;
 		for (const auto& mesh : model.meshes)
 		{
+			triangleCount += mesh.indices.size() / 3;
+			bufferSpace += sizeof(float) * (mesh.vertices.size() + mesh.normals.size() + mesh.textureUVs.size() + mesh.indices.size());
 			this->renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
+		}
+
+		std::cout << "Mesh has " << triangleCount << " triangles" << std::endl;
+		std::cout << "Mesh has " << bufferSpace / 1024 << "KB of data" << std::endl;
+
+		// Upload textures
+		std::vector<std::string> textures =
+		{
+			"./assets/textures/background.png"
+		};
+		for (const auto& texture : textures)
+		{
+			IO::Image image = IO::LoadImage(texture);
+			this->renderer.UploadTexture(image.pixels, image.width, image.height, image.channels);
 		}
 
 		// Upload shaders (creates pipelines and descriptor sets)
@@ -63,13 +82,13 @@ public:
 		std::vector<std::string> shaderList =
 		{
 			"./shaders/compiled/mesh",
-			"./shaders/compiled/mesh-unlit",
+			//"./shaders/compiled/mesh-unlit",
 		};
-		for (size_t i = 0; i < shaderList.size(); i++)
+		for (const auto& shaderName : shaderList)
 		{
 			this->renderer.UploadPipeline(
-				Crescendo::Core::BinaryFile(shaderList[i] + ".vert.spv").Open().Read(),
-				Crescendo::Core::BinaryFile(shaderList[i] + ".frag.spv").Open().Read()
+				Crescendo::Core::BinaryFile(shaderName + ".vert.spv").Open().Read(),
+				Crescendo::Core::BinaryFile(shaderName + ".frag.spv").Open().Read()
 			);
 		}
 	}
@@ -110,16 +129,16 @@ public:
 
 		// Render prep
 		struct VP { glm::mat4 view, projection; } vp { this->camera.GetViewMatrix(), this->camera.GetProjectionMatrix() };
-		struct Lighting { glm::vec4 lightColor; float ambient; } lighting { glm::vec4(0.75f, 0.75f, 1.0f, 1.0f), 0.1f };
+		struct Lighting { glm::vec4 lightColor; float ambient; } lighting { glm::vec4(0.75f, 0.75f, 1.0f, 1.0f), 1.0f };
 		glm::mat4 model = glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f));
 
 		this->renderer.UpdateDescriptorSetData(0, 0, vp);
 		this->renderer.UpdateDescriptorSetData(0, 1, lighting);
-		this->renderer.UpdateDescriptorSetData(1, 0, vp);
+		//this->renderer.UpdateDescriptorSetData(1, 0, vp);
 
 		// Render commands
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.1f, 1.0f);
-		this->renderer.CmdBindPipeline(Input::GetKeyDown(Key::One) ? 1 : 0);
+		this->renderer.CmdBindPipeline(0);
 		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, model);
 		for (uint32_t i = 0; i < this->meshCount; i++) this->renderer.CmdDraw(i);
 		this->renderer.CmdEndFrame();

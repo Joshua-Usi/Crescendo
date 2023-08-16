@@ -105,7 +105,7 @@ namespace Crescendo
 		depthImageAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 		CS_ASSERT(vmaCreateImage(this->allocator, &depthImageInfo, &depthImageAllocInfo, &this->depthBuffer.image, &this->depthBuffer.allocation, nullptr) == VK_SUCCESS, "Failed to create depth image");
 		VkImageViewCreateInfo depthImageViewInfo = Create::ImageViewCreateInfo(
-			nullptr, 0, this->depthBuffer.image, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_DEPTH_FORMAT, {}, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 }
+			0, this->depthBuffer.image, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_DEPTH_FORMAT, {}, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 }
 		);
 		CS_ASSERT(vkCreateImageView(this->device, &depthImageViewInfo, nullptr, &this->depthBuffer.imageView) == VK_SUCCESS, "Failed to create depth image view!");
 
@@ -126,9 +126,12 @@ namespace Crescendo
 		}
 		// Upload command queues
 		this->uploadQueue = internal::CommandQueue(this->device, this->queues.transfer, this->queues.transferFamily).Initialise(false);
+		this->uploadTextureQueue = internal::CommandQueue(this->device, this->queues.universal, this->queues.universalFamily).Initialise(false);
+		
 		this->mainDeletionQueue.Push([&]() {
 			for (auto& frame : this->state.frameData) frame.commandQueue.Destroy();
 			this->uploadQueue.Destroy();
+			this->uploadTextureQueue.Destroy();
 		});
 	}
 	void Renderer::RendererImpl::InitialiseSyncStructures(const BuilderInfo& info)
@@ -263,6 +266,12 @@ namespace Crescendo
 			{
 				vmaUnmapMemory(this->allocator, descriptorSetBuffer.allocation);
 				vmaDestroyBuffer(this->allocator, descriptorSetBuffer.buffer, descriptorSetBuffer.allocation);
+			}
+			// Delete texture buffers
+			for (auto& image : this->images)
+			{
+				vmaDestroyImage(this->allocator, image.image, image.allocation);
+				vkDestroyImageView(this->device, image.imageView, nullptr);
 			}
 		});
 	}

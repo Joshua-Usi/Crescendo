@@ -426,12 +426,12 @@ namespace Crescendo::internal::Create
 
 		return copyRegion;
 	}
-	inline constexpr VkImageViewCreateInfo ImageViewCreateInfo(const void* pNext, VkImageViewCreateFlags flags, VkImage image, VkImageViewType viewType, VkFormat format, VkComponentMapping components, VkImageSubresourceRange subresourceRange)
+	inline constexpr VkImageViewCreateInfo ImageViewCreateInfo(VkImageViewCreateFlags flags, VkImage image, VkImageViewType viewType, VkFormat format, VkComponentMapping components, VkImageSubresourceRange subresourceRange)
 	{
 		VkImageViewCreateInfo createInfo;
 
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		createInfo.pNext = pNext;
+		createInfo.pNext = nullptr;
 		createInfo.flags = flags;
 		createInfo.image = image;
 		createInfo.viewType = viewType;

@@ -5,6 +5,9 @@
 #include "vulkan/vulkan.h"
 #include "Create.hpp"
 
+#include <functional>
+#include <vector>
+
 namespace Crescendo::internal
 {
 	class CommandQueue
@@ -74,6 +77,10 @@ namespace Crescendo::internal
 		{
 			vkCmdDrawIndexed(this->commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 		}
+		inline void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, const std::vector<VkBufferCopy>& regions) const
+		{
+			vkCmdCopyBuffer(this->commandBuffer, srcBuffer, dstBuffer, regions.size(), regions.data());
+		}
 	public:
 		/// <summary>
 		/// Begin recording the command buffer
@@ -140,6 +147,17 @@ namespace Crescendo::internal
 				signalSemaphores.size(), signalSemaphores.data()
 			);
 			CS_ASSERT(vkQueueSubmit(this->queue, 1, &submit, this->completionFence) == VK_SUCCESS, "Failed to submit one time submit!");
+		}
+	public:
+		inline void InstantSubmit(std::function<void(const CommandQueue& cmd)>&& function, uint64_t timeout = UINT64_MAX) const
+		{
+			this->Begin();
+			function(*this);
+			this->End();
+			this->Submit();
+			// No gaurantee that the user has not created an infinite loop
+			this->WaitCompletion(timeout);
+			this->ResetPool();
 		}
 	};
 }

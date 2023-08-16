@@ -124,7 +124,9 @@ namespace Crescendo
 		std::vector<Buffer> descriptorSetBuffers;
 		std::vector<VkDescriptorSet> descriptorSets;
 
-		internal::CommandQueue uploadQueue;
+		internal::CommandQueue uploadQueue, uploadTextureQueue;
+
+		std::vector<Image> images;
  
 	public:
 		RendererImpl() = default;
@@ -164,9 +166,8 @@ namespace Crescendo
 		Buffer CreateBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 
 		// Upload commands
-		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant);
-		
-		void OneTimeSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
+		void UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels);
 	};
 }

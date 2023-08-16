@@ -100,7 +100,6 @@ namespace Crescendo
 	void Renderer::RendererImpl::PresentFrame()
 	{
 		const FrameData& currentFrame = this->GetCurrentFrameData();
-		const VkCommandBuffer cmd = currentFrame.commandQueue.commandBuffer;
 
 		// Attempt to present the image, if the swapchain is out of date or suboptimal, recreate it
 		// We can't present again however because the framebuffers are invalid, so we just pass
@@ -120,7 +119,7 @@ namespace Crescendo
 	void Renderer::RendererImpl::UpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size)
 	{
 		CS_ASSERT(size <= (this->descriptorSetLayoutOffsets[descriptorSetIndex][binding + 1] - this->descriptorSetLayoutOffsets[descriptorSetIndex][binding]), "Provided data is larger than the descriptor set size, This can lead to buffer overflow!");
-		uint32_t memOffset = this->descriptorSetLayoutOffsets[descriptorSetIndex][binding];
+		const uint32_t memOffset = this->descriptorSetLayoutOffsets[descriptorSetIndex][binding];
 		memcpy(static_cast<char*>(this->descriptorSetBuffers[this->GetFrameIndex()].memoryLocation) + memOffset, data, size);
 	}
 }

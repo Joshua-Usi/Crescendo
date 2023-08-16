@@ -2,6 +2,8 @@
 
 #include "Rendering/Reflection/Reflection.hpp"
 
+#include <numeric>
+
 namespace Crescendo
 {
 	size_t PaddedSize(size_t size, size_t alignmentRequirement)
@@ -214,32 +216,40 @@ namespace Crescendo
 
 		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
 		
+		// It should not be possible, but just in case
+		CS_ASSERT(sizeof(uint32_t) == sizeof(float), "Somehow sizeof uint32_t and sizeof float don't match!");
+
 		CS_ASSERT(indices.size()    % 3 == 0, "Invalid mesh indices!");
 		CS_ASSERT(vertices.size()   % 3 == 0, "Invalid mesh vertices!");
 		CS_ASSERT(normals.size()    % 3 == 0, "Invalid mesh normals!");
 		CS_ASSERT(textureUVs.size() % 2 == 0, "Invalid mesh texture UVs!");
 		// TODO assert for potential buffer overflow
 
-		Buffer stagingIndices    = this->CreateBuffer(indices.size()    * sizeof(uint32_t), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-		Buffer stagingVertices   = this->CreateBuffer(vertices.size()   * sizeof(float),    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-		Buffer stagingNormals    = this->CreateBuffer(normals.size()    * sizeof(float),    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-		Buffer stagingTextureUVs = this->CreateBuffer(textureUVs.size() * sizeof(float),    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		std::array<uint32_t, 5> offsets;
+		offsets[0] = 0;
+		offsets[1] = indices.size();
+		offsets[2] = offsets[1] + vertices.size();
+		offsets[3] = offsets[2] + normals.size();
+		offsets[4] = offsets[3] + textureUVs.size();
 
-		memcpy(stagingIndices.memoryLocation,    indices.data(),    indices.size()    * sizeof(uint32_t));
-		memcpy(stagingVertices.memoryLocation,   vertices.data(),   vertices.size()   * sizeof(float));
-		memcpy(stagingNormals.memoryLocation,    normals.data(),    normals.size()    * sizeof(float));
-		memcpy(stagingTextureUVs.memoryLocation, textureUVs.data(), textureUVs.size() * sizeof(float));
+		// Stage all data into one buffer, reduces allocations
+		Buffer staging = this->CreateBuffer(sizeof(uint32_t) * offsets[4], VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
-		this->OneTimeSubmit([=](VkCommandBuffer cmd) {
-			VkBufferCopy copyIndices    = Create::BufferCopy(0, this->indiceOffsets.back() * sizeof(uint32_t),                   indices.size()    * sizeof(uint32_t));
-			VkBufferCopy copyVertices   = Create::BufferCopy(0, this->offsets.back()       * sizeof(float) * VERTICES_PER_INDEX, vertices.size()   * sizeof(float));
-			VkBufferCopy copyNormals    = Create::BufferCopy(0, this->offsets.back()       * sizeof(float) * NORMALS_PER_INDEX,  normals.size()    * sizeof(float));
-			VkBufferCopy copyTextureUVs = Create::BufferCopy(0, this->offsets.back()       * sizeof(float) * UVS_PER_INDEX,      textureUVs.size() * sizeof(float));
+		memcpy(static_cast<uint32_t*>(staging.memoryLocation) + offsets[0], indices.data(),    indices.size() * sizeof(uint32_t));
+		memcpy(static_cast<uint32_t*>(staging.memoryLocation) + offsets[1], vertices.data(),   vertices.size() * sizeof(uint32_t));
+		memcpy(static_cast<uint32_t*>(staging.memoryLocation) + offsets[2], normals.data(),    normals.size() * sizeof(uint32_t));
+		memcpy(static_cast<uint32_t*>(staging.memoryLocation) + offsets[3], textureUVs.data(), textureUVs.size() * sizeof(uint32_t));
+
+		this->uploadQueue.InstantSubmit([=](const internal::CommandQueue& cmd) {
+			VkBufferCopy copyIndices    = Create::BufferCopy(offsets[0] * sizeof(uint32_t), this->indiceOffsets.back() * sizeof(uint32_t), indices.size() * sizeof(uint32_t));
+			VkBufferCopy copyVertices   = Create::BufferCopy(offsets[1] * sizeof(uint32_t), this->offsets.back() * sizeof(float) * VERTICES_PER_INDEX, vertices.size() * sizeof(float));
+			VkBufferCopy copyNormals    = Create::BufferCopy(offsets[2] * sizeof(uint32_t), this->offsets.back() * sizeof(float) * NORMALS_PER_INDEX, normals.size() * sizeof(float));
+			VkBufferCopy copyTextureUVs = Create::BufferCopy(offsets[3] * sizeof(uint32_t), this->offsets.back() * sizeof(float) * UVS_PER_INDEX, textureUVs.size() * sizeof(float));
 		
-			vkCmdCopyBuffer(cmd, stagingIndices.buffer,    this->vertexBuffers[INDICES].buffer,     1, &copyIndices);
-			vkCmdCopyBuffer(cmd, stagingVertices.buffer,   this->vertexBuffers[POSITION].buffer,    1, &copyVertices);
-			vkCmdCopyBuffer(cmd, stagingNormals.buffer,    this->vertexBuffers[NORMALS].buffer,     1, &copyNormals);
-			vkCmdCopyBuffer(cmd, stagingTextureUVs.buffer, this->vertexBuffers[TEXTURE_UVS].buffer, 1, &copyTextureUVs);
+			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[INDICES].buffer,     { copyIndices });
+			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[POSITION].buffer,    { copyVertices });
+			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[NORMALS].buffer,     { copyNormals });
+			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[TEXTURE_UVS].buffer, { copyTextureUVs });
 		});
 
 		uint32_t uniqueVerticeCount = vertices.size() / VERTICES_PER_INDEX;
@@ -248,25 +258,63 @@ namespace Crescendo
 		this->offsets.push_back(this->offsets.back() + uniqueVerticeCount);
 		this->indiceOffsets.push_back(this->indiceOffsets.back() + indicesOffset);
 
-		vmaUnmapMemory(this->allocator, stagingIndices.allocation);
-		vmaUnmapMemory(this->allocator, stagingVertices.allocation);
-		vmaUnmapMemory(this->allocator, stagingNormals.allocation);
-		vmaUnmapMemory(this->allocator, stagingTextureUVs.allocation);
-
-		vmaDestroyBuffer(this->allocator, stagingIndices.buffer,    stagingIndices.allocation);
-		vmaDestroyBuffer(this->allocator, stagingVertices.buffer,   stagingVertices.allocation);
-		vmaDestroyBuffer(this->allocator, stagingNormals.buffer,    stagingNormals.allocation);
-		vmaDestroyBuffer(this->allocator, stagingTextureUVs.buffer, stagingTextureUVs.allocation);
+		vmaUnmapMemory(this->allocator, staging.allocation);
+		vmaDestroyBuffer(this->allocator, staging.buffer, staging.allocation);
 	}
-	void Renderer::RendererImpl::OneTimeSubmit(std::function<void(VkCommandBuffer cmd)>&& function)
+	void Renderer::RendererImpl::UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels)
 	{
-		const VkCommandBuffer cmd = this->uploadQueue.commandBuffer;
+		CS_ASSERT(channels != 4, "Image is not RGBA, only RGBA images are currently supported");
+		constexpr VkFormat DEFAULT_FORMAT = VK_FORMAT_R8G8B8A8_SRGB;
 
-		this->uploadQueue.Begin();
-		function(cmd);
-		this->uploadQueue.End();
-		this->uploadQueue.Submit();
-		this->uploadQueue.WaitCompletion(UINT64_MAX);
-		this->uploadQueue.ResetPool();
+		// Stage the image data
+		Buffer staging = this->CreateBuffer(textureData.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		memcpy(staging.memoryLocation, textureData.data(), textureData.size());
+
+		// Create the image
+		VkExtent3D extent = { width, height, 1 };
+		VkImageCreateInfo imageInfo = Create::ImageCreateInfo(
+			nullptr, 0, VK_IMAGE_TYPE_2D, DEFAULT_FORMAT, extent,
+			1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
+		);
+
+		Image image = {};
+
+		VmaAllocationCreateInfo allocInfo = {};
+		allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+		CS_ASSERT(vmaCreateImage(this->allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) == VK_SUCCESS, "Failed to create image!");
+
+		// Transition the image to a transfer destination
+		this->uploadTextureQueue.InstantSubmit([=](const internal::CommandQueue& cmd) {
+			VkImageSubresourceRange subresourceRange = Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1);
+			VkBufferImageCopy region = Create::BufferImageCopy(0, 0, 0, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 }, extent);
+			VkImageMemoryBarrier barrier = Create::ImageMemoryBarrier(
+				0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, image.image, subresourceRange
+			);
+			VkImageMemoryBarrier barrier2 = Create::ImageMemoryBarrier(
+				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, image.image, subresourceRange
+			);
+
+			vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+			vkCmdCopyBufferToImage(cmd.commandBuffer, staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+			vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
+		});
+
+		VkImageViewCreateInfo viewInfo = Create::ImageViewCreateInfo(
+			0, image.image, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_FORMAT,
+			{ VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY },
+			Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
+		);
+		CS_ASSERT(vkCreateImageView(this->device, &viewInfo, nullptr, &image.imageView) == VK_SUCCESS, "Failed to create image view!");
+
+		this->images.push_back(image);
+
+		vmaUnmapMemory(this->allocator, staging.allocation);
+		vmaDestroyBuffer(this->allocator, staging.buffer, staging.allocation);
+
 	}
 }
