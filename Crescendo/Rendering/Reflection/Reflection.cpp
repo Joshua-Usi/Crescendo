@@ -7,6 +7,8 @@
 
 #include "Rendering/Renderer/RendererImpl/internal/Create.hpp"
 
+#include <unordered_set>
+
 namespace Crescendo
 {
 	VkFormat GetFormatFromSize(uint32_t size)
@@ -111,11 +113,30 @@ namespace Crescendo
 		spvReflectDestroyShaderModule(&reflectionModule);
 		return reflection;
 	}
-	const std::vector<VkDescriptorSetLayoutBinding> SpirvReflection::GetDescriptorSetBindings(uint32_t shaderStage) const
+	uint32_t SpirvReflection::GetDescriptorSetLayoutCount() const
+	{
+		std::unordered_set<uint32_t> uniqueSets;
+		for (const auto& layout : this->descriptorSets) uniqueSets.insert(layout.set);
+		return static_cast<uint32_t>(uniqueSets.size());
+	}
+	// MFW I write an O(n^2) algorithm when I could easily write a O(n) one
+	// Nah there should not be that many descriptor set layouts so n will be small
+	const std::vector<std::vector<VkDescriptorSetLayoutBinding>> SpirvReflection::GetDescriptorSetLayoutBindings(uint32_t shaderStage) const
+	{
+		uint32_t setCount = this->GetDescriptorSetLayoutCount();
+		std::vector<std::vector<VkDescriptorSetLayoutBinding>> bindings(setCount);
+		for (uint32_t i = 0; i < setCount; i++)
+		{
+			bindings[i] = this->GetDescriptorSetBindings(i, shaderStage);
+		}
+		return bindings;
+	}
+	const std::vector<VkDescriptorSetLayoutBinding> SpirvReflection::GetDescriptorSetBindings(uint32_t set, uint32_t shaderStage) const
 	{
 		std::vector<VkDescriptorSetLayoutBinding> bindings;
 		for (const auto& layout : this->descriptorSets)
 		{
+			if (layout.set != set) continue;
 			VkDescriptorType descriptorType = layout.IsSampler() ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 			bindings.emplace_back(layout.binding, descriptorType, 1, shaderStage, nullptr);
 		}

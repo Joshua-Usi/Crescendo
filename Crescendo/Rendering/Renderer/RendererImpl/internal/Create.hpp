@@ -12,7 +12,7 @@ namespace Crescendo::internal::Create
 {
 	inline constexpr VkSubmitInfo SubmitInfo(uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, const VkPipelineStageFlags* pWaitDstStageMask, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers, uint32_t signalSemaphoreCount, const VkSemaphore* pSignalSemaphores)
 	{
-		VkSubmitInfo submitInfo;
+		VkSubmitInfo submitInfo = {};
 
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		submitInfo.pNext = nullptr;
@@ -28,7 +28,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPresentInfoKHR PresentInfoKHR(const void* pNext, uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, uint32_t swapchainCount, const VkSwapchainKHR* pSwapchains, const uint32_t* pImageIndices, VkResult* pResults)
 	{
-		VkPresentInfoKHR presentInfo;
+		VkPresentInfoKHR presentInfo = {};
 
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 		presentInfo.pNext = pNext;
@@ -43,7 +43,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPipelineShaderStageCreateInfo PipelineShaderStageCreateInfo(const void* pNext, VkPipelineShaderStageCreateFlags flags, VkShaderStageFlagBits stage, VkShaderModule module, const char* pName, const VkSpecializationInfo* pSpecializationInfo)
 	{
-		VkPipelineShaderStageCreateInfo createInfo;
+		VkPipelineShaderStageCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -57,7 +57,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkFramebufferCreateInfo FramebufferCreateInfo(const void* pNext, VkFramebufferCreateFlags flags, VkRenderPass renderPass, uint32_t attachmentCount, const VkImageView* pAttachments, VkExtent2D extent, uint32_t layers)
 	{
-		VkFramebufferCreateInfo createInfo;
+		VkFramebufferCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -73,7 +73,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPipelineVertexInputStateCreateInfo PipelineVertexInputStateCreateInfo(const void* pNext, uint32_t vertexBindingDescriptionCount, const VkVertexInputBindingDescription* pVertexBindingDescriptions, uint32_t vertexAttributeDescriptionCount, const VkVertexInputAttributeDescription* pVertexAttributeDescriptions)
 	{
-		VkPipelineVertexInputStateCreateInfo createInfo;
+		VkPipelineVertexInputStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -87,7 +87,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPipelineInputAssemblyStateCreateInfo PipelineInputAssemblyStateCreateInfo(VkPrimitiveTopology topology, VkBool32 primitiveRestartEnable)
 	{
-		VkPipelineInputAssemblyStateCreateInfo createInfo;
+		VkPipelineInputAssemblyStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 		createInfo.pNext = nullptr;
@@ -99,7 +99,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPipelineViewportStateCreateInfo PipelineViewportStateCreateInfo(const void* pNext, uint32_t viewportCount, const VkViewport* pViewports, uint32_t scissorCount, const VkRect2D* pScissors)
 	{
-		VkPipelineViewportStateCreateInfo createInfo;
+		VkPipelineViewportStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -113,7 +113,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPipelineRasterizationStateCreateInfo PipelineRasterizationStateCreateInfo(const void* pNext, VkBool32 depthClampEnable, VkBool32 rasterizerDiscardEnable, VkPolygonMode polygonMode, VkCullModeFlags cullMode, VkFrontFace frontFace, VkBool32 depthBiasEnable, float depthBiasConstantFactor, float depthBiasClamp, float depthBiasSlopeFactor, float lineWidth)
 	{
-		VkPipelineRasterizationStateCreateInfo createInfo;
+		VkPipelineRasterizationStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -133,7 +133,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPipelineMultisampleStateCreateInfo PipelineMultisampleStateCreateInfo(const void* pNext, VkSampleCountFlagBits rasterizationSamples, VkBool32 sampleShadingEnable, float minSampleShading, const VkSampleMask* pSampleMask, VkBool32 alphaToCoverageEnable, VkBool32 alphaToOneEnable)
 	{
-		VkPipelineMultisampleStateCreateInfo createInfo;
+		VkPipelineMultisampleStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -149,7 +149,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPipelineColorBlendAttachmentState PipelineColorBlendAttachmentState(VkBool32 blendEnable, VkBlendFactor srcColorBlendFactor, VkBlendFactor dstColorBlendFactor, VkBlendOp colorBlendOp, VkBlendFactor srcAlphaBlendFactor, VkBlendFactor dstAlphaBlendFactor, VkBlendOp alphaBlendOp, VkColorComponentFlags colorWriteMask)
 	{
-		VkPipelineColorBlendAttachmentState attachmentState;
+		VkPipelineColorBlendAttachmentState attachmentState = {};
 
 		attachmentState.blendEnable = blendEnable;
 		attachmentState.srcColorBlendFactor = srcColorBlendFactor;
@@ -164,7 +164,7 @@ namespace Crescendo::internal::Create
 	}
 	inline VkPipelineColorBlendStateCreateInfo PipelineColorBlendStateCreateInfo(const void* pNext, VkPipelineColorBlendStateCreateFlags flags, VkBool32 logicOpEnable, VkLogicOp logicOp, uint32_t attachmentCount, const VkPipelineColorBlendAttachmentState* pAttachments, const std::array<float, 4>& blendConstants)
 	{
-		VkPipelineColorBlendStateCreateInfo createInfo;
+		VkPipelineColorBlendStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -179,7 +179,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPipelineDynamicStateCreateInfo PipelineDynamicStateCreateInfo(uint32_t dynamicStateCount, const VkDynamicState* pDynamicStates)
 	{
-		VkPipelineDynamicStateCreateInfo createInfo;
+		VkPipelineDynamicStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		createInfo.pNext = nullptr;
@@ -191,7 +191,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo(VkPipelineLayoutCreateFlags flags, uint32_t setLayoutCount, const VkDescriptorSetLayout* pSetLayouts, uint32_t pushConstantRangeCount, const VkPushConstantRange* pPushConstantRanges)
 	{
-		VkPipelineLayoutCreateInfo createInfo;
+		VkPipelineLayoutCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		createInfo.pNext = nullptr;
@@ -205,7 +205,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkGraphicsPipelineCreateInfo GraphicsPipelineCreateInfo(const void* pNext, VkPipelineCreateFlags flags, uint32_t stageCount, const VkPipelineShaderStageCreateInfo* pStages, const VkPipelineVertexInputStateCreateInfo* pVertexInputState, const VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState, const VkPipelineTessellationStateCreateInfo* pTessellationState, const VkPipelineViewportStateCreateInfo* pViewportState, const VkPipelineRasterizationStateCreateInfo* pRasterizationState, const VkPipelineMultisampleStateCreateInfo* pMultisampleState, const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState, const VkPipelineColorBlendStateCreateInfo* pColorBlendState, const VkPipelineDynamicStateCreateInfo* pDynamicState, VkPipelineLayout layout, VkRenderPass renderPass, uint32_t subpass, VkPipeline basePipelineHandle, int32_t basePipelineIndex)
 	{
-		VkGraphicsPipelineCreateInfo createInfo;
+		VkGraphicsPipelineCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -231,7 +231,7 @@ namespace Crescendo::internal::Create
 	}
 	inline VkShaderModuleCreateInfo ShaderModuleCreateInfo(const std::vector<uint8_t>& code)
 	{
-		VkShaderModuleCreateInfo createInfo;
+		VkShaderModuleCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 		createInfo.pNext = nullptr;
@@ -243,7 +243,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkAttachmentDescription AttachmentDescription(VkAttachmentDescriptionFlags flags, VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp, VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout)
 	{
-		VkAttachmentDescription description;
+		VkAttachmentDescription description = {};
 
 		description.flags = flags;
 		description.format = format;
@@ -259,7 +259,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkAttachmentReference AttachmentReference(uint32_t attachment, VkImageLayout layout)
 	{
-		VkAttachmentReference reference;
+		VkAttachmentReference reference = {};
 
 		reference.attachment = attachment;
 		reference.layout = layout;
@@ -268,7 +268,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkSubpassDescription SubpassDescription(VkSubpassDescriptionFlags flags, VkPipelineBindPoint pipelineBindPoint, uint32_t inputAttachmentCount, const VkAttachmentReference* pInputAttachments, uint32_t colorAttachmentCount, const VkAttachmentReference* pColorAttachments, const VkAttachmentReference* pResolveAttachments, const VkAttachmentReference* pDepthStencilAttachment, uint32_t preserveAttachmentCount, const uint32_t* pPreserveAttachments)
 	{
-		VkSubpassDescription description;
+		VkSubpassDescription description = {};
 
 		description.flags = flags;
 		description.pipelineBindPoint = pipelineBindPoint;
@@ -285,7 +285,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkRenderPassCreateInfo RenderPassCreateInfo(const std::vector<VkAttachmentDescription>& attachments, const std::vector<VkSubpassDescription>& subpasses, const std::vector<VkSubpassDependency>& subpassDependencies)
 	{
-		VkRenderPassCreateInfo createInfo;
+		VkRenderPassCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		createInfo.pNext = nullptr;
@@ -301,7 +301,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkSubpassDependency SubpassDependency(uint32_t srcSubpass, uint32_t dstSubpass, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkDependencyFlags dependencyFlags
 	) {
-		VkSubpassDependency dependency;
+		VkSubpassDependency dependency = {};
 
 		dependency.srcSubpass = srcSubpass;
 		dependency.dstSubpass = dstSubpass;
@@ -315,7 +315,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkCommandPoolCreateInfo CommandPoolCreateInfo(uint32_t queueFamilyIndex)
 	{
-		VkCommandPoolCreateInfo createInfo;
+		VkCommandPoolCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		createInfo.pNext = nullptr;
@@ -326,7 +326,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkBufferCreateInfo BufferCreateInfo(const void* pNext, VkBufferCreateFlags flags, VkDeviceSize size, VkBufferUsageFlags usage, VkSharingMode sharingMode, uint32_t queueFamilyIndexCount, const uint32_t* pQueueFamilyIndices)
 	{
-		VkBufferCreateInfo createInfo;
+		VkBufferCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -341,7 +341,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkMemoryAllocateInfo MemoryAllocateInfo(const void* pNext, VkDeviceSize allocationSize, uint32_t memoryTypeIndex)
 	{
-		VkMemoryAllocateInfo createInfo;
+		VkMemoryAllocateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		createInfo.pNext = pNext;
@@ -352,7 +352,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkImageCreateInfo ImageCreateInfo(const void* pNext, VkImageCreateFlags flags, VkImageType imageType, VkFormat format, VkExtent3D extent, uint32_t mipLevels, uint32_t arrayLayers, VkSampleCountFlagBits samples, VkImageTiling tiling, VkImageUsageFlags usage, VkSharingMode sharingMode, uint32_t queueFamilyIndexCount, const uint32_t* pQueueFamilyIndices, VkImageLayout initialLayout)
 	{
-		VkImageCreateInfo createInfo;
+		VkImageCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -374,7 +374,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkCommandBufferAllocateInfo CommandBufferAllocateInfo(VkCommandPool commandPool, VkCommandBufferLevel level, uint32_t commandBufferCount)
 	{
-		VkCommandBufferAllocateInfo createInfo;
+		VkCommandBufferAllocateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		createInfo.pNext = nullptr;
@@ -386,7 +386,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkCommandBufferBeginInfo CommandBufferBeginInfo(VkCommandBufferUsageFlags flags)
 	{
-		VkCommandBufferBeginInfo createInfo;
+		VkCommandBufferBeginInfo createInfo = {};
 		
 		createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		createInfo.pNext = nullptr;
@@ -397,7 +397,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkImageMemoryBarrier ImageMemoryBarrier(VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t srcQueueFamilyIndex, uint32_t dstQueueFamilyIndex, VkImage image, VkImageSubresourceRange subresourceRange)
 	{
-		VkImageMemoryBarrier barrier;
+		VkImageMemoryBarrier barrier = {};
 
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		barrier.pNext = nullptr;
@@ -415,7 +415,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkBufferImageCopy BufferImageCopy(VkDeviceSize bufferOffset, uint32_t bufferRowLength, uint32_t bufferImageHeight, VkImageSubresourceLayers imageSubresource, VkOffset3D imageOffset, VkExtent3D imageExtent)
 	{
-		VkBufferImageCopy copyRegion;
+		VkBufferImageCopy copyRegion = {};
 
 		copyRegion.bufferOffset = bufferOffset;
 		copyRegion.bufferRowLength = bufferRowLength;
@@ -428,7 +428,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkImageViewCreateInfo ImageViewCreateInfo(VkImageViewCreateFlags flags, VkImage image, VkImageViewType viewType, VkFormat format, VkComponentMapping components, VkImageSubresourceRange subresourceRange)
 	{
-		VkImageViewCreateInfo createInfo;
+		VkImageViewCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		createInfo.pNext = nullptr;
@@ -443,7 +443,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkSamplerCreateInfo SamplerCreateInfo(const void* pNext, VkSamplerCreateFlags flags, VkFilter magFilter, VkFilter minFilter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressModeU, VkSamplerAddressMode addressModeV, VkSamplerAddressMode addressModeW, float mipLodBias, VkBool32 anisotropyEnable, float maxAnisotropy, VkBool32 compareEnable, VkCompareOp compareOp, float minLod, float maxLod, VkBorderColor borderColor, VkBool32 unnormalizedCoordinates)
 	{
-		VkSamplerCreateInfo createInfo;
+		VkSamplerCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -468,7 +468,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkSemaphoreCreateInfo SemaphoreCreateInfo(const void* pNext = nullptr)
 	{
-		VkSemaphoreCreateInfo createInfo;
+		VkSemaphoreCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 		createInfo.pNext = pNext;
@@ -478,7 +478,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkFenceCreateInfo FenceCreateInfo(bool signaled)
 	{
-		VkFenceCreateInfo createInfo;
+		VkFenceCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 		createInfo.pNext = nullptr;
@@ -488,7 +488,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkRenderPassBeginInfo RenderPassBeginInfo(const void* pNext, VkRenderPass renderPass, VkFramebuffer framebuffer, VkRect2D renderArea, uint32_t clearValueCount, const VkClearValue* pClearValues)
 	{
-		VkRenderPassBeginInfo createInfo;
+		VkRenderPassBeginInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		createInfo.pNext = pNext;
@@ -502,7 +502,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkViewport Viewport(float x, float y, float width, float height, float minDepth, float maxDepth)
 	{
-		VkViewport viewport;
+		VkViewport viewport = {};
 
 		viewport.x = x;
 		viewport.y = y;
@@ -515,7 +515,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkRect2D Rect2D(VkOffset2D offset, VkExtent2D extent)
 	{
-		VkRect2D rect2D;
+		VkRect2D rect2D = {};
 
 		rect2D.offset = offset;
 		rect2D.extent = extent;
@@ -524,7 +524,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkWriteDescriptorSet WriteDescriptorSet(VkDescriptorSet dstSet, uint32_t dstBinding, uint32_t dstArrayElement, uint32_t descriptorCount, VkDescriptorType descriptorType, const VkDescriptorImageInfo* pImageInfo, const VkDescriptorBufferInfo* pBufferInfo, const VkBufferView* pTexelBufferView)
 	{
-		VkWriteDescriptorSet descriptorSet;
+		VkWriteDescriptorSet descriptorSet = {};
 
 		descriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorSet.pNext = nullptr;
@@ -541,7 +541,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding(uint32_t binding, VkDescriptorType descriptorType, uint32_t descriptorCount, VkShaderStageFlags stageFlags, const VkSampler* pImmutableSamplers)
 	{
-		VkDescriptorSetLayoutBinding layoutBinding;
+		VkDescriptorSetLayoutBinding layoutBinding = {};
 
 		layoutBinding.binding = binding;
 		layoutBinding.descriptorType = descriptorType;
@@ -553,7 +553,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo(const std::vector<VkDescriptorSetLayoutBinding>& bindings)
 	{
-		VkDescriptorSetLayoutCreateInfo createInfo;
+		VkDescriptorSetLayoutCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		createInfo.pNext = nullptr;
@@ -565,42 +565,38 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkDescriptorPoolSize DescriptorPoolSize(VkDescriptorType type, uint32_t descriptorCount)
 	{
-		VkDescriptorPoolSize descriptorPoolSize;
+		VkDescriptorPoolSize descriptorPoolSize = {};
 
 		descriptorPoolSize.type = type;
 		descriptorPoolSize.descriptorCount = descriptorCount;
 
 		return descriptorPoolSize;
 	}
-	inline constexpr VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo(
-		VkDescriptorPoolCreateFlags flags,
-		uint32_t maxSets,
-		const std::vector<VkDescriptorPoolSize>& poolSizes
-	) {
-		VkDescriptorPoolCreateInfo createInfo;
+	inline constexpr VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo(VkDescriptorPoolCreateFlags flags, uint32_t maxSets, const std::vector<VkDescriptorPoolSize>& poolSizes) {
+		VkDescriptorPoolCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		createInfo.pNext = nullptr;
 		createInfo.flags = flags;
 		createInfo.maxSets = maxSets;
-		createInfo.poolSizeCount = poolSizes.size();
+		createInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 		createInfo.pPoolSizes = poolSizes.data();
 
 		return createInfo;
 	}
 	inline constexpr VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo(VkDescriptorPool descriptorPool, const std::vector<VkDescriptorSetLayout>& setLayouts) {
-		VkDescriptorSetAllocateInfo allocateInfo;
+		VkDescriptorSetAllocateInfo allocateInfo = {};
 
 		allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		allocateInfo.pNext = nullptr;
 		allocateInfo.descriptorPool = descriptorPool;
-		allocateInfo.descriptorSetCount = setLayouts.size();
+		allocateInfo.descriptorSetCount = static_cast<uint32_t>(setLayouts.size());
 		allocateInfo.pSetLayouts = setLayouts.data();
 
 		return allocateInfo;
 	}
 	inline constexpr VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo(VkDescriptorPool descriptorPool, const VkDescriptorSetLayout& setLayout) {
-		VkDescriptorSetAllocateInfo allocateInfo;
+		VkDescriptorSetAllocateInfo allocateInfo = {};
 
 		allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		allocateInfo.pNext = nullptr;
@@ -612,7 +608,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkDescriptorBufferInfo DescriptorBufferInfo(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range)
 	{
-		VkDescriptorBufferInfo bufferInfo;
+		VkDescriptorBufferInfo bufferInfo = {};
 
 		bufferInfo.buffer = buffer;
 		bufferInfo.offset = offset;
@@ -622,7 +618,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkDescriptorImageInfo DescriptorImageInfo(VkSampler sampler, VkImageView imageView, VkImageLayout imageLayout)
 	{
-		VkDescriptorImageInfo imageInfo;
+		VkDescriptorImageInfo imageInfo = {};
 
 		imageInfo.sampler = sampler;
 		imageInfo.imageView = imageView;
@@ -632,7 +628,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkVertexInputBindingDescription VertexInputBindingDescription(uint32_t binding, uint32_t stride, VkVertexInputRate inputRate)
 	{
-		VkVertexInputBindingDescription description;
+		VkVertexInputBindingDescription description = {};
 
 		description.binding = binding;
 		description.stride = stride;
@@ -642,7 +638,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPipelineDepthStencilStateCreateInfo PipelineDepthStencilStateCreateInfo(VkPipelineDepthStencilStateCreateFlags flags, VkBool32 depthTestEnable, VkBool32 depthWriteEnable, VkCompareOp depthCompareOp, VkBool32 depthBoundsTestEnable, VkBool32 stencilTestEnable, VkStencilOpState front, VkStencilOpState back, float minDepthBounds, float maxDepthBounds)
 	{
-		VkPipelineDepthStencilStateCreateInfo createInfo;
+		VkPipelineDepthStencilStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 		createInfo.pNext = nullptr;
@@ -661,7 +657,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkVertexInputAttributeDescription VertexInputAttributeDescription(uint32_t location, uint32_t binding, VkFormat format, uint32_t offset)
 	{
-		VkVertexInputAttributeDescription description;
+		VkVertexInputAttributeDescription description = {};
 
 		description.location = location;
 		description.binding = binding;
@@ -672,7 +668,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkPushConstantRange PushConstantRange(VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size)
 	{
-		VkPushConstantRange pushConstantRange;
+		VkPushConstantRange pushConstantRange = {};
 
 		pushConstantRange.stageFlags = stageFlags;
 		pushConstantRange.offset = offset;
@@ -682,7 +678,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkBufferCopy BufferCopy(VkDeviceSize srcOffset, VkDeviceSize dstOffset, VkDeviceSize size)
 	{
-		VkBufferCopy bufferCopy;
+		VkBufferCopy bufferCopy = {};
 		
 		bufferCopy.srcOffset = srcOffset;
 		bufferCopy.dstOffset = dstOffset;
@@ -692,7 +688,7 @@ namespace Crescendo::internal::Create
 	}
 	inline constexpr VkImageSubresourceRange ImageSubresourceRange(VkImageAspectFlags aspectMask, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount)
 	{
-		VkImageSubresourceRange subresourceRange;
+		VkImageSubresourceRange subresourceRange = {};
 
 		subresourceRange.aspectMask = aspectMask;
 		subresourceRange.baseMipLevel = baseMipLevel;

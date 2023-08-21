@@ -12,12 +12,12 @@ namespace IO = Crescendo::IO;
 class Sandbox : public Application
 {
 private:
-	Crescendo::Graphics::Camera camera;
-	float pMouseX, pMouseY, sens;
+	Crescendo::Graphics::Camera camera = {};
+	float pMouseX = 0.0f, pMouseY = 0.0f, sens = 1.0f;
 
 	uint32_t meshCount = 0;
 
-	Renderer renderer;
+	Renderer renderer = {};
 
 	int frame = 0;
 	double lastTime = 0.0;
@@ -42,7 +42,7 @@ public:
 		info.windowExtent = { this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight() };
 		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
 		info.framesInFlight = 3; // Triple buffering
-		info.vertexBufferBlockSize = std::powl(2, 29); // 512MB
+		info.vertexBufferBlockSize = std::powl(2, 25); // 32MB
 		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
 
 		this->renderer = Renderer::Create(info);
@@ -67,10 +67,7 @@ public:
 		std::cout << "Mesh has " << bufferSpace / 1024 << "KB of data" << std::endl;
 
 		// Upload textures
-		std::vector<std::string> textures =
-		{
-			"./assets/textures/background.png"
-		};
+		std::vector<std::string> textures = { "./assets/textures/background.png" };
 		for (const auto& texture : textures)
 		{
 			IO::Image image = IO::LoadImage(texture);
@@ -79,16 +76,16 @@ public:
 
 		// Upload shaders (creates pipelines and descriptor sets)
 		// Shader loading
-		std::vector<std::string> shaderList =
-		{
-			"./shaders/compiled/mesh",
-			//"./shaders/compiled/mesh-unlit",
-		};
+		std::vector<std::string> shaderList = { "./shaders/compiled/mesh", };
 		for (const auto& shaderName : shaderList)
 		{
 			this->renderer.UploadPipeline(
 				Crescendo::Core::BinaryFile(shaderName + ".vert.spv").Open().Read(),
-				Crescendo::Core::BinaryFile(shaderName + ".frag.spv").Open().Read()
+				Crescendo::Core::BinaryFile(shaderName + ".frag.spv").Open().Read(),
+				{
+					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid),
+					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Wireframe)
+				}
 			);
 		}
 	}
@@ -107,12 +104,12 @@ public:
 		double dx = this->pMouseX - Input::GetMouseX(), dy = this->pMouseY - Input::GetMouseY();
 		this->pMouseX = Input::GetMouseX(), this->pMouseY = Input::GetMouseY();
 		glm::vec3 rotation = camera.GetRotation();
-		rotation.x += dx * sens;
-		rotation.y = std::clamp(rotation.y + dy * sens, -Math::PI_2 + 0.01f, Math::PI_2 - 0.01f);
+		rotation.x += (float)dx * sens;
+		rotation.y = std::clamp<float>(rotation.y + dy * sens, -Math::PI_2 + 0.01f, Math::PI_2 - 0.01f);
 		this->camera.SetRotation(rotation);
 
 		// Camera movement
-		float velocity = 1.0f;
+		float velocity = 0.1f;
 		glm::vec3 movement(0.0f, 0.0f, 0.0f);
 		if (Input::GetKeyPressed(Key::R)) velocity = 10.0f;
 
@@ -134,11 +131,10 @@ public:
 
 		this->renderer.UpdateDescriptorSetData(0, 0, vp);
 		this->renderer.UpdateDescriptorSetData(0, 1, lighting);
-		//this->renderer.UpdateDescriptorSetData(1, 0, vp);
 
 		// Render commands
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.1f, 1.0f);
-		this->renderer.CmdBindPipeline(0);
+		this->renderer.CmdBindPipeline((Input::GetKeyDown(Key::One)) ? 1 : 0);
 		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, model);
 		for (uint32_t i = 0; i < this->meshCount; i++) this->renderer.CmdDraw(i);
 		this->renderer.CmdEndFrame();

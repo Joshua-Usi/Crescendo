@@ -38,7 +38,7 @@ namespace Crescendo
 	{
 		VkShaderModule shaderModule;
 		const VkShaderModuleCreateInfo createInfo = Create::ShaderModuleCreateInfo(code);
-		CS_ASSERT(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) == VK_SUCCESS, "Failed to create shader module!");
+		CS_ASSERT(vkCreateShaderModule(this->device, &createInfo, nullptr, &shaderModule) == VK_SUCCESS, "Failed to create shader module!");
 		return shaderModule;
 	}
 	VkRenderPass Renderer::RendererImpl::CreateRenderPass(const std::vector<VkAttachmentDescription>& attachments, const std::vector<VkSubpassDescription>& subpasses, const std::vector<VkSubpassDependency>& subpassDependencies)
@@ -74,21 +74,10 @@ namespace Crescendo
 		}
 		return pipeline;
 	}
-	Buffer Renderer::RendererImpl::CreateBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variations)
 	{
-		const VkBufferCreateInfo bufferInfo = Create::BufferCreateInfo(nullptr, 0, allocationSize, usage, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr);
-		VmaAllocationCreateInfo vmaAllocInfo{};
-		vmaAllocInfo.usage = memoryUsage;
-		Buffer buffer = { nullptr, nullptr };
-		CS_ASSERT(vmaCreateBuffer(this->allocator, &bufferInfo, &vmaAllocInfo, &buffer.buffer, &buffer.allocation, nullptr) == VK_SUCCESS, "Failed to create buffer!");
-		// You don't need to unmap since deletion implicitly unmap
-		// NEVERMIND, VMA WANTS ME TO UNMAP
-		// Only map if not GPU only
-		if (memoryUsage != VMA_MEMORY_USAGE_GPU_ONLY) vmaMapMemory(this->allocator, buffer.allocation, &buffer.memoryLocation);
-		return buffer;
-	}
-	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant)
-	{
+		constexpr VkPolygonMode FILL_MODE_MAP[3] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
+
 		const VkDeviceSize UNIFORM_ALIGNMENT = this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
 
 		// Allocate space for new pipeline
@@ -96,12 +85,12 @@ namespace Crescendo
 		this->descriptorSetLayouts.resize(this->descriptorSetLayouts.size() + 1);
 
 		// Load shader modules
-		VkShaderModule vertModule = this->CreateShaderModule(vertexShader);
-		VkShaderModule fragModule = this->CreateShaderModule(fragmentShader);
+		VkShaderModule	vertModule = this->CreateShaderModule(vertexShader),
+						fragModule = this->CreateShaderModule(fragmentShader);
 
 		// Create reflection data
-		SpirvReflection vertReflection = ReflectSpirv(vertexShader);
-		SpirvReflection fragReflection = ReflectSpirv(fragmentShader);
+		SpirvReflection vertReflection = ReflectSpirv(vertexShader),
+						fragReflection = ReflectSpirv(fragmentShader);
 
 		// Get binding and attribute descriptions
 		std::vector<VkVertexInputBindingDescription> bindingDescriptions = vertReflection.GetVertexBindings();
@@ -109,18 +98,22 @@ namespace Crescendo
 
 		// Get push constant range
 		VkPushConstantRange pushConstantRange = vertReflection.GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT);
-
-		// Collect descriptor set layout bindings
-		const std::vector<VkDescriptorSetLayoutBinding> fraglayoutBindings = fragReflection.GetDescriptorSetBindings(VK_SHADER_STAGE_FRAGMENT_BIT);
-		std::vector<VkDescriptorSetLayoutBinding> layoutBindings(vertReflection.GetDescriptorSetBindings(VK_SHADER_STAGE_VERTEX_BIT));
-		layoutBindings.insert(layoutBindings.end(), fraglayoutBindings.begin(), fraglayoutBindings.end());
+		
+		// Collect descriptor set layouts bindings
+		std::vector<std::vector<VkDescriptorSetLayoutBinding>>	layoutsBindings = vertReflection.GetDescriptorSetLayoutBindings(VK_SHADER_STAGE_VERTEX_BIT),
+																fragLayoutsBindings = fragReflection.GetDescriptorSetLayoutBindings(VK_SHADER_STAGE_FRAGMENT_BIT);
+		layoutsBindings.resize(std::max(layoutsBindings.size(), fragLayoutsBindings.size()));
+		for (uint32_t i = 0; i < fragLayoutsBindings.size(); i++)
+		{
+			layoutsBindings[i].insert(layoutsBindings[i].end(), fragLayoutsBindings[i].begin(), fragLayoutsBindings[i].end());
+		}
 
 		// Collect layout binding
 		std::vector<DescriptorSetLayout> sets(vertReflection.descriptorSets);
 		sets.insert(sets.end(), fragReflection.descriptorSets.begin(), fragReflection.descriptorSets.end());
 
 		// Create the set layout
-		VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(layoutBindings);
+		VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(layoutsBindings[0]);
 		vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &this->descriptorSetLayouts.back());
 
 		// Generate descriptor offsets
@@ -139,9 +132,8 @@ namespace Crescendo
 		for (uint32_t i = 0; i < this->state.framesInFlight; i++)
 		{
 			// Allocate descriptor set
-			VkDescriptorSetAllocateInfo allocInfo = Create::DescriptorSetAllocateInfo(this->descriptorPool, this->descriptorSetLayouts.back());
-			vkAllocateDescriptorSets(this->device, &allocInfo, &this->descriptorSets[lastSetSize + i]);
-			
+			this->descriptorSets[lastSetSize + i] = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, { this->descriptorSetLayouts.back() });
+
 			for (uint32_t j = 0; j < sets.size(); j++)
 			{
 				// Show where it points in the buffer
@@ -185,7 +177,7 @@ namespace Crescendo
 			VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE
 		);
 		pipelineBuilderInfo.rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(
-			nullptr, VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT,
+			nullptr, VK_FALSE, VK_FALSE, FILL_MODE_MAP[static_cast<size_t>(variations[0].fillMode)], VK_CULL_MODE_BACK_BIT,
 			VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
 		);
 		pipelineBuilderInfo.multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(
@@ -202,7 +194,8 @@ namespace Crescendo
 		pipelineBuilderInfo.pipelineLayout = this->pipelineLayouts.back();
 
 		// Create the pipeline
-		this->pipelines.push_back(this->CreatePipeline(pipelineBuilderInfo));
+		std::vector<VkDescriptorSetLayout> vec = { this->descriptorSetLayouts.back() };
+		this->pipelines.emplace_back(this->pipelineLayouts.back(), this->CreatePipeline(pipelineBuilderInfo), vec);
 
 		// Destroy shader modules, reflection will delete itself
 		vkDestroyShaderModule(this->device, fragModule, nullptr);
@@ -225,26 +218,26 @@ namespace Crescendo
 		CS_ASSERT(textureUVs.size() % 2 == 0, "Invalid mesh texture UVs!");
 		// TODO assert for potential buffer overflow
 
-		std::array<uint32_t, 5> offsets;
+		std::array<uint32_t, 5> offsets = {};
 		offsets[0] = 0;
-		offsets[1] = indices.size();
-		offsets[2] = offsets[1] + vertices.size();
-		offsets[3] = offsets[2] + normals.size();
-		offsets[4] = offsets[3] + textureUVs.size();
+		offsets[1] = indices.size() * sizeof(uint32_t);
+		offsets[2] = offsets[1] + vertices.size() * sizeof(uint32_t);
+		offsets[3] = offsets[2] + normals.size() * sizeof(uint32_t);
+		offsets[4] = offsets[3] + textureUVs.size() * sizeof(uint32_t);
 
 		// Stage all data into one buffer, reduces allocations
-		Buffer staging = this->CreateBuffer(sizeof(uint32_t) * offsets[4], VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(sizeof(uint32_t) * offsets[4], VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		staging.Fill(offsets[0], indices.data(),    indices.size()    * sizeof(uint32_t));
+		staging.Fill(offsets[1], vertices.data(),   vertices.size()   * sizeof(uint32_t));
+		staging.Fill(offsets[2], normals.data(),    normals.size()    * sizeof(uint32_t));
+		staging.Fill(offsets[3], textureUVs.data(), textureUVs.size() * sizeof(uint32_t));
 
-		memcpy(static_cast<uint32_t*>(staging.memoryLocation) + offsets[0], indices.data(),    indices.size() * sizeof(uint32_t));
-		memcpy(static_cast<uint32_t*>(staging.memoryLocation) + offsets[1], vertices.data(),   vertices.size() * sizeof(uint32_t));
-		memcpy(static_cast<uint32_t*>(staging.memoryLocation) + offsets[2], normals.data(),    normals.size() * sizeof(uint32_t));
-		memcpy(static_cast<uint32_t*>(staging.memoryLocation) + offsets[3], textureUVs.data(), textureUVs.size() * sizeof(uint32_t));
 
 		this->uploadQueue.InstantSubmit([=](const internal::CommandQueue& cmd) {
-			VkBufferCopy copyIndices    = Create::BufferCopy(offsets[0] * sizeof(uint32_t), this->indiceOffsets.back() * sizeof(uint32_t), indices.size() * sizeof(uint32_t));
-			VkBufferCopy copyVertices   = Create::BufferCopy(offsets[1] * sizeof(uint32_t), this->offsets.back() * sizeof(float) * VERTICES_PER_INDEX, vertices.size() * sizeof(float));
-			VkBufferCopy copyNormals    = Create::BufferCopy(offsets[2] * sizeof(uint32_t), this->offsets.back() * sizeof(float) * NORMALS_PER_INDEX, normals.size() * sizeof(float));
-			VkBufferCopy copyTextureUVs = Create::BufferCopy(offsets[3] * sizeof(uint32_t), this->offsets.back() * sizeof(float) * UVS_PER_INDEX, textureUVs.size() * sizeof(float));
+			VkBufferCopy copyIndices    = Create::BufferCopy(offsets[0], this->indiceOffsets.back() * sizeof(uint32_t), indices.size() * sizeof(uint32_t));
+			VkBufferCopy copyVertices   = Create::BufferCopy(offsets[1], this->offsets.back() * sizeof(float) * VERTICES_PER_INDEX, vertices.size() * sizeof(float));
+			VkBufferCopy copyNormals    = Create::BufferCopy(offsets[2], this->offsets.back() * sizeof(float) * NORMALS_PER_INDEX, normals.size() * sizeof(float));
+			VkBufferCopy copyTextureUVs = Create::BufferCopy(offsets[3], this->offsets.back() * sizeof(float) * UVS_PER_INDEX, textureUVs.size() * sizeof(float));
 		
 			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[INDICES].buffer,     { copyIndices });
 			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[POSITION].buffer,    { copyVertices });
@@ -252,14 +245,13 @@ namespace Crescendo
 			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[TEXTURE_UVS].buffer, { copyTextureUVs });
 		});
 
-		uint32_t uniqueVerticeCount = vertices.size() / VERTICES_PER_INDEX;
-		uint32_t indicesOffset = indices.size();
+		uint32_t uniqueVerticeCount = static_cast<uint32_t>(vertices.size()) / VERTICES_PER_INDEX;
+		uint32_t indicesOffset = static_cast<uint32_t>(indices.size());
 
 		this->offsets.push_back(this->offsets.back() + uniqueVerticeCount);
 		this->indiceOffsets.push_back(this->indiceOffsets.back() + indicesOffset);
 
-		vmaUnmapMemory(this->allocator, staging.allocation);
-		vmaDestroyBuffer(this->allocator, staging.buffer, staging.allocation);
+		this->allocator.DestroyBuffer(staging);
 	}
 	void Renderer::RendererImpl::UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels)
 	{
@@ -267,24 +259,23 @@ namespace Crescendo
 		constexpr VkFormat DEFAULT_FORMAT = VK_FORMAT_R8G8B8A8_SRGB;
 
 		// Stage the image data
-		Buffer staging = this->CreateBuffer(textureData.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-		memcpy(staging.memoryLocation, textureData.data(), textureData.size());
+		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(textureData.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		staging.Fill(0, textureData.data(), textureData.size());
 
 		// Create the image
 		VkExtent3D extent = { width, height, 1 };
-		VkImageCreateInfo imageInfo = Create::ImageCreateInfo(
+		VkImageViewCreateInfo imageViewInfo = Create::ImageViewCreateInfo(
+			0, nullptr, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_FORMAT,
+			{ VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY },
+			Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
+		);
+		internal::Allocator::Image image = this->allocator.CreateImage(Create::ImageCreateInfo(
 			nullptr, 0, VK_IMAGE_TYPE_2D, DEFAULT_FORMAT, extent,
 			1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
-		);
+		), imageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY);
 
-		Image image = {};
-
-		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-		CS_ASSERT(vmaCreateImage(this->allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) == VK_SUCCESS, "Failed to create image!");
 
 		// Transition the image to a transfer destination
 		this->uploadTextureQueue.InstantSubmit([=](const internal::CommandQueue& cmd) {
@@ -304,17 +295,7 @@ namespace Crescendo
 			vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
 		});
 
-		VkImageViewCreateInfo viewInfo = Create::ImageViewCreateInfo(
-			0, image.image, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_FORMAT,
-			{ VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY },
-			Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
-		);
-		CS_ASSERT(vkCreateImageView(this->device, &viewInfo, nullptr, &image.imageView) == VK_SUCCESS, "Failed to create image view!");
-
 		this->images.push_back(image);
-
-		vmaUnmapMemory(this->allocator, staging.allocation);
-		vmaDestroyBuffer(this->allocator, staging.buffer, staging.allocation);
-
+		this->allocator.DestroyBuffer(staging);
 	}
 }

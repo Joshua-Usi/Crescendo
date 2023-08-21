@@ -55,7 +55,7 @@ namespace Crescendo::internal
 		}
 		inline void BindVertexBuffers(const std::vector<VkBuffer>& buffers, const std::vector<VkDeviceSize>& offsets) const
 		{
-			vkCmdBindVertexBuffers(this->commandBuffer, 0, buffers.size(), buffers.data(), offsets.data());
+			vkCmdBindVertexBuffers(this->commandBuffer, 0, static_cast<uint32_t>(buffers.size()), buffers.data(), offsets.data());
 		}
 		inline void BindIndexBuffer(VkBuffer indexBuffer, VkIndexType indexType = VK_INDEX_TYPE_UINT32) const
 		{
@@ -63,7 +63,7 @@ namespace Crescendo::internal
 		}
 		inline void BindDescriptorSets(VkPipelineLayout layout, const std::vector<VkDescriptorSet>& sets, const std::vector<uint32_t>& offsets, uint32_t firstSet = 0, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const
 		{
-			vkCmdBindDescriptorSets(this->commandBuffer, bindPoint, layout, firstSet, sets.size(), sets.data(), offsets.size(), offsets.data());
+			vkCmdBindDescriptorSets(this->commandBuffer, bindPoint, layout, firstSet, static_cast<uint32_t>(sets.size()), sets.data(), static_cast<uint32_t>(offsets.size()), offsets.data());
 		}
 		inline void BindPipeline(VkPipeline pipeline, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const
 		{
@@ -79,7 +79,7 @@ namespace Crescendo::internal
 		}
 		inline void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, const std::vector<VkBufferCopy>& regions) const
 		{
-			vkCmdCopyBuffer(this->commandBuffer, srcBuffer, dstBuffer, regions.size(), regions.data());
+			vkCmdCopyBuffer(this->commandBuffer, srcBuffer, dstBuffer, static_cast<uint32_t>(regions.size()), regions.data());
 		}
 	public:
 		/// <summary>
@@ -142,11 +142,11 @@ namespace Crescendo::internal
 		inline void Submit(const std::vector<VkSemaphore>& waitSemaphores = {}, const std::vector<VkPipelineStageFlags>& waitStages = {}, const std::vector<VkSemaphore>& signalSemaphores = {}) const
 		{
 			VkSubmitInfo submit = Create::SubmitInfo(
-				waitSemaphores.size(), waitSemaphores.data(), waitStages.data(),
+				static_cast<uint32_t>(waitSemaphores.size()), waitSemaphores.data(), waitStages.data(),
 				1, &this->commandBuffer,
-				signalSemaphores.size(), signalSemaphores.data()
+				static_cast<uint32_t>(signalSemaphores.size()), signalSemaphores.data()
 			);
-			CS_ASSERT(vkQueueSubmit(this->queue, 1, &submit, this->completionFence) == VK_SUCCESS, "Failed to submit one time submit!");
+			CS_ASSERT(vkQueueSubmit(this->queue, 1, &submit, this->completionFence) == VK_SUCCESS, "Failed to submit command buffer!");
 		}
 	public:
 		inline void InstantSubmit(std::function<void(const CommandQueue& cmd)>&& function, uint64_t timeout = UINT64_MAX) const

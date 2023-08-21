@@ -66,16 +66,17 @@ namespace Crescendo
 
 		this->state.boundPipelineIndex = pipelineIndex;
 
-		const VkPipelineLayout currentLayout = this->pipelineLayouts[pipelineIndex];
+		const Pipeline currentPipeline = this->pipelines[pipelineIndex];
+
 		const VkDescriptorSet currentSet = this->descriptorSets[pipelineIndex * this->state.framesInFlight + this->GetFrameIndex()];
 
 		const std::vector<uint32_t> dynamicOffsets(this->descriptorSetLayoutOffsets[pipelineIndex].begin(), this->descriptorSetLayoutOffsets[pipelineIndex].end() - 1);
 
 		// Ignore last element of dynamic offsets because it shows the end of the buffer
-		cmd.BindDescriptorSets(currentLayout, { currentSet }, dynamicOffsets);
-		cmd.BindPipeline(this->pipelines[pipelineIndex]);
+		cmd.BindDescriptorSets(currentPipeline.layout, {currentSet}, dynamicOffsets);
+		cmd.BindPipeline(currentPipeline.pipeline);
 	}
-	void Renderer::RendererImpl::UpdatePushConstant(ShaderStage stage, const void* data, size_t size)
+	void Renderer::RendererImpl::UpdatePushConstant(ShaderStage stage, const void* data, uint32_t size)
 	{
 		const FrameData& currentFrame = this->GetCurrentFrameData();
 		const internal::CommandQueue& cmd = currentFrame.commandQueue;
@@ -87,7 +88,7 @@ namespace Crescendo
 			case ShaderStage::Fragment: stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; break;
 			default: { CS_ASSERT(false, "Unknown shader stage"); }
 		}
-		cmd.PushConstants(this->pipelineLayouts[this->state.boundPipelineIndex], data, size, stageFlags);
+		cmd.PushConstants(this->pipelines[this->state.boundPipelineIndex].layout, data, size, stageFlags);
 	}
 	void Renderer::RendererImpl::Draw(uint32_t mesh)
 	{

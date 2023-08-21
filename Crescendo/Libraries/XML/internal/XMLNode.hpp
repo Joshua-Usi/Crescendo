@@ -25,7 +25,7 @@ namespace Crescendo::Tools::XML
 		inline Node* _next_sibling()
 		{
 			if (!this->GetParent()) return nullptr;
-			uint64_t i = 0;
+			uint32_t i = 0;
 			while (i < this->GetParent()->GetChildCount())
 			{
 				if ((this->GetParent()->children[i].get() == this) && i + 1 < this->GetParent()->GetChildCount())
@@ -78,9 +78,9 @@ namespace Crescendo::Tools::XML
 		/// Returns the number of child nodes the current node has
 		/// </summary>
 		/// <returns>The number of child nodes as an integer</returns>
-		inline uint64_t GetChildCount() const
+		inline uint32_t GetChildCount() const
 		{
-			return children.size();
+			return static_cast<uint32_t>(children.size());
 		}
 		/// <summary>
 		/// Appends a number of nodes to the current node

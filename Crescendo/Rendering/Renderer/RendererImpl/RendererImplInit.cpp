@@ -1,8 +1,5 @@
 #include "RendererImpl.hpp"
 
-#define VMA_IMPLEMENTATION
-#include "VMA/vk_mem_alloc.h"
-
 namespace Crescendo
 {
 	constexpr vkb::PreferredDeviceType DEVICE_TYPE_MAPPING[2] = { vkb::PreferredDeviceType::discrete, vkb::PreferredDeviceType::integrated };
@@ -47,12 +44,8 @@ namespace Crescendo
 		// Find queues
 		this->queues.GetQueues(deviceResult);
 
-		// Initialise VMA
-		VmaAllocatorCreateInfo allocatorInfo = {};
-		allocatorInfo.physicalDevice = this->physicalDevice;
-		allocatorInfo.device = this->device;
-		allocatorInfo.instance = this->instance;
-		vmaCreateAllocator(&allocatorInfo, &this->allocator);
+		// Initialise Allocator
+		this->allocator = internal::Allocator(instance, physicalDevice, device).Initialise();
 		
 		// Set values
 		this->state.framesInFlight = info.framesInFlight;
@@ -71,7 +64,7 @@ namespace Crescendo
 		// Push to deletion queue
 		this->mainDeletionQueue.Push([&]() {
 			this->swapChainDeletionQueue.Flush();
-			vmaDestroyAllocator(this->allocator);
+			this->allocator.Destroy();
 			vkDestroyDevice(this->device, nullptr);
 			vkDestroySurfaceKHR(this->instance, this->surface, nullptr);
 			vkb::destroy_debug_utils_messenger(this->instance, this->debugMessenger);
@@ -90,8 +83,8 @@ namespace Crescendo
 		// Merge into images
 		std::vector<VkImage> images = vkbSwapchain.get_images().value();
 		std::vector<VkImageView> imageViews = vkbSwapchain.get_image_views().value();
-		std::vector<Image> viewableImages(images.size());
-		for (size_t i = 0; i < images.size(); i++) viewableImages[i] = Image(images[i], imageViews[i]);
+		std::vector<internal::Allocator::Image> viewableImages(images.size());
+		for (size_t i = 0; i < images.size(); i++) viewableImages[i] = internal::Allocator::Image(images[i], imageViews[i]);
 		this->swapchain = Swapchain(vkbSwapchain.swapchain, vkbSwapchain.image_format, vkbSwapchain.extent, viewableImages);
 
 		// Create the depth buffer
@@ -100,20 +93,16 @@ namespace Crescendo
 			nullptr, 0, VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, depthImageExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
 		);
-		VmaAllocationCreateInfo depthImageAllocInfo = {};
-		depthImageAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-		depthImageAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-		CS_ASSERT(vmaCreateImage(this->allocator, &depthImageInfo, &depthImageAllocInfo, &this->depthBuffer.image, &this->depthBuffer.allocation, nullptr) == VK_SUCCESS, "Failed to create depth image");
 		VkImageViewCreateInfo depthImageViewInfo = Create::ImageViewCreateInfo(
-			0, this->depthBuffer.image, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_DEPTH_FORMAT, {}, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 }
+			0, nullptr, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_DEPTH_FORMAT, {}, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 }
 		);
-		CS_ASSERT(vkCreateImageView(this->device, &depthImageViewInfo, nullptr, &this->depthBuffer.imageView) == VK_SUCCESS, "Failed to create depth image view!");
+
+		this->depthBuffer = this->allocator.CreateImage(depthImageInfo, depthImageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 		// Add to swapchain deletion queue
 		this->swapChainDeletionQueue.Push([&]() {
-			vkDestroyImageView(this->device, this->depthBuffer.imageView, nullptr);
-			vmaDestroyImage(this->allocator, this->depthBuffer.image, this->depthBuffer.allocation);
-			for (auto& image : this->swapchain.images) vkDestroyImageView(this->device, image.imageView, nullptr);
+			this->allocator.DestroyImage(this->depthBuffer);
+			for (auto& image : this->swapchain.images) this->allocator.DestroyImage(image);
 			vkDestroySwapchainKHR(this->device, this->swapchain.swapchain, nullptr);
 		});
 	}
@@ -212,27 +201,18 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseDescriptors(const BuilderInfo& info)
 	{
-		constexpr uint32_t MAX_SETS = 128;
-		// Initialise descriptor pool
-		const std::vector<VkDescriptorPoolSize> sizes =
-		{
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, MAX_SETS } // We exclusively use dynamic uniform buffers
-		};
-		VkDescriptorPoolCreateInfo poolInfo = Create::DescriptorPoolCreateInfo(0, MAX_SETS, sizes);
-		vkCreateDescriptorPool(this->device, &poolInfo, nullptr, &this->descriptorPool);
-
+		constexpr uint32_t SETS_PER_POOL = 128;
+		this->descriptorManager = internal::DescriptorManager(this->device).Initialise(SETS_PER_POOL);
 		this->mainDeletionQueue.Push([&]() {
 			for (auto& descriptorSetLayout : this->descriptorSetLayouts) vkDestroyDescriptorSetLayout(this->device, descriptorSetLayout, nullptr);
-			vkDestroyDescriptorPool(this->device, this->descriptorPool, nullptr);
+			this->descriptorManager.Destroy();
 		});
 	}
 	void Renderer::RendererImpl::InitialisePipelines(const BuilderInfo& info)
 	{
 		this->mainDeletionQueue.Push([&]() {
-			for (auto& pipeline : this->pipelines) vkDestroyPipeline(this->device, pipeline, nullptr);
+			for (auto& pipeline : this->pipelines) vkDestroyPipeline(this->device, pipeline.pipeline, nullptr);
 			for (auto& pipelineLayout : this->pipelineLayouts) vkDestroyPipelineLayout(this->device, pipelineLayout, nullptr);
-			this->pipelines.clear();
-			this->pipelineLayouts.clear();
 		});
 	}
 	void Renderer::RendererImpl::InitialiseBuffers(const BuilderInfo& info)
@@ -244,35 +224,24 @@ namespace Crescendo
 		this->offsets = std::vector<uint32_t>(1, 0);
 		this->indiceOffsets = std::vector<uint32_t>(1, 0);
 
-		this->vertexBuffers[INDICES]     = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT  | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
-		this->vertexBuffers[POSITION]    = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
-		this->vertexBuffers[NORMALS]     = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
-		this->vertexBuffers[TEXTURE_UVS] = this->CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
+		this->vertexBuffers[INDICES]     = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT  | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
+		this->vertexBuffers[POSITION]    = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
+		this->vertexBuffers[NORMALS]     = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
+		this->vertexBuffers[TEXTURE_UVS] = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
 	
 		// Descriptor buffer initialisation
 		for (uint32_t i = 0; i < info.framesInFlight; i++)
 		{
-			this->descriptorSetBuffers.push_back(this->CreateBuffer(info.descriptorBufferBlockSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU));
+			this->descriptorSetBuffers.push_back(this->allocator.CreateBuffer(info.descriptorBufferBlockSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU));
 		}
 
 		this->mainDeletionQueue.Push([&]() {
 			// Delete vertex buffers
-			for (auto& vertexBuffer : this->vertexBuffers)
-			{
-				vmaDestroyBuffer(this->allocator, vertexBuffer.buffer, vertexBuffer.allocation);
-			}
+			for (auto& vertexBuffer : this->vertexBuffers) this->allocator.DestroyBuffer(vertexBuffer);
 			// Delete descriptor buffers
-			for (auto& descriptorSetBuffer : this->descriptorSetBuffers)
-			{
-				vmaUnmapMemory(this->allocator, descriptorSetBuffer.allocation);
-				vmaDestroyBuffer(this->allocator, descriptorSetBuffer.buffer, descriptorSetBuffer.allocation);
-			}
+			for (auto& descriptorSetBuffer : this->descriptorSetBuffers) this->allocator.DestroyBuffer(descriptorSetBuffer);
 			// Delete texture buffers
-			for (auto& image : this->images)
-			{
-				vmaDestroyImage(this->allocator, image.image, image.allocation);
-				vkDestroyImageView(this->device, image.imageView, nullptr);
-			}
+			for (auto& image : this->images) this->allocator.DestroyImage(image);
 		});
 	}
 }

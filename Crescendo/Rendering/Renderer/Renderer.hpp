@@ -53,12 +53,16 @@ namespace Crescendo
 			 *	Size is in bytes
 			 */
 			uint64_t descriptorBufferBlockSize;
+
+			BuilderInfo() = default;
 		};
+		// Generates variations of a pipeline based on the given information
 		struct PipelineVariant
 		{
 			enum class FillMode { Solid = 0, Wireframe = 1, Point = 2 };
 			FillMode fillMode;
-			PipelineVariant() = default;
+			inline PipelineVariant() : fillMode(FillMode::Solid) {}
+			inline PipelineVariant(FillMode fillMode) : fillMode(fillMode) {}
 		};
 	private:
 	public:
@@ -78,20 +82,20 @@ namespace Crescendo
 		void CmdBeginFrame(float r, float g, float b, float a);
 		void CmdEndFrame();
 		void CmdBindPipeline(uint32_t pipelineIndex);
-		void CmdUpdatePushConstant(ShaderStage stage, const void* data, size_t size);
+		void CmdUpdatePushConstant(ShaderStage stage, const void* data, uint32_t size);
 		template<typename T>
 		void CmdUpdatePushConstant(ShaderStage stage, const T& data) { this->CmdUpdatePushConstant(stage, &data, sizeof(data)); }
 		void CmdDraw(uint32_t mesh);
 		void CmdPresentFrame();
 
-		void UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size);
+		void UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const void* data, uint32_t size);
 		template<typename T>
 		void UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const T& data) { this->UpdateDescriptorSetData(descriptorSetIndex, binding, &data, sizeof(data)); }
 
 		void Resize();
 
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
-		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& info = PipelineVariant());
+		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variations = { {} });
 		void UploadTexture(const std::vector<uint8_t>& data, uint32_t width, uint32_t height, uint32_t channels);
 
 		static Renderer Create(const BuilderInfo& info);
