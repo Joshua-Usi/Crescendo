@@ -42,7 +42,7 @@ public:
 		info.windowExtent = { this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight() };
 		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
 		info.framesInFlight = 3; // Triple buffering
-		info.vertexBufferBlockSize = std::powl(2, 25); // 32MB
+		info.vertexBufferBlockSize = std::powl(2, 24); // use 24 for sponza, 28 for rungholt, 29 for san miguel
 		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
 
 		this->renderer = Renderer::Create(info);
@@ -55,16 +55,41 @@ public:
 		//CS_TIME(model = IO::LoadOBJ("./assets/san-miguel.obj"), "San Miguel Model load");
 
 		this->meshCount = model.meshes.size();
-		uint32_t triangleCount = 0, bufferSpace = 0;
+		uint32_t triangleCount = 0;
+		uint32_t bufferSpace[4] = { 0, 0, 0, 0 };
 		for (const auto& mesh : model.meshes)
 		{
 			triangleCount += mesh.indices.size() / 3;
-			bufferSpace += sizeof(float) * (mesh.vertices.size() + mesh.normals.size() + mesh.textureUVs.size() + mesh.indices.size());
+			bufferSpace[0] += mesh.vertices.size() * sizeof(float);
+			bufferSpace[1] += mesh.normals.size() * sizeof(float);
+			bufferSpace[2] += mesh.textureUVs.size() * sizeof(float);
+			bufferSpace[3] += mesh.indices.size() * sizeof(uint32_t);
 			this->renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
 		}
 
 		std::cout << "Mesh has " << triangleCount << " triangles" << std::endl;
-		std::cout << "Mesh has " << bufferSpace / 1024 << "KB of data" << std::endl;
+		std::cout << "Vertex buffer size: " << bufferSpace[0] / 1024 / 1024 << "MB" << std::endl;
+		std::cout << "Normal buffer size: " << bufferSpace[1] / 1024 / 1024 << "MB" << std::endl;
+		std::cout << "UV buffer size: " << bufferSpace[2] / 1024 / 1024 << "MB" << std::endl;
+		std::cout << "Index buffer size: " << bufferSpace[3] / 1024 / 1024 << "MB" << std::endl;
+
+		// Upload shaders (creates pipelines and descriptor sets)
+		// Shader loading
+		struct Shader {
+			std::string name;
+			Renderer::PipelineVariant variant;
+		};
+		std::vector<Shader> shaderList = {
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant() },
+		};
+		for (const auto& shader : shaderList)
+		{
+			this->renderer.UploadPipeline(
+				Crescendo::Core::BinaryFile(shader.name + ".vert.spv").Open().Read(),
+				Crescendo::Core::BinaryFile(shader.name + ".frag.spv").Open().Read(),
+				{ shader.variant }
+			);
+		}
 
 		// Upload textures
 		std::vector<std::string> textures = { "./assets/textures/background.png" };
@@ -72,21 +97,6 @@ public:
 		{
 			IO::Image image = IO::LoadImage(texture);
 			this->renderer.UploadTexture(image.pixels, image.width, image.height, image.channels);
-		}
-
-		// Upload shaders (creates pipelines and descriptor sets)
-		// Shader loading
-		std::vector<std::string> shaderList = { "./shaders/compiled/mesh", };
-		for (const auto& shaderName : shaderList)
-		{
-			this->renderer.UploadPipeline(
-				Crescendo::Core::BinaryFile(shaderName + ".vert.spv").Open().Read(),
-				Crescendo::Core::BinaryFile(shaderName + ".frag.spv").Open().Read(),
-				{
-					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid),
-					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Wireframe)
-				}
-			);
 		}
 	}
 	void OnUpdate(double dt)
@@ -126,17 +136,21 @@ public:
 
 		// Render prep
 		struct VP { glm::mat4 view, projection; } vp { this->camera.GetViewMatrix(), this->camera.GetProjectionMatrix() };
-		struct Lighting { glm::vec4 lightColor; float ambient; } lighting { glm::vec4(0.75f, 0.75f, 1.0f, 1.0f), 1.0f };
-		glm::mat4 model = glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+		struct Lighting { glm::vec4 lightColor, lightPosition; } lighting{ glm::vec4(0.75f, 0.75f, 1.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f) };
 
 		this->renderer.UpdateDescriptorSetData(0, 0, vp);
-		this->renderer.UpdateDescriptorSetData(0, 1, lighting);
+		this->renderer.UpdateDescriptorSetData(1, 0, lighting);
+		this->renderer.UpdateDescriptorSetData(1, 1, glm::vec3(0.1f, 0.0f, 0.0f));
+
 
 		// Render commands
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.1f, 1.0f);
-		this->renderer.CmdBindPipeline((Input::GetKeyDown(Key::One)) ? 1 : 0);
+
+		this->renderer.CmdBindPipeline(0);
+		glm::mat4 model = glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f));
 		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, model);
 		for (uint32_t i = 0; i < this->meshCount; i++) this->renderer.CmdDraw(i);
+
 		this->renderer.CmdEndFrame();
 		this->renderer.CmdPresentFrame();
 

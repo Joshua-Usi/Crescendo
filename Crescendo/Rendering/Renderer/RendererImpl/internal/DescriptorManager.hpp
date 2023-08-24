@@ -1,7 +1,7 @@
 #pragma once
 
+#include "Core/common.hpp"
 #include "vulkan/vulkan.h"
-
 #include "Create.hpp"
 
 #include <vector>
@@ -62,12 +62,12 @@ namespace Crescendo::internal
 			for (auto& pool : this->pools) vkDestroyDescriptorPool(this->device, pool.pool, nullptr);
 		}
 	public:
-		inline VkDescriptorSet AllocateSet(VkDescriptorType type, const std::vector<VkDescriptorSetLayout>& layouts)
+		inline VkDescriptorSet AllocateSet(VkDescriptorType type, VkDescriptorSetLayout layout)
 		{
 			VkDescriptorPool pool = this->FindCompatibleAndOpenPool(type);
 			if (pool == nullptr) pool = this->AllocatePool(type);
 
-			VkDescriptorSetAllocateInfo allocInfo = Create::DescriptorSetAllocateInfo(pool, layouts);
+			VkDescriptorSetAllocateInfo allocInfo = Create::DescriptorSetAllocateInfo(pool, { layout });
 			VkDescriptorSet set;
 			vkAllocateDescriptorSets(this->device, &allocInfo, &set);
 			return set;

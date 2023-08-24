@@ -38,15 +38,6 @@ namespace Crescendo
 			nullptr, this->defaultRenderPass, this->framebuffers[this->state.swapchainImageIndex], { {0, 0}, this->swapchain.extent }, clearValues.size(), clearValues.data()
 		);
 		cmd.BeginRenderPass(renderPassInfo);
-	
-		// Bind the vertex buffers
-		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
-		cmd.BindVertexBuffers({
-			this->vertexBuffers[POSITION].buffer,
-			this->vertexBuffers[NORMALS].buffer,
-			this->vertexBuffers[TEXTURE_UVS].buffer
-		}, { 0, 0, 0 });
-		cmd.BindIndexBuffer(this->vertexBuffers[INDICES].buffer);
 	}
 	void Renderer::RendererImpl::EndFrame()
 	{
@@ -68,13 +59,29 @@ namespace Crescendo
 
 		const Pipeline currentPipeline = this->pipelines[pipelineIndex];
 
-		const VkDescriptorSet currentSet = this->descriptorSets[pipelineIndex * this->state.framesInFlight + this->GetFrameIndex()];
-
-		const std::vector<uint32_t> dynamicOffsets(this->descriptorSetLayoutOffsets[pipelineIndex].begin(), this->descriptorSetLayoutOffsets[pipelineIndex].end() - 1);
-
-		// Ignore last element of dynamic offsets because it shows the end of the buffer
-		cmd.BindDescriptorSets(currentPipeline.layout, {currentSet}, dynamicOffsets);
+		std::vector<VkDescriptorSet> descriptorSets;
+		std::vector<uint32_t> offsets;
+		for (uint32_t i = 0; i < currentPipeline.dataDescriptorHandles.size(); i++)
+		{
+			descriptorSets.push_back(this->descriptorSets[currentPipeline.dataDescriptorHandles[i] * this->state.framesInFlight + this->GetFrameIndex()]);
+			// -1 because we ignore the last element because it specifies the end of the buffer
+			offsets.insert(
+				offsets.end(),
+				this->descriptorSetLayoutOffsets[currentPipeline.dataDescriptorHandles[i]].begin(),
+				this->descriptorSetLayoutOffsets[currentPipeline.dataDescriptorHandles[i]].end() - 1
+			);
+		}
+		cmd.BindDescriptorSets(currentPipeline.layout, descriptorSets, offsets);
 		cmd.BindPipeline(currentPipeline.pipeline);
+
+		// Bind the vertex buffers
+		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
+		cmd.BindVertexBuffers({
+			this->vertexBuffers[POSITION].buffer,
+			this->vertexBuffers[NORMALS].buffer,
+			this->vertexBuffers[TEXTURE_UVS].buffer
+			}, { 0, 0, 0 });
+		cmd.BindIndexBuffer(this->vertexBuffers[INDICES].buffer);
 	}
 	void Renderer::RendererImpl::UpdatePushConstant(ShaderStage stage, const void* data, uint32_t size)
 	{

@@ -77,12 +77,9 @@ namespace Crescendo
 	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variations)
 	{
 		constexpr VkPolygonMode FILL_MODE_MAP[3] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
-
 		const VkDeviceSize UNIFORM_ALIGNMENT = this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
 
-		// Allocate space for new pipeline
-		this->pipelineLayouts.resize(this->pipelineLayouts.size() + 1);
-		this->descriptorSetLayouts.resize(this->descriptorSetLayouts.size() + 1);
+		const uint32_t currentLayoutIndex = this->descriptorSetLayouts.size();
 
 		// Load shader modules
 		VkShaderModule	vertModule = this->CreateShaderModule(vertexShader),
@@ -108,52 +105,61 @@ namespace Crescendo
 			layoutsBindings[i].insert(layoutsBindings[i].end(), fragLayoutsBindings[i].begin(), fragLayoutsBindings[i].end());
 		}
 
-		// Collect layout binding
-		std::vector<DescriptorSetLayout> sets(vertReflection.descriptorSets);
-		sets.insert(sets.end(), fragReflection.descriptorSets.begin(), fragReflection.descriptorSets.end());
+		uint32_t layoutCount = static_cast<uint32_t>(layoutsBindings.size());
 
-		// Create the set layout
-		VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(layoutsBindings[0]);
-		vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &this->descriptorSetLayouts.back());
+		// Create the set layouts
+		std::vector<VkDescriptorSetLayout> setLayouts(layoutCount);
+		for (uint32_t i = 0; i < layoutCount; i++)
+		{
+			VkDescriptorSetLayout layout;
+			VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(layoutsBindings[i]);
+			vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &setLayouts[i]);
+		}
+		this->descriptorSetLayouts.insert(this->descriptorSetLayouts.end(), setLayouts.begin(), setLayouts.end());
+
+		// Collect layout binding
+		std::vector<SpirvReflection::DescriptorSetLayout> sets(vertReflection.descriptorSetLayouts);
+		sets.insert(sets.end(), fragReflection.descriptorSetLayouts.begin(), fragReflection.descriptorSetLayouts.end());
 
 		// Generate descriptor offsets
+		for (uint32_t i = 0; i < layoutCount; i++)
 		{
-			std::vector<uint32_t> offsets(1, 0);
-			for (const auto& set : sets)
+			uint32_t lastSize = (this->descriptorSetLayoutOffsets.size() >= 1) ? this->descriptorSetLayoutOffsets.back().back() : 0;
+			std::vector<uint32_t> offsets(1, lastSize);
+			for (uint32_t j = 0; j < sets[i].bindings.size(); j++)
 			{
-				offsets.push_back(offsets.back() + PaddedSize(set.GetSize(), UNIFORM_ALIGNMENT));
+				offsets.push_back(offsets.back() + PaddedSize(sets[i].bindings[j].GetSize(), UNIFORM_ALIGNMENT));
 			}
 			this->descriptorSetLayoutOffsets.push_back(offsets);
 		}
 
-		// Create descriptor sets for each frame in flight	
-		size_t lastSetSize = this->descriptorSets.size();
-		this->descriptorSets.resize(lastSetSize + this->state.framesInFlight);
-		for (uint32_t i = 0; i < this->state.framesInFlight; i++)
+		std::vector<std::vector<VkDescriptorSet>> descriptorSets(layoutCount, std::vector<VkDescriptorSet>(this->state.framesInFlight, nullptr));
+		for (uint32_t i = 0; i < layoutCount; i++)
 		{
-			// Allocate descriptor set
-			this->descriptorSets[lastSetSize + i] = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, { this->descriptorSetLayouts.back() });
-
-			for (uint32_t j = 0; j < sets.size(); j++)
+			for (uint32_t j = 0; j < this->state.framesInFlight; j++)
 			{
-				// Show where it points in the buffer
-				VkDescriptorBufferInfo bufferInfo = Create::DescriptorBufferInfo(
-					this->descriptorSetBuffers[i].buffer, 0, sets[j].GetSize()
-				);
-				// Write to set
-				VkWriteDescriptorSet setWrite = Create::WriteDescriptorSet(
-					this->descriptorSets[lastSetSize + i], sets[j].binding, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, nullptr, &bufferInfo, nullptr
-				);
-				// Update set
-				vkUpdateDescriptorSets(this->device, 1, &setWrite, 0, nullptr);
+				descriptorSets[i][j] = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, setLayouts[i]);
+				this->descriptorSets.push_back(descriptorSets[i][j]);
+				for (uint32_t k = 0; k < sets[i].bindings.size(); k++)
+				{
+					VkDescriptorBufferInfo bufferInfo = Create::DescriptorBufferInfo(
+						this->descriptorSetBuffers[j].buffer, 0, sets[i].bindings[k].GetSize()
+					);
+					VkWriteDescriptorSet setWrite = Create::WriteDescriptorSet(
+						descriptorSets[i][j], sets[i].bindings[k].binding, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, nullptr, &bufferInfo, nullptr
+					);
+					vkUpdateDescriptorSets(this->device, 1, &setWrite, 0, nullptr);
+				}
 			}
 		}
 
 		// Create the pipeline layout
+		VkPipelineLayout pipelineLayout;
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(
-			0, 1, &this->descriptorSetLayouts.back(), 1, &pushConstantRange
+			0, setLayouts.size(), setLayouts.data(), 1, &pushConstantRange
 		);
-		CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &this->pipelineLayouts.back()) == VK_SUCCESS, "Failed to create pipeline layout!");
+		CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &pipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout!");
+		this->pipelineLayouts.push_back(pipelineLayout);
 
 		// We we always use dyanmic states, there is really no performance penalty for just viewports and scissors and it means we don't need to recreate pipelines when resizing
 		constexpr std::array<VkDynamicState, 2> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
@@ -189,13 +195,15 @@ namespace Crescendo
 			VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
 		);
 		pipelineBuilderInfo.depthStencilInfo = Create::PipelineDepthStencilStateCreateInfo(
-			0, VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS, VK_FALSE, VK_FALSE, {}, {}, 0.0f, 1.0f
+			0, (variations[0].depthTestEnable) ? VK_TRUE : VK_FALSE, VK_TRUE, VK_COMPARE_OP_LESS, VK_FALSE, VK_FALSE, {}, {}, 0.0f, 1.0f
 		);
-		pipelineBuilderInfo.pipelineLayout = this->pipelineLayouts.back();
+		pipelineBuilderInfo.pipelineLayout = pipelineLayout;
 
 		// Create the pipeline
-		std::vector<VkDescriptorSetLayout> vec = { this->descriptorSetLayouts.back() };
-		this->pipelines.emplace_back(this->pipelineLayouts.back(), this->CreatePipeline(pipelineBuilderInfo), vec);
+		std::vector<uint32_t> descriptorHandles(setLayouts.size());
+		for (uint32_t i = 0; i < setLayouts.size(); i++) descriptorHandles[i] = currentLayoutIndex + i;
+
+		this->pipelines.emplace_back(pipelineLayout, this->CreatePipeline(pipelineBuilderInfo), descriptorHandles);
 
 		// Destroy shader modules, reflection will delete itself
 		vkDestroyShaderModule(this->device, fragModule, nullptr);

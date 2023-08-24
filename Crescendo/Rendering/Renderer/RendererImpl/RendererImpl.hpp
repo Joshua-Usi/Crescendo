@@ -71,9 +71,10 @@ namespace Crescendo
 	{
 		VkPipelineLayout layout;
 		VkPipeline pipeline;
-		std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
+		// Shows the associated data descriptor layouts, sets and offsets
+		std::vector<uint32_t> dataDescriptorHandles;
 
-		inline Pipeline(VkPipelineLayout layout, VkPipeline pipeline, const std::vector<VkDescriptorSetLayout>& setLayouts) : layout(layout), pipeline(pipeline), descriptorSetLayouts(setLayouts) {}
+		inline Pipeline(VkPipelineLayout layout, VkPipeline pipeline, std::vector<uint32_t> dataDescriptorHandles) : layout(layout), pipeline(pipeline), dataDescriptorHandles(dataDescriptorHandles) {}
 	};
 
 	class Renderer::RendererImpl
@@ -117,7 +118,7 @@ namespace Crescendo
 
 		// Data only descriptor layouts
 		std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
-		// Offsets of each set within a specific layout
+		// Offsets of each binding within a specific layout
 		std::vector<std::vector<uint32_t>> descriptorSetLayoutOffsets;
 		// One per frame in flight, each descriptor set is stored in a contiguous block of memory
 		// Not entirely sure how texture descriptors are going to work, so I'm just going to store them in a separate buffer

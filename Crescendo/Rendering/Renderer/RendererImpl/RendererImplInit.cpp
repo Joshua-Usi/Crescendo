@@ -21,7 +21,6 @@ namespace Crescendo
 
 		// Create surface
 		CS_ASSERT(glfwCreateWindowSurface(this->instance, static_cast<GLFWwindow*>(info.window), nullptr, &this->surface) == VK_SUCCESS, "Failed to create window surface!");
-
 		// Device features
 		VkPhysicalDeviceFeatures deviceFeatures = {};
 		deviceFeatures.fillModeNonSolid = VK_TRUE;
@@ -29,7 +28,7 @@ namespace Crescendo
 
 		// Select physical device
 		const vkb::PhysicalDevice physicalDeviceResult = vkb::PhysicalDeviceSelector(instance)
-			.set_minimum_version(1, 3)
+			.set_minimum_version(1, 3) // We use bindless, since we are using 1.3 we don't need to enable it
 			.prefer_gpu_device_type(DEVICE_TYPE_MAPPING[static_cast<uint32_t>(info.preferredDeviceType)])
 			.set_surface(this->surface)
 			.set_required_features(deviceFeatures)
@@ -37,8 +36,23 @@ namespace Crescendo
 		this->physicalDevice = physicalDeviceResult.physical_device;
 		this->physicalDeviceProperties = physicalDeviceResult.properties;
 
+		VkPhysicalDeviceDescriptorIndexingFeatures pddif = {};
+		pddif.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+		// Runtime sized arrays
+		pddif.runtimeDescriptorArray = VK_TRUE;
+		// Partial binding
+		pddif.descriptorBindingPartiallyBound = VK_TRUE;
+		// Non uniform indexing
+		pddif.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
+		pddif.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+		pddif.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
+		// Update after bind
+		pddif.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
+		pddif.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+		pddif.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+
 		// Create logical device
-		const vkb::Device deviceResult = vkb::DeviceBuilder(physicalDeviceResult).build().value();
+		const vkb::Device deviceResult = vkb::DeviceBuilder(physicalDeviceResult).add_pNext(&pddif).build().value();
 		this->device = deviceResult.device;
 
 		// Find queues
@@ -55,6 +69,8 @@ namespace Crescendo
 		this->window = static_cast<GLFWwindow*>(info.window);
 
 		std::cout << "Renderer Stats:" << "\n";
+
+		std::cout << "\tBindless: " << "Enabled" << "\n";
 		std::cout << "\tDevice: " << physicalDeviceResult.name << "\n";
 		std::cout << "\tFrames in flight: " << info.framesInFlight << "\n";
 		std::cout << "\tVertex Buffer Block Size: 4 x " << info.vertexBufferBlockSize / 1024 / 1024 << "MB\n";

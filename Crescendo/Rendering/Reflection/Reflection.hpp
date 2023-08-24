@@ -10,42 +10,49 @@ struct VkPushConstantRange;
 
 namespace Crescendo
 {
-	enum class DescriptorType : uint32_t { Unknown = 0, Block = 1, Sampler = 2 };
-	struct InterfaceVariable { uint32_t location, size; };
-	struct BlockMember { uint32_t offset, size; };
-	struct DescriptorSetLayout
-	{
-		std::vector<BlockMember> members;
-		uint32_t set, binding;
-		DescriptorType type; // Block or sampler
-		inline uint32_t GetSize() const
-		{
-			uint32_t size = 0;
-			for (const auto& member : members) size += member.size;
-			return size;
-		}
-		inline uint32_t IsSampler() const { return type == DescriptorType::Sampler; }
-	};
-	struct PushConstantLayout
-	{
-		std::vector<BlockMember> members;
-		inline uint32_t GetSize() const
-		{
-			uint32_t size = 0;
-			for (const auto& member : members) size += member.size;
-			return size;
-		}
-	};
-
 	struct SpirvReflection
 	{
+		enum class DescriptorType : uint32_t { Unknown = 0, Block = 1, Sampler = 2 };
+		struct InterfaceVariable { uint32_t location, size; };
+		struct BlockMember { uint32_t offset, size; };
+		struct DescriptorSetBinding
+		{
+			std::vector<BlockMember> members;
+			uint32_t binding;
+			DescriptorType type; // Block or sampler
+			inline uint32_t GetSize() const
+			{
+				uint32_t size = 0;
+				for (const auto& member : members) size += member.size;
+				return size;
+			}
+			inline uint32_t IsSampler() const { return type == DescriptorType::Sampler; }
+		};
+		struct DescriptorSetLayout
+		{
+			std::vector<DescriptorSetBinding> bindings;
+			uint32_t set;
+		};
+		struct PushConstantLayout
+		{
+			std::vector<BlockMember> members;
+			inline uint32_t GetSize() const
+			{
+				uint32_t size = 0;
+				for (const auto& member : members) size += member.size;
+				return size;
+			}
+		};
+
 		std::vector<InterfaceVariable> inputVariables;
 		std::vector<InterfaceVariable> outputVariables;
-		std::vector<DescriptorSetLayout> descriptorSets;
+		std::vector<DescriptorSetLayout> descriptorSetLayouts;
 		PushConstantLayout pushConstant;
-		uint32_t GetDescriptorSetLayoutCount() const;
+
+		// Gets the set with the highest set number
+		uint32_t GetHighestDescriptorSet() const;
+
 		const std::vector<std::vector<VkDescriptorSetLayoutBinding>> GetDescriptorSetLayoutBindings(uint32_t shaderStage) const;
-		const std::vector<VkDescriptorSetLayoutBinding> GetDescriptorSetBindings(uint32_t set, uint32_t shaderStage) const;
 		const std::vector<VkVertexInputBindingDescription> GetVertexBindings() const;
 		const std::vector<VkVertexInputAttributeDescription> GetVertexAttributes() const;
 		VkPushConstantRange GetPushConstantRange(uint32_t shaderStage) const;

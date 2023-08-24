@@ -59,10 +59,17 @@ namespace Crescendo
 		// Generates variations of a pipeline based on the given information
 		struct PipelineVariant
 		{
-			enum class FillMode { Solid = 0, Wireframe = 1, Point = 2 };
+			enum class FillMode : uint8_t { Solid = 0, Wireframe = 1, Point = 2 };
 			FillMode fillMode;
-			inline PipelineVariant() : fillMode(FillMode::Solid) {}
-			inline PipelineVariant(FillMode fillMode) : fillMode(fillMode) {}
+			bool depthTestEnable;
+			bool depthWriteEnable;
+			inline PipelineVariant(
+				FillMode fillMode = FillMode::Solid,
+				bool depthTestEnable = true,
+				bool depthWriteEnable = true
+			) : fillMode(fillMode),
+				depthTestEnable(depthTestEnable),
+				depthWriteEnable(depthWriteEnable) {}
 		};
 	private:
 	public:
