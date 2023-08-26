@@ -166,9 +166,7 @@ namespace Crescendo
 
 		// Create the information required to build the pipeline
 		PipelineBuilderInfo pipelineBuilderInfo = {};
-		pipelineBuilderInfo.dynamicState = Create::PipelineDynamicStateCreateInfo(
-			dynamicStates.size(), dynamicStates.data()
-		);
+		pipelineBuilderInfo.dynamicState = Create::PipelineDynamicStateCreateInfo(dynamicStates.size(), dynamicStates.data());
 		pipelineBuilderInfo.renderPass = this->defaultRenderPass;
 		pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(
 			nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vertModule, "main", nullptr

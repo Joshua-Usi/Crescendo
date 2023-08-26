@@ -142,7 +142,6 @@ public:
 		this->renderer.UpdateDescriptorSetData(1, 0, lighting);
 		this->renderer.UpdateDescriptorSetData(1, 1, glm::vec3(0.1f, 0.0f, 0.0f));
 
-
 		// Render commands
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.1f, 1.0f);
 

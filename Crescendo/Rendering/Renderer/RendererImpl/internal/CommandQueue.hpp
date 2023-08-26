@@ -142,9 +142,7 @@ namespace Crescendo::internal
 		inline void Submit(const std::vector<VkSemaphore>& waitSemaphores = {}, const std::vector<VkPipelineStageFlags>& waitStages = {}, const std::vector<VkSemaphore>& signalSemaphores = {}) const
 		{
 			VkSubmitInfo submit = Create::SubmitInfo(
-				static_cast<uint32_t>(waitSemaphores.size()), waitSemaphores.data(), waitStages.data(),
-				1, &this->commandBuffer,
-				static_cast<uint32_t>(signalSemaphores.size()), signalSemaphores.data()
+				waitSemaphores, waitStages, { this->commandBuffer }, signalSemaphores
 			);
 			CS_ASSERT(vkQueueSubmit(this->queue, 1, &submit, this->completionFence) == VK_SUCCESS, "Failed to submit command buffer!");
 		}

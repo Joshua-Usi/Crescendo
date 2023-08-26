@@ -112,7 +112,7 @@ namespace Crescendo
 		// Attempt to present the image, if the swapchain is out of date or suboptimal, recreate it
 		// We can't present again however because the framebuffers are invalid, so we just pass
 		const VkPresentInfoKHR presentInfo = Create::PresentInfoKHR(
-			nullptr, 1, &currentFrame.renderSemaphore, 1, &this->swapchain.swapchain, &this->state.swapchainImageIndex, nullptr
+			1, &currentFrame.renderSemaphore, 1, &this->swapchain.swapchain, &this->state.swapchainImageIndex, nullptr
 		);
 		const VkResult presentResult = vkQueuePresentKHR(this->queues.universal, &presentInfo);
 		if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || this->state.didFramebufferResize)

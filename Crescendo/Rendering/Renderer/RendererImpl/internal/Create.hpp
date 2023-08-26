@@ -10,28 +10,29 @@
 /// </summary>
 namespace Crescendo::internal::Create
 {
-	inline constexpr VkSubmitInfo SubmitInfo(uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, const VkPipelineStageFlags* pWaitDstStageMask, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers, uint32_t signalSemaphoreCount, const VkSemaphore* pSignalSemaphores)
+	template<typename T = std::vector<VkSemaphore>, typename U = std::vector<uint32_t>, typename V = std::vector<VkCommandBuffer>, typename W = std::vector<VkSemaphore>>
+	constexpr VkSubmitInfo SubmitInfo(const T& waitSemaphores, const U& waitDstStageMask, const V& commandBuffers, const W& signalSemaphores)
 	{
 		VkSubmitInfo submitInfo = {};
 
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		submitInfo.pNext = nullptr;
-		submitInfo.waitSemaphoreCount = waitSemaphoreCount;
-		submitInfo.pWaitSemaphores = pWaitSemaphores;
-		submitInfo.pWaitDstStageMask = pWaitDstStageMask;
-		submitInfo.commandBufferCount = commandBufferCount;
-		submitInfo.pCommandBuffers = pCommandBuffers;
-		submitInfo.signalSemaphoreCount = signalSemaphoreCount;
-		submitInfo.pSignalSemaphores = pSignalSemaphores;
+		submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size());
+		submitInfo.pWaitSemaphores = waitSemaphores.data();
+		submitInfo.pWaitDstStageMask = waitDstStageMask.data();
+		submitInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
+		submitInfo.pCommandBuffers = commandBuffers.data();
+		submitInfo.signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size());
+		submitInfo.pSignalSemaphores = signalSemaphores.data();
 
 		return submitInfo;
 	}
-	inline constexpr VkPresentInfoKHR PresentInfoKHR(const void* pNext, uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, uint32_t swapchainCount, const VkSwapchainKHR* pSwapchains, const uint32_t* pImageIndices, VkResult* pResults)
+	inline constexpr VkPresentInfoKHR PresentInfoKHR(uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, uint32_t swapchainCount, const VkSwapchainKHR* pSwapchains, const uint32_t* pImageIndices, VkResult* pResults)
 	{
 		VkPresentInfoKHR presentInfo = {};
 
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-		presentInfo.pNext = pNext;
+		presentInfo.pNext = nullptr;
 		presentInfo.waitSemaphoreCount = waitSemaphoreCount;
 		presentInfo.pWaitSemaphores = pWaitSemaphores;
 		presentInfo.swapchainCount = swapchainCount;
@@ -76,7 +77,7 @@ namespace Crescendo::internal::Create
 		VkPipelineVertexInputStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		createInfo.pNext = pNext;
+		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
 		createInfo.vertexBindingDescriptionCount = vertexBindingDescriptionCount;
 		createInfo.pVertexBindingDescriptions = pVertexBindingDescriptions;
