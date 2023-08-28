@@ -76,6 +76,8 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variations)
 	{
+		/* -------------------------------- 0. Initialisation -------------------------------- */
+
 		constexpr VkPolygonMode FILL_MODE_MAP[3] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
 		const VkDeviceSize UNIFORM_ALIGNMENT = this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
 
@@ -89,69 +91,67 @@ namespace Crescendo
 		SpirvReflection vertReflection = ReflectSpirv(vertexShader),
 						fragReflection = ReflectSpirv(fragmentShader);
 
+		/* -------------------------------- 1. Data Descriptors -------------------------------- */
+		
+		// Collect descriptor set layouts bindings
+		std::vector<std::vector<VkDescriptorSetLayoutBinding>>	dataLayoutsBindings = vertReflection.GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType::Block, VK_SHADER_STAGE_VERTEX_BIT),
+																fragLayoutsBindings = fragReflection.GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType::Block, VK_SHADER_STAGE_FRAGMENT_BIT);
+		dataLayoutsBindings.insert(dataLayoutsBindings.end(), fragLayoutsBindings.begin(), fragLayoutsBindings.end());
+
+		std::vector<SpirvReflection::DescriptorSetLayout>	dataSets = vertReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Block),
+															fragSets = fragReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Block);	
+		dataSets.insert(dataSets.end(), fragSets.begin(), fragSets.end());
+
+		uint32_t datalayoutCount = static_cast<uint32_t>(dataLayoutsBindings.size());
+
+		std::vector<VkDescriptorSetLayout> setLayouts(datalayoutCount);
+
+		// Create the set layouts
+		for (uint32_t i = 0; i < datalayoutCount; i++)
+		{
+			// Layout creation
+			VkDescriptorSetLayout layout;
+			VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(dataLayoutsBindings[i]);
+			vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &setLayouts[i]);
+			
+			// Set layout offsets
+			uint32_t lastSize = (this->descriptorSetLayoutOffsets.size() >= 1) ? this->descriptorSetLayoutOffsets.back().back() : 0;
+			std::vector<uint32_t> offsets(1, lastSize);
+			for (const auto& binding : dataSets[i].bindings)
+			{
+				offsets.push_back(offsets.back() + PaddedSize(binding.GetSize(), UNIFORM_ALIGNMENT));
+			}
+			this->descriptorSetLayoutOffsets.push_back(offsets);
+
+			// Create and write descriptor sets
+			for (uint32_t j = 0; j < this->state.framesInFlight; j++)
+			{
+				VkDescriptorSet descriptorSet = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, setLayouts[i]);
+				this->descriptorSets.push_back(descriptorSet);
+				for (const auto& binding : dataSets[i].bindings)
+				{
+					VkDescriptorBufferInfo bufferInfo = Create::DescriptorBufferInfo(
+						this->descriptorSetBuffers[j].buffer, 0, binding.GetSize()
+					);
+					VkWriteDescriptorSet setWrite = Create::WriteDescriptorSet(
+						descriptorSet, binding.binding, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, nullptr, &bufferInfo, nullptr
+					);
+					vkUpdateDescriptorSets(this->device, 1, &setWrite, 0, nullptr);
+				}
+			}
+		}
+		this->descriptorSetLayouts.insert(this->descriptorSetLayouts.end(), setLayouts.begin(), setLayouts.end());
+
+		/* -------------------------------- 3. Sampler Descriptors -------------------------------- */
+
+		/* -------------------------------- 3. Pipeline Creation -------------------------------- */
+
 		// Get binding and attribute descriptions
 		std::vector<VkVertexInputBindingDescription> bindingDescriptions = vertReflection.GetVertexBindings();
 		std::vector<VkVertexInputAttributeDescription> attributeDescriptions = vertReflection.GetVertexAttributes();
 
 		// Get push constant range
 		VkPushConstantRange pushConstantRange = vertReflection.GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT);
-		
-		// Collect descriptor set layouts bindings
-		std::vector<std::vector<VkDescriptorSetLayoutBinding>>	layoutsBindings = vertReflection.GetDescriptorSetLayoutBindings(VK_SHADER_STAGE_VERTEX_BIT),
-																fragLayoutsBindings = fragReflection.GetDescriptorSetLayoutBindings(VK_SHADER_STAGE_FRAGMENT_BIT);
-		layoutsBindings.resize(std::max(layoutsBindings.size(), fragLayoutsBindings.size()));
-		for (uint32_t i = 0; i < fragLayoutsBindings.size(); i++)
-		{
-			layoutsBindings[i].insert(layoutsBindings[i].end(), fragLayoutsBindings[i].begin(), fragLayoutsBindings[i].end());
-		}
-
-		uint32_t layoutCount = static_cast<uint32_t>(layoutsBindings.size());
-
-		// Create the set layouts
-		std::vector<VkDescriptorSetLayout> setLayouts(layoutCount);
-		for (uint32_t i = 0; i < layoutCount; i++)
-		{
-			VkDescriptorSetLayout layout;
-			VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(layoutsBindings[i]);
-			vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &setLayouts[i]);
-		}
-		this->descriptorSetLayouts.insert(this->descriptorSetLayouts.end(), setLayouts.begin(), setLayouts.end());
-
-		// Collect layout binding
-		std::vector<SpirvReflection::DescriptorSetLayout> sets(vertReflection.descriptorSetLayouts);
-		sets.insert(sets.end(), fragReflection.descriptorSetLayouts.begin(), fragReflection.descriptorSetLayouts.end());
-
-		// Generate descriptor offsets
-		for (uint32_t i = 0; i < layoutCount; i++)
-		{
-			uint32_t lastSize = (this->descriptorSetLayoutOffsets.size() >= 1) ? this->descriptorSetLayoutOffsets.back().back() : 0;
-			std::vector<uint32_t> offsets(1, lastSize);
-			for (uint32_t j = 0; j < sets[i].bindings.size(); j++)
-			{
-				offsets.push_back(offsets.back() + PaddedSize(sets[i].bindings[j].GetSize(), UNIFORM_ALIGNMENT));
-			}
-			this->descriptorSetLayoutOffsets.push_back(offsets);
-		}
-
-		std::vector<std::vector<VkDescriptorSet>> descriptorSets(layoutCount, std::vector<VkDescriptorSet>(this->state.framesInFlight, nullptr));
-		for (uint32_t i = 0; i < layoutCount; i++)
-		{
-			for (uint32_t j = 0; j < this->state.framesInFlight; j++)
-			{
-				descriptorSets[i][j] = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, setLayouts[i]);
-				this->descriptorSets.push_back(descriptorSets[i][j]);
-				for (uint32_t k = 0; k < sets[i].bindings.size(); k++)
-				{
-					VkDescriptorBufferInfo bufferInfo = Create::DescriptorBufferInfo(
-						this->descriptorSetBuffers[j].buffer, 0, sets[i].bindings[k].GetSize()
-					);
-					VkWriteDescriptorSet setWrite = Create::WriteDescriptorSet(
-						descriptorSets[i][j], sets[i].bindings[k].binding, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, nullptr, &bufferInfo, nullptr
-					);
-					vkUpdateDescriptorSets(this->device, 1, &setWrite, 0, nullptr);
-				}
-			}
-		}
 
 		// Create the pipeline layout
 		VkPipelineLayout pipelineLayout;
@@ -232,7 +232,7 @@ namespace Crescendo
 		offsets[4] = offsets[3] + textureUVs.size() * sizeof(uint32_t);
 
 		// Stage all data into one buffer, reduces allocations
-		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(sizeof(uint32_t) * offsets[4], VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(sizeof(uint32_t) * offsets.back(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 		staging.Fill(offsets[0], indices.data(),    indices.size()    * sizeof(uint32_t));
 		staging.Fill(offsets[1], vertices.data(),   vertices.size()   * sizeof(uint32_t));
 		staging.Fill(offsets[2], normals.data(),    normals.size()    * sizeof(uint32_t));
@@ -281,7 +281,6 @@ namespace Crescendo
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
 		), imageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY);
-
 
 		// Transition the image to a transfer destination
 		this->uploadTextureQueue.InstantSubmit([=](const internal::CommandQueue& cmd) {

@@ -141,12 +141,18 @@ namespace Crescendo::internal
 		/// <param name="signalSemaphores">Semaphores to signal to</param>
 		inline void Submit(const std::vector<VkSemaphore>& waitSemaphores = {}, const std::vector<VkPipelineStageFlags>& waitStages = {}, const std::vector<VkSemaphore>& signalSemaphores = {}) const
 		{
-			VkSubmitInfo submit = Create::SubmitInfo(
-				waitSemaphores, waitStages, { this->commandBuffer }, signalSemaphores
-			);
+			const std::vector<VkCommandBuffer> cmd = { this->commandBuffer };
+			VkSubmitInfo submit = Create::SubmitInfo(waitSemaphores, waitStages, cmd, signalSemaphores);
 			CS_ASSERT(vkQueueSubmit(this->queue, 1, &submit, this->completionFence) == VK_SUCCESS, "Failed to submit command buffer!");
 		}
 	public:
+		/// <summary>
+		/// Instantly submit a command buffer for GPU execution
+		/// Execution on the thread is paused until the command buffer has finished executing
+		/// Makes no gaurantees if the user has created an infinite loop
+		/// </summary>
+		/// <param name="function">Commands</param>
+		/// <param name="timeout">Time to wait in nanoseconds until we continue execution, leave blank to always gaurantee execution completion</param>
 		inline void InstantSubmit(std::function<void(const CommandQueue& cmd)>&& function, uint64_t timeout = UINT64_MAX) const
 		{
 			this->Begin();

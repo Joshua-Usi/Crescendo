@@ -12,7 +12,7 @@ namespace Crescendo
 {
 	struct SpirvReflection
 	{
-		enum class DescriptorType : uint32_t { Unknown = 0, Block = 1, Sampler = 2 };
+		enum class DescriptorType : uint32_t { Unknown = 0, Block = 1, Sampler = 2, All = 3 };
 		struct InterfaceVariable { uint32_t location, size; };
 		struct BlockMember { uint32_t offset, size; };
 		struct DescriptorSetBinding
@@ -49,10 +49,9 @@ namespace Crescendo
 		std::vector<DescriptorSetLayout> descriptorSetLayouts;
 		PushConstantLayout pushConstant;
 
-		// Gets the set with the highest set number
-		uint32_t GetHighestDescriptorSet() const;
+		const std::vector<DescriptorSetLayout> GetDescriptorSetLayouts(SpirvReflection::DescriptorType descriptorType = DescriptorType::All) const;
 
-		const std::vector<std::vector<VkDescriptorSetLayoutBinding>> GetDescriptorSetLayoutBindings(uint32_t shaderStage) const;
+		const std::vector<std::vector<VkDescriptorSetLayoutBinding>> GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType descriptorType, uint32_t shaderStage) const;
 		const std::vector<VkVertexInputBindingDescription> GetVertexBindings() const;
 		const std::vector<VkVertexInputAttributeDescription> GetVertexAttributes() const;
 		VkPushConstantRange GetPushConstantRange(uint32_t shaderStage) const;

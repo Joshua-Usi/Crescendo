@@ -126,6 +126,8 @@ namespace Crescendo
 		// Data descriptors for each frame in flight
 		std::vector<VkDescriptorSet> descriptorSets;
 
+		std::vector<VkDescriptorSetLayout> textureDescriptorSetLayouts;
+
 		// I don't know how to transfer queue ownership, so I'm just going to create a universal queue for uploading textures
 		// TODO figure out how switch texture uploading to dedicated transfer queue
 		internal::CommandQueue uploadQueue, uploadTextureQueue;
@@ -133,6 +135,7 @@ namespace Crescendo
 		// List of all the images that have been uploaded to the GPU.
 		// TODO switch to single buffer for all images
 		std::vector<internal::Allocator::Image> images;
+		std::vector<VkDescriptorSet> imageDescriptorSets;
  
 	public:
 		RendererImpl() = default;

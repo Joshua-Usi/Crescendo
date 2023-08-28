@@ -55,8 +55,7 @@ public:
 		//CS_TIME(model = IO::LoadOBJ("./assets/san-miguel.obj"), "San Miguel Model load");
 
 		this->meshCount = model.meshes.size();
-		uint32_t triangleCount = 0;
-		uint32_t bufferSpace[4] = { 0, 0, 0, 0 };
+		uint32_t triangleCount = 0, bufferSpace[4] = { 0, 0, 0, 0 };
 		for (const auto& mesh : model.meshes)
 		{
 			triangleCount += mesh.indices.size() / 3;
@@ -68,18 +67,16 @@ public:
 		}
 
 		std::cout << "Mesh has " << triangleCount << " triangles" << std::endl;
-		std::cout << "Vertex buffer size: " << bufferSpace[0] / 1024 / 1024 << "MB" << std::endl;
-		std::cout << "Normal buffer size: " << bufferSpace[1] / 1024 / 1024 << "MB" << std::endl;
-		std::cout << "UV buffer size: " << bufferSpace[2] / 1024 / 1024 << "MB" << std::endl;
-		std::cout << "Index buffer size: " << bufferSpace[3] / 1024 / 1024 << "MB" << std::endl;
+		std::cout << "Buffer sizes: V:"	<< bufferSpace[0] / 1024 / 1024 << "MB N:"
+										<< bufferSpace[1] / 1024 / 1024 << "MB UV:"
+										<< bufferSpace[2] / 1024 / 1024 << "MB I:"
+										<< bufferSpace[3] / 1024 / 1024 << "MB" << std::endl;
 
 		// Upload shaders (creates pipelines and descriptor sets)
 		// Shader loading
-		struct Shader {
-			std::string name;
-			Renderer::PipelineVariant variant;
-		};
+		struct Shader { std::string name; Renderer::PipelineVariant variant; };
 		std::vector<Shader> shaderList = {
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant() },
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant() },
 		};
 		for (const auto& shader : shaderList)
@@ -142,10 +139,14 @@ public:
 		this->renderer.UpdateDescriptorSetData(1, 0, lighting);
 		this->renderer.UpdateDescriptorSetData(1, 1, glm::vec3(0.1f, 0.0f, 0.0f));
 
+		this->renderer.UpdateDescriptorSetData(2, 0, vp);
+		this->renderer.UpdateDescriptorSetData(3, 0, lighting);
+		this->renderer.UpdateDescriptorSetData(3, 1, glm::vec3(1.0f, 0.0f, 0.0f));
+
 		// Render commands
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.1f, 1.0f);
 
-		this->renderer.CmdBindPipeline(0);
+		this->renderer.CmdBindPipeline(Input::GetKeyDown(Key::One) ? 1 : 0);
 		glm::mat4 model = glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f));
 		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, model);
 		for (uint32_t i = 0; i < this->meshCount; i++) this->renderer.CmdDraw(i);

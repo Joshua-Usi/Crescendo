@@ -120,20 +120,33 @@ namespace Crescendo
 		spvReflectDestroyShaderModule(&reflectionModule);
 		return reflection;
 	}
-	const std::vector<std::vector<VkDescriptorSetLayoutBinding>> SpirvReflection::GetDescriptorSetLayoutBindings(uint32_t shaderStage) const
+	const std::vector<std::vector<VkDescriptorSetLayoutBinding>> SpirvReflection::GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType descriptorType, uint32_t shaderStage) const
 	{
-		uint32_t setCount = this->GetHighestDescriptorSet() + 1;
-		std::vector<std::vector<VkDescriptorSetLayoutBinding>> bindings(setCount);
-		for (uint32_t i = 0; i < this->descriptorSetLayouts.size(); i++)
+		std::vector<std::vector<VkDescriptorSetLayoutBinding>> bindings;
+		for (const auto& setLayout : this->descriptorSetLayouts)
 		{
-			const auto& descriptorSetLayout = this->descriptorSetLayouts[i];
-			for (const auto& binding : descriptorSetLayout.bindings)
+			std::vector<VkDescriptorSetLayoutBinding> setBindings;
+			for (const auto& binding : setLayout.bindings)
 			{
-				VkDescriptorType descriptorType = binding.IsSampler() ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-				bindings[descriptorSetLayout.set].emplace_back(binding.binding, descriptorType, 1, shaderStage, nullptr);
+				if (descriptorType != SpirvReflection::DescriptorType::All && binding.type != descriptorType) break;
+				VkDescriptorType descriptorType = binding.IsSampler()
+												? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+												: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+				setBindings.emplace_back(binding.binding, descriptorType, 1, shaderStage, nullptr);
 			}
+			if (setBindings.size() > 0) bindings.push_back(setBindings);
 		}
 		return bindings;
+	}
+	const std::vector<SpirvReflection::DescriptorSetLayout> SpirvReflection::GetDescriptorSetLayouts(SpirvReflection::DescriptorType descriptorType) const
+	{
+		std::vector<SpirvReflection::DescriptorSetLayout> layouts;
+		for (const auto& setLayout : this->descriptorSetLayouts)
+		{
+			if (descriptorType != SpirvReflection::DescriptorType::All && setLayout.bindings.front().type != descriptorType) continue;
+			layouts.push_back(setLayout);
+		}
+		return layouts;
 	}
 	const std::vector<VkVertexInputBindingDescription> SpirvReflection::GetVertexBindings() const
 	{
@@ -143,12 +156,6 @@ namespace Crescendo
 			bindings[i] = { i, this->inputVariables[i].size, VK_VERTEX_INPUT_RATE_VERTEX };
 		}
 		return bindings;
-	}
-	uint32_t SpirvReflection::GetHighestDescriptorSet() const
-	{
-		uint32_t highest = 0;
-		for (const auto& descriptorSetLayout : this->descriptorSetLayouts) highest = std::max(highest, descriptorSetLayout.set);
-		return highest;
 	}
 	const std::vector<VkVertexInputAttributeDescription> SpirvReflection::GetVertexAttributes() const
 	{

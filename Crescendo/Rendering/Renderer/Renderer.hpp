@@ -44,7 +44,9 @@ namespace Crescendo
 			 */
 			uint32_t framesInFlight;
 			/*
-			 *	Specifies the size of each vertex attributes
+			 *	Specifies the minimum vertex attribute buffer size when creating a new buffer, If a mesh is larger than this
+			 *	It will create a buffer that is a multiple of this size
+			 *  Larger buffers increase initial memory usage but decrease binds
 			 *	Size is in bytes
 			 */
 			uint64_t vertexBufferBlockSize;
