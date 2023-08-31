@@ -22,8 +22,8 @@ namespace Crescendo::IO
 
 		// MMM I don't like how we have to copy but it is what it is
 		// At least this memory is safe and will be freed
-		std::vector<uint8_t> data;
-		data.insert(data.end(), pixels, pixels + (width * height * FIXED_CHANNELS));
+		std::vector<uint8_t> data(width * height * FIXED_CHANNELS);
+		data.insert(data.begin(), pixels, pixels + (width * height * FIXED_CHANNELS));
 		Image image(data, width, height, FIXED_CHANNELS);
 
 		stbi_image_free(pixels);

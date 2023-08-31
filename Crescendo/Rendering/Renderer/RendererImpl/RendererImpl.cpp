@@ -192,7 +192,7 @@ namespace Crescendo
 			VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
 		);
 		pipelineBuilderInfo.multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(
-			nullptr, VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0f, nullptr, VK_FALSE, VK_FALSE
+			nullptr, this->msaaSamples, VK_TRUE, 1.0f, nullptr, VK_FALSE, VK_FALSE
 		);
 		pipelineBuilderInfo.colorBlendAttachment = Create::PipelineColorBlendAttachmentState(
 			VK_TRUE, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
@@ -305,7 +305,7 @@ namespace Crescendo
 			VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
 		), imageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY);
 
-		// Check if format is blit compatible
+		// Check if format is blit compatible, if not then we cannot generate mipmaps
 		VkFormatProperties formatProperties;
 		vkGetPhysicalDeviceFormatProperties(this->physicalDevice, DEFAULT_FORMAT, &formatProperties);
 		CS_ASSERT(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT, "Format is not blit compatible");
@@ -360,7 +360,7 @@ namespace Crescendo
 					Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i, 0, 1),
 					{ {
 						{ 0, 0, 0 },
-						{ static_cast<int32_t>(mipWidth > 1 ? mipWidth / 2 : 1), static_cast<int32_t>(mipHeight > 1 ? mipHeight / 2 : 1), 1 }
+						{ static_cast<int32_t>(std::max(mipWidth / 2, 1u)), static_cast<int32_t>(std::max(mipHeight / 2, 1u)), 1 }
 					} }
 				);
 
@@ -373,8 +373,8 @@ namespace Crescendo
 
 				vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-				if (mipWidth > 1) mipWidth /= 2;
-				if (mipHeight > 1) mipHeight /= 2;
+				mipWidth = std::max(mipWidth / 2, 1u);
+				mipHeight = std::max(mipHeight / 2, 1u);
 			}
 
 			barrier.subresourceRange.baseMipLevel = mipLevels - 1;

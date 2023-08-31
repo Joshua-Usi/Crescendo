@@ -46,7 +46,7 @@ public:
 		info.windowExtent = { this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight() };
 		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
 		info.framesInFlight = 3; // Triple buffering
-		info.vertexBufferBlockSize = std::powl(2, 24); // use 24 for sponza, 28 for rungholt, 29 for san miguel
+		info.vertexBufferBlockSize = std::powl(2, 24); // use 24 for sponza, 28 for rungholt
 		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
 
 		this->renderer = Renderer::Create(info);
@@ -54,27 +54,39 @@ public:
 		// Upload meshes
 		IO::Model model;
 
-		CS_TIME(model = IO::LoadOBJ("./assets/sponza.obj"), "Sponza Model load");
-		//CS_TIME(model = IO::LoadOBJ("./assets/rungholt.obj"), "Rungholt Model load");
-		//CS_TIME(model = IO::LoadOBJ("./assets/san-miguel.obj"), "San Miguel Model load");
+		CS_TIME(model = IO::LoadOBJ("./assets/sponza/sponza.obj"), "Sponza Model load");
+		//CS_TIME(model = IO::LoadOBJ("./assets/sponza/rungholt.obj"), "Rungholt Model load");
 
+		std::unordered_map<std::string, uint32_t> seenTextures;
 		this->meshCount = model.meshes.size();
-		uint32_t triangleCount = 0, bufferSpace[4] = { 0, 0, 0, 0 };
+		uint32_t triangleCount = 0, i = 0, bufferSpace[4] = { 0, 0, 0, 0 };
 		for (const auto& mesh : model.meshes)
 		{
+			// Mesh upload
 			triangleCount += mesh.indices.size() / 3;
 			bufferSpace[0] += mesh.vertices.size() * sizeof(float);
 			bufferSpace[1] += mesh.normals.size() * sizeof(float);
 			bufferSpace[2] += mesh.textureUVs.size() * sizeof(float);
 			bufferSpace[3] += mesh.indices.size() * sizeof(uint32_t);
 			this->renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
+
+			// Texture upload
+			if (mesh.albedo.empty() || seenTextures.find(mesh.albedo) != seenTextures.end())
+			{
+				this->textureIDs.push_back(seenTextures[mesh.albedo]);
+			}
+			else
+			{
+				seenTextures[mesh.albedo] = i;
+				this->textureIDs.push_back(seenTextures[mesh.albedo]);
+				IO::Image image = IO::LoadImage("./assets/sponza/" + mesh.albedo);
+				this->renderer.UploadTexture(image.pixels, image.width, image.height, image.channels, true);
+				i++;
+			}
 		}
 
 		std::cout << "Mesh has " << triangleCount << " triangles" << std::endl;
-		std::cout << "Buffer sizes: V:"	<< bufferSpace[0] / 1024 / 1024 << "MB N:"
-										<< bufferSpace[1] / 1024 / 1024 << "MB UV:"
-										<< bufferSpace[2] / 1024 / 1024 << "MB I:"
-										<< bufferSpace[3] / 1024 / 1024 << "MB" << std::endl;
+		std::cout << "Buffer sizes: V:"	<< bufferSpace[0] / 1024 / 1024 << "MB N:" << bufferSpace[1] / 1024 / 1024 << "MB UV:" << bufferSpace[2] / 1024 / 1024 << "MB I:" << bufferSpace[3] / 1024 / 1024 << "MB" << std::endl;
 
 		// Upload shaders (creates pipelines and descriptor sets)
 		// Shader loading
@@ -89,23 +101,6 @@ public:
 				Crescendo::Core::BinaryFile(shader.name + ".frag.spv").Open().Read(),
 				{ shader.variant }
 			);
-		}
-
-		// Upload textures
-		std::unordered_map<std::string, uint32_t> seenTextures;
-		int i = 0;
-		for (const auto& mesh : model.meshes)
-		{
-			if (mesh.albedo.empty() || seenTextures.find(mesh.albedo) != seenTextures.end())
-			{
-				this->textureIDs.push_back(seenTextures[mesh.albedo]);
-				continue;
-			}
-			seenTextures[mesh.albedo] = i;
-			this->textureIDs.push_back(seenTextures[mesh.albedo]);
-			IO::Image image = IO::LoadImage("./assets/" + mesh.albedo);
-			this->renderer.UploadTexture(image.pixels, image.width, image.height, image.channels, true);
-			i++;
 		}
 	}
 	void OnUpdate(double dt)
@@ -149,7 +144,7 @@ public:
 
 		this->renderer.UpdateDescriptorSetData(0, 0, vp);
 		this->renderer.UpdateDescriptorSetData(1, 0, lighting);
-		this->renderer.UpdateDescriptorSetData(1, 1, glm::vec3(0.5f, 0.0f, 0.0f));
+		this->renderer.UpdateDescriptorSetData(1, 1, glm::vec3(1.0f, 0.0f, 0.0f));
 
 		// Render commands
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.1f, 1.0f);

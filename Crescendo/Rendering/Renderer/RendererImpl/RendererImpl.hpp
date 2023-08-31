@@ -79,12 +79,20 @@ namespace Crescendo
 		inline Pipeline(VkPipelineLayout layout, VkPipeline pipeline, std::vector<uint32_t> dataDescriptorHandles, uint32_t samplerDescriptorSet) : layout(layout), pipeline(pipeline), dataDescriptorHandles(dataDescriptorHandles), samplerDescriptorSet(samplerDescriptorSet) {}
 	};
 
+	struct Framebuffer
+	{
+		VkImage image;
+		VkImageView imageView;
+		VkDeviceMemory memory;
+	};
+
 	class Renderer::RendererImpl
 	{
 	public:
 		internal::FunctionQueue mainDeletionQueue, swapChainDeletionQueue;
 
 		VkPhysicalDeviceProperties physicalDeviceProperties;
+		VkSampleCountFlagBits msaaSamples;
 
 		internal::Allocator allocator;
 
@@ -101,7 +109,7 @@ namespace Crescendo
 		RendererState state;
 
 		Swapchain swapchain;
-		internal::Allocator::Image depthBuffer;
+		internal::Allocator::Image depthBuffer,	multisamplingBuffer;
 		VkRenderPass defaultRenderPass;
 		std::vector<VkFramebuffer> framebuffers;
 
@@ -136,7 +144,7 @@ namespace Crescendo
 		// TODO figure out how switch texture uploading to dedicated transfer queue
 		internal::CommandQueue uploadQueue, uploadTextureQueue;
 
-		// List of all the images that have been uploaded to the GPU.
+		// List of all the texture images that have been uploaded to the GPU.
 		// TODO switch to single buffer for all images
 		std::vector<internal::Allocator::Image> images;
 		std::vector<VkDescriptorSet> imageDescriptorSets;

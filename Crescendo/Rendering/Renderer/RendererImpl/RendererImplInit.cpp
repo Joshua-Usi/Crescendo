@@ -6,6 +6,18 @@ namespace Crescendo
 	constexpr VkPresentModeKHR PRESENT_MODE_MAPPING[2] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR };
 	constexpr VkFormat DEFAULT_DEPTH_FORMAT = VK_FORMAT_D24_UNORM_S8_UINT;
 
+	VkSampleCountFlagBits getMaxSampleCounts(VkPhysicalDeviceProperties properties)
+	{
+		VkSampleCountFlags counts = properties.limits.framebufferColorSampleCounts & properties.limits.framebufferDepthSampleCounts;
+		if (counts & VK_SAMPLE_COUNT_64_BIT) return VK_SAMPLE_COUNT_64_BIT;
+		if (counts & VK_SAMPLE_COUNT_32_BIT) return VK_SAMPLE_COUNT_32_BIT;
+		if (counts & VK_SAMPLE_COUNT_16_BIT) return VK_SAMPLE_COUNT_16_BIT;
+		if (counts & VK_SAMPLE_COUNT_8_BIT)  return VK_SAMPLE_COUNT_8_BIT;
+		if (counts & VK_SAMPLE_COUNT_4_BIT)  return VK_SAMPLE_COUNT_4_BIT;
+		if (counts & VK_SAMPLE_COUNT_2_BIT)  return VK_SAMPLE_COUNT_2_BIT;
+		return VK_SAMPLE_COUNT_1_BIT;
+	}
+
 	void Renderer::RendererImpl::InitialiseInstance(const BuilderInfo& info)
 	{
 		// Create instance and debug messenger
@@ -25,6 +37,7 @@ namespace Crescendo
 		VkPhysicalDeviceFeatures deviceFeatures = {};
 		deviceFeatures.fillModeNonSolid = VK_TRUE;
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
+		deviceFeatures.sampleRateShading = VK_TRUE;
 
 		// Select physical device
 		const vkb::PhysicalDevice physicalDeviceResult = vkb::PhysicalDeviceSelector(instance)
@@ -38,18 +51,16 @@ namespace Crescendo
 
 		VkPhysicalDeviceDescriptorIndexingFeatures pddif = {};
 		pddif.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-		// Runtime sized arrays
-		pddif.runtimeDescriptorArray = VK_TRUE;
-		// Partial binding
+
+		// Enable when using bindless
+		/*pddif.runtimeDescriptorArray = VK_TRUE;
 		pddif.descriptorBindingPartiallyBound = VK_TRUE;
-		// Non uniform indexing
 		pddif.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
 		pddif.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
 		pddif.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
-		// Update after bind
 		pddif.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
 		pddif.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
-		pddif.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+		pddif.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;*/
 
 		// Create logical device
 		const vkb::Device deviceResult = vkb::DeviceBuilder(physicalDeviceResult).add_pNext(&pddif).build().value();
@@ -69,14 +80,17 @@ namespace Crescendo
 		this->window = static_cast<GLFWwindow*>(info.window);
 
 		std::cout << "Renderer Stats:" << "\n";
-
-		std::cout << "\tBindless: " << "Enabled" << "\n";
 		std::cout << "\tDevice: " << physicalDeviceResult.name << "\n";
 		std::cout << "\tFrames in flight: " << info.framesInFlight << "\n";
-		std::cout << "\tVertex Buffer Block Size: 4 x " << info.vertexBufferBlockSize / 1024 / 1024 << "MB\n";
-		std::cout << "\tDescriptor Buffer Block Size: " << info.framesInFlight << " x " << info.descriptorBufferBlockSize / 1024 << "KB\n";
+		std::cout << "\tVertex buffer block size: 4 x " << info.vertexBufferBlockSize / 1024 / 1024 << "MB\n";
+		std::cout << "\tMax push constant size: " << this->physicalDeviceProperties.limits.maxPushConstantsSize << "B\n";
+		std::cout << "\tDescriptor buffer block size: " << info.framesInFlight << " x " << info.descriptorBufferBlockSize / 1024 << "KB\n";
 		std::cout << "\tMinimum uniform buffer offset alignment: " << this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment << "B\n";
+		std::cout << "\tMax sampler anisotropy: " << this->physicalDeviceProperties.limits.maxSamplerAnisotropy << "\n";
+		std::cout << "\tMax frame & depth buffer samples: " << getMaxSampleCounts(this->physicalDeviceProperties) << "\n";
 
+		this->msaaSamples = getMaxSampleCounts(this->physicalDeviceProperties);
+		
 		// Push to deletion queue
 		this->mainDeletionQueue.Push([&]() {
 			this->swapChainDeletionQueue.Flush();
@@ -103,10 +117,21 @@ namespace Crescendo
 		for (size_t i = 0; i < images.size(); i++) viewableImages[i] = internal::Allocator::Image(images[i], imageViews[i]);
 		this->swapchain = Swapchain(vkbSwapchain.swapchain, vkbSwapchain.image_format, vkbSwapchain.extent, viewableImages);
 
+		// Create msaa buffer
+
+		VkImageCreateInfo multisamplingImageInfo = Create::ImageCreateInfo(
+			nullptr, 0, VK_IMAGE_TYPE_2D, this->swapchain.imageFormat, this->swapchain.GetExtent3D(), 1, 1, this->msaaSamples, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
+		);
+		VkImageViewCreateInfo multisamplingImageViewInfo = Create::ImageViewCreateInfo(
+			0, nullptr, VK_IMAGE_VIEW_TYPE_2D, this->swapchain.imageFormat, {}, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+		);
+		this->multisamplingBuffer = this->allocator.CreateImage(multisamplingImageInfo, multisamplingImageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
 		// Create the depth buffer
 		VkExtent3D depthImageExtent = this->swapchain.GetExtent3D();
 		VkImageCreateInfo depthImageInfo = Create::ImageCreateInfo(
-			nullptr, 0, VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, depthImageExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
+			nullptr, 0, VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, depthImageExtent, 1, 1, this->msaaSamples, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
 		);
 		VkImageViewCreateInfo depthImageViewInfo = Create::ImageViewCreateInfo(
@@ -118,6 +143,7 @@ namespace Crescendo
 		// Add to swapchain deletion queue
 		this->swapChainDeletionQueue.Push([&]() {
 			this->allocator.DestroyImage(this->depthBuffer);
+			this->allocator.DestroyImage(this->multisamplingBuffer);
 			for (auto& image : this->swapchain.images) this->allocator.DestroyImage(image);
 			vkDestroySwapchainKHR(this->device, this->swapchain.swapchain, nullptr);
 		});
@@ -160,19 +186,28 @@ namespace Crescendo
 	{
 		// Create the default renderpass
 		VkAttachmentDescription colorAttachment = Create::AttachmentDescription(
-			0, this->swapchain.imageFormat, VK_SAMPLE_COUNT_1_BIT,
+			0, this->swapchain.imageFormat, this->msaaSamples,
 			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
 			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 		);
 		VkAttachmentDescription depthAttachment = Create::AttachmentDescription(
-			0, DEFAULT_DEPTH_FORMAT, VK_SAMPLE_COUNT_1_BIT,
+			0, DEFAULT_DEPTH_FORMAT, this->msaaSamples,
 			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
 		);
+		VkAttachmentDescription colorAttachmentResolve = Create::AttachmentDescription(
+			0, this->swapchain.imageFormat, VK_SAMPLE_COUNT_1_BIT,
+			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
+			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+		);
+
 		VkAttachmentReference colorAttachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 		VkAttachmentReference depthAttachmentRef = Create::AttachmentReference(1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+		VkAttachmentReference colorAttachmentResolveRef = Create::AttachmentReference(2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
 		constexpr VkSubpassDependency colorDependency = Create::SubpassDependency(
 			VK_SUBPASS_EXTERNAL, 0,
 			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -185,10 +220,10 @@ namespace Crescendo
 			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
 			0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0
 		);
-		std::vector<VkAttachmentDescription> attachments{ colorAttachment, depthAttachment };
+		std::vector<VkAttachmentDescription> attachments{ colorAttachment, depthAttachment, colorAttachmentResolve };
 		std::vector<VkSubpassDependency> dependencies{ colorDependency, depthDependency };
 		const VkSubpassDescription subpass = Create::SubpassDescription(
-			0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &colorAttachmentRef, nullptr, &depthAttachmentRef, 0, nullptr
+			0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &colorAttachmentRef, &colorAttachmentResolveRef, &depthAttachmentRef, 0, nullptr
 		);
 		this->defaultRenderPass = this->CreateRenderPass(attachments, { subpass }, dependencies);
 
@@ -200,7 +235,7 @@ namespace Crescendo
 	{
 		for (size_t i = 0, size = this->swapchain.images.size(); i < size; i++)
 		{
-			const std::vector<VkImageView> attachments = { this->swapchain.images[i].imageView, this->depthBuffer.imageView };
+			const std::vector<VkImageView> attachments = { this->multisamplingBuffer.imageView, this->depthBuffer.imageView, this->swapchain.images[i].imageView };
 			VkFramebufferCreateInfo framebufferInfo = Create::FramebufferCreateInfo(
 				nullptr, 0, this->defaultRenderPass, attachments.size(), attachments.data(), { info.windowExtent.width, info.windowExtent.height }, 1
 			);
