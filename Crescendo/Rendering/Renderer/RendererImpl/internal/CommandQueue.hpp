@@ -59,7 +59,7 @@ namespace Crescendo::internal
 		}
 		inline void BindIndexBuffer(VkBuffer indexBuffer, VkIndexType indexType = VK_INDEX_TYPE_UINT32) const
 		{
-			vkCmdBindIndexBuffer(this->commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindIndexBuffer(this->commandBuffer, indexBuffer, 0, indexType);
 		}
 		inline void BindDescriptorSets(VkPipelineLayout layout, const std::vector<VkDescriptorSet>& sets, const std::vector<uint32_t>& offsets, uint32_t firstSet = 0, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const
 		{

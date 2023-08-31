@@ -442,19 +442,19 @@ namespace Crescendo::internal::Create
 
 		return createInfo;
 	}
-	inline constexpr VkSamplerCreateInfo SamplerCreateInfo(const void* pNext, VkSamplerCreateFlags flags, VkFilter magFilter, VkFilter minFilter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressModeU, VkSamplerAddressMode addressModeV, VkSamplerAddressMode addressModeW, float mipLodBias, VkBool32 anisotropyEnable, float maxAnisotropy, VkBool32 compareEnable, VkCompareOp compareOp, float minLod, float maxLod, VkBorderColor borderColor, VkBool32 unnormalizedCoordinates)
+	inline constexpr VkSamplerCreateInfo SamplerCreateInfo(VkSamplerCreateFlags flags, VkFilter magFilter, VkFilter minFilter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, float mipLodBias, VkBool32 anisotropyEnable, float maxAnisotropy, VkBool32 compareEnable, VkCompareOp compareOp, float minLod, float maxLod, VkBorderColor borderColor)
 	{
 		VkSamplerCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-		createInfo.pNext = pNext;
+		createInfo.pNext = nullptr;
 		createInfo.flags = flags;
 		createInfo.magFilter = magFilter;
 		createInfo.minFilter = minFilter;
 		createInfo.mipmapMode = mipmapMode;
-		createInfo.addressModeU = addressModeU;
-		createInfo.addressModeV = addressModeV;
-		createInfo.addressModeW = addressModeW;
+		createInfo.addressModeU = addressMode;
+		createInfo.addressModeV = addressMode;
+		createInfo.addressModeW = addressMode;
 		createInfo.mipLodBias = mipLodBias;
 		createInfo.anisotropyEnable = anisotropyEnable;
 		createInfo.maxAnisotropy = maxAnisotropy;
@@ -463,7 +463,7 @@ namespace Crescendo::internal::Create
 		createInfo.minLod = minLod;
 		createInfo.maxLod = maxLod;
 		createInfo.borderColor = borderColor;
-		createInfo.unnormalizedCoordinates = unnormalizedCoordinates;
+		createInfo.unnormalizedCoordinates = VK_FALSE;
 
 		return createInfo;
 	}
@@ -698,5 +698,29 @@ namespace Crescendo::internal::Create
 		subresourceRange.layerCount = layerCount;
 
 		return subresourceRange;
+	}
+	inline constexpr VkImageBlit ImageBlit(VkImageSubresourceLayers srcSubresource, const std::array<VkOffset3D, 2>& srcOffsets, VkImageSubresourceLayers dstSubresource, const std::array<VkOffset3D, 2>& dstOffsets)
+	{
+		VkImageBlit imageBlit = {};
+
+		imageBlit.srcSubresource = srcSubresource;
+		imageBlit.srcOffsets[0] = srcOffsets[0];
+		imageBlit.srcOffsets[1] = srcOffsets[1];
+		imageBlit.dstSubresource = dstSubresource;
+		imageBlit.dstOffsets[0] = dstOffsets[0];
+		imageBlit.dstOffsets[1] = dstOffsets[1];
+
+		return imageBlit;
+	}
+	inline constexpr VkImageSubresourceLayers ImageSubresourceLayers(VkImageAspectFlags aspectMask, uint32_t mipLevel, uint32_t baseArrayLayer, uint32_t layerCount)
+	{
+		VkImageSubresourceLayers subresourceLayers = {};
+
+		subresourceLayers.aspectMask = aspectMask;
+		subresourceLayers.mipLevel = mipLevel;
+		subresourceLayers.baseArrayLayer = baseArrayLayer;
+		subresourceLayers.layerCount = layerCount;
+
+		return subresourceLayers;
 	}
 }

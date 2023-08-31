@@ -81,7 +81,7 @@ namespace Crescendo
 		constexpr VkPolygonMode FILL_MODE_MAP[3] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
 		const VkDeviceSize UNIFORM_ALIGNMENT = this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
 
-		const uint32_t currentLayoutIndex = this->descriptorSetLayouts.size();
+		const uint32_t currentLayoutIndex = this->dataDescriptorSetLayouts.size();
 
 		// Load shader modules
 		VkShaderModule	vertModule = this->CreateShaderModule(vertexShader),
@@ -95,8 +95,8 @@ namespace Crescendo
 		
 		// Collect descriptor set layouts bindings
 		std::vector<std::vector<VkDescriptorSetLayoutBinding>>	dataLayoutsBindings = vertReflection.GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType::Block, VK_SHADER_STAGE_VERTEX_BIT),
-																fragLayoutsBindings = fragReflection.GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType::Block, VK_SHADER_STAGE_FRAGMENT_BIT);
-		dataLayoutsBindings.insert(dataLayoutsBindings.end(), fragLayoutsBindings.begin(), fragLayoutsBindings.end());
+																fragDataLayoutsBindings = fragReflection.GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType::Block, VK_SHADER_STAGE_FRAGMENT_BIT);
+		dataLayoutsBindings.insert(dataLayoutsBindings.end(), fragDataLayoutsBindings.begin(), fragDataLayoutsBindings.end());
 
 		std::vector<SpirvReflection::DescriptorSetLayout>	dataSets = vertReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Block),
 															fragSets = fragReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Block);	
@@ -115,23 +115,23 @@ namespace Crescendo
 			vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &setLayouts[i]);
 			
 			// Set layout offsets
-			uint32_t lastSize = (this->descriptorSetLayoutOffsets.size() >= 1) ? this->descriptorSetLayoutOffsets.back().back() : 0;
+			uint32_t lastSize = (this->dataDescriptorSetLayoutOffsets.size() >= 1) ? this->dataDescriptorSetLayoutOffsets.back().back() : 0;
 			std::vector<uint32_t> offsets(1, lastSize);
 			for (const auto& binding : dataSets[i].bindings)
 			{
 				offsets.push_back(offsets.back() + PaddedSize(binding.GetSize(), UNIFORM_ALIGNMENT));
 			}
-			this->descriptorSetLayoutOffsets.push_back(offsets);
+			this->dataDescriptorSetLayoutOffsets.push_back(offsets);
 
 			// Create and write descriptor sets
 			for (uint32_t j = 0; j < this->state.framesInFlight; j++)
 			{
 				VkDescriptorSet descriptorSet = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, setLayouts[i]);
-				this->descriptorSets.push_back(descriptorSet);
+				this->dataDescriptorSets.push_back(descriptorSet);
 				for (const auto& binding : dataSets[i].bindings)
 				{
 					VkDescriptorBufferInfo bufferInfo = Create::DescriptorBufferInfo(
-						this->descriptorSetBuffers[j].buffer, 0, binding.GetSize()
+						this->dataDescriptorSetBuffers[j].buffer, 0, binding.GetSize()
 					);
 					VkWriteDescriptorSet setWrite = Create::WriteDescriptorSet(
 						descriptorSet, binding.binding, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, nullptr, &bufferInfo, nullptr
@@ -140,9 +140,16 @@ namespace Crescendo
 				}
 			}
 		}
-		this->descriptorSetLayouts.insert(this->descriptorSetLayouts.end(), setLayouts.begin(), setLayouts.end());
+		this->dataDescriptorSetLayouts.insert(this->dataDescriptorSetLayouts.end(), setLayouts.begin(), setLayouts.end());
 
 		/* -------------------------------- 3. Sampler Descriptors -------------------------------- */
+
+		// Collect sampler descriptor set layouts
+		std::vector<SpirvReflection::DescriptorSetLayout>	samplerSets = vertReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Sampler),
+															fragSamplerSets = fragReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Sampler);
+		samplerSets.insert(samplerSets.end(), fragSamplerSets.begin(), fragSamplerSets.end());
+
+		setLayouts.push_back(this->textureDescriptorSetLayout);
 
 		/* -------------------------------- 3. Pipeline Creation -------------------------------- */
 
@@ -197,11 +204,12 @@ namespace Crescendo
 		);
 		pipelineBuilderInfo.pipelineLayout = pipelineLayout;
 
-		// Create the pipeline
-		std::vector<uint32_t> descriptorHandles(setLayouts.size());
-		for (uint32_t i = 0; i < setLayouts.size(); i++) descriptorHandles[i] = currentLayoutIndex + i;
+		// Assign the relevant descriptor handles
+		std::vector<uint32_t> descriptorHandles(datalayoutCount);
+		for (uint32_t i = 0; i < datalayoutCount; i++) descriptorHandles[i] = currentLayoutIndex + i;
 
-		this->pipelines.emplace_back(pipelineLayout, this->CreatePipeline(pipelineBuilderInfo), descriptorHandles);
+		// Create the pipeline
+		this->pipelines.emplace_back(pipelineLayout, this->CreatePipeline(pipelineBuilderInfo), descriptorHandles, 2);
 
 		// Destroy shader modules, reflection will delete itself
 		vkDestroyShaderModule(this->device, fragModule, nullptr);
@@ -259,10 +267,25 @@ namespace Crescendo
 
 		this->allocator.DestroyBuffer(staging);
 	}
-	void Renderer::RendererImpl::UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels)
+	void Renderer::RendererImpl::UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps)
 	{
-		CS_ASSERT(channels != 4, "Image is not RGBA, only RGBA images are currently supported");
+		CS_ASSERT(channels == 4, "Image is not RGBA, only RGBA images are currently supported");
 		constexpr VkFormat DEFAULT_FORMAT = VK_FORMAT_R8G8B8A8_SRGB;
+
+		uint32_t mipLevels = generateMipmaps ? static_cast<uint32_t>(std::log2(std::max(width, height))) + 1 : 1;
+		
+		// Create samplers dynamically as required for mip levels
+		for (uint32_t i = static_cast<uint32_t>(samplers.size()); i < mipLevels; i++)
+		{
+			VkSampler sampler;
+			VkSamplerCreateInfo samplerInfo = Create::SamplerCreateInfo(
+				0, VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+				0.0f, VK_TRUE, this->physicalDeviceProperties.limits.maxSamplerAnisotropy, VK_FALSE, VK_COMPARE_OP_ALWAYS,
+				0.0f, static_cast<float>(i), VK_BORDER_COLOR_INT_OPAQUE_BLACK
+			);
+			vkCreateSampler(this->device, &samplerInfo, nullptr, &sampler);
+			this->samplers.push_back(sampler);
+		}
 
 		// Stage the image data
 		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(textureData.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
@@ -273,34 +296,107 @@ namespace Crescendo
 		VkImageViewCreateInfo imageViewInfo = Create::ImageViewCreateInfo(
 			0, nullptr, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_FORMAT,
 			{ VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY },
-			Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
+			Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 		);
 		internal::Allocator::Image image = this->allocator.CreateImage(Create::ImageCreateInfo(
 			nullptr, 0, VK_IMAGE_TYPE_2D, DEFAULT_FORMAT, extent,
-			1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			mipLevels, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
 		), imageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY);
 
-		// Transition the image to a transfer destination
-		this->uploadTextureQueue.InstantSubmit([=](const internal::CommandQueue& cmd) {
-			VkImageSubresourceRange subresourceRange = Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1);
-			VkBufferImageCopy region = Create::BufferImageCopy(0, 0, 0, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 }, extent);
+		// Check if format is blit compatible
+		VkFormatProperties formatProperties;
+		vkGetPhysicalDeviceFormatProperties(this->physicalDevice, DEFAULT_FORMAT, &formatProperties);
+		CS_ASSERT(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT, "Format is not blit compatible");
+
+		// Transition to blit compatible
+		this->uploadTextureQueue.InstantSubmit([&](const internal::CommandQueue& cmd) {
 			VkImageMemoryBarrier barrier = Create::ImageMemoryBarrier(
 				0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, image.image, subresourceRange
-			);
-			VkImageMemoryBarrier barrier2 = Create::ImageMemoryBarrier(
-				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, image.image, subresourceRange
+				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, image.image,
+				Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 			);
 
-			vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-			vkCmdCopyBufferToImage(cmd.commandBuffer, staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-			vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier2);
+			VkPipelineStageFlags srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+			vkCmdPipelineBarrier(cmd.commandBuffer, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 		});
 
+		// Copy buffer to image
+		this->uploadTextureQueue.InstantSubmit([&](const internal::CommandQueue& cmd) {
+			VkBufferImageCopy region = Create::BufferImageCopy(
+				0, 0, 0, Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1), { 0, 0, 0 }, extent
+			);
+			vkCmdCopyBufferToImage(cmd.commandBuffer, staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+		});
+
+		// Transition the image to a transfer destination
+		this->uploadTextureQueue.InstantSubmit([&](const internal::CommandQueue& cmd) {
+			VkImageMemoryBarrier barrier = Create::ImageMemoryBarrier(
+				0, 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_UNDEFINED,
+				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, image.image,
+				Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
+			);
+
+			uint32_t mipWidth = width, mipHeight = height;
+
+			for (uint32_t i = 1; i < mipLevels; i++)
+			{
+				barrier.subresourceRange.baseMipLevel = i - 1;
+				barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+				barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+				barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+				vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+				VkImageBlit blit = Create::ImageBlit(
+					Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i - 1, 0, 1),
+					{ {
+						{ 0, 0, 0 },
+						{ static_cast<int32_t>(mipWidth), static_cast<int32_t>(mipHeight), 1 }
+					} },
+					Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i, 0, 1),
+					{ {
+						{ 0, 0, 0 },
+						{ static_cast<int32_t>(mipWidth > 1 ? mipWidth / 2 : 1), static_cast<int32_t>(mipHeight > 1 ? mipHeight / 2 : 1), 1 }
+					} }
+				);
+
+				vkCmdBlitImage(cmd.commandBuffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+
+				barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+				barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+				barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+				vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+				if (mipWidth > 1) mipWidth /= 2;
+				if (mipHeight > 1) mipHeight /= 2;
+			}
+
+			barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+			vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+		});
+
+		VkDescriptorSet descriptorSet = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->textureDescriptorSetLayout);
+		VkDescriptorImageInfo imageInfo = Create::DescriptorImageInfo(
+			this->samplers[mipLevels - 1], image.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		);
+		VkWriteDescriptorSet write = Create::WriteDescriptorSet(
+			descriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo, nullptr, nullptr
+		);
+		vkUpdateDescriptorSets(this->device, 1, &write, 0, nullptr);
+
 		this->images.push_back(image);
+		this->imageDescriptorSets.push_back(descriptorSet);
 		this->allocator.DestroyBuffer(staging);
 	}
 }

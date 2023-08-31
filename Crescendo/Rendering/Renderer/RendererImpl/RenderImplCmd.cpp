@@ -63,12 +63,12 @@ namespace Crescendo
 		std::vector<uint32_t> offsets;
 		for (uint32_t i = 0; i < currentPipeline.dataDescriptorHandles.size(); i++)
 		{
-			descriptorSets.push_back(this->descriptorSets[currentPipeline.dataDescriptorHandles[i] * this->state.framesInFlight + this->GetFrameIndex()]);
+			descriptorSets.push_back(this->dataDescriptorSets[currentPipeline.dataDescriptorHandles[i] * this->state.framesInFlight + this->GetFrameIndex()]);
 			// -1 because we ignore the last element because it specifies the end of the buffer
 			offsets.insert(
 				offsets.end(),
-				this->descriptorSetLayoutOffsets[currentPipeline.dataDescriptorHandles[i]].begin(),
-				this->descriptorSetLayoutOffsets[currentPipeline.dataDescriptorHandles[i]].end() - 1
+				this->dataDescriptorSetLayoutOffsets[currentPipeline.dataDescriptorHandles[i]].begin(),
+				this->dataDescriptorSetLayoutOffsets[currentPipeline.dataDescriptorHandles[i]].end() - 1
 			);
 		}
 		cmd.BindDescriptorSets(currentPipeline.layout, descriptorSets, offsets);
@@ -82,6 +82,15 @@ namespace Crescendo
 			this->vertexBuffers[TEXTURE_UVS].buffer
 			}, { 0, 0, 0 });
 		cmd.BindIndexBuffer(this->vertexBuffers[INDICES].buffer);
+	}
+	void Renderer::RendererImpl::BindTexture(uint32_t textureIndex)
+	{
+		const FrameData& currentFrame = this->GetCurrentFrameData();
+		const internal::CommandQueue& cmd = currentFrame.commandQueue;
+
+		const Pipeline currentPipeline = this->pipelines[this->state.boundPipelineIndex];
+
+		cmd.BindDescriptorSets(currentPipeline.layout, { this->imageDescriptorSets[textureIndex] }, {}, currentPipeline.samplerDescriptorSet);
 	}
 	void Renderer::RendererImpl::UpdatePushConstant(ShaderStage stage, const void* data, uint32_t size)
 	{
@@ -126,8 +135,8 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::UpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size)
 	{
-		CS_ASSERT(size <= (this->descriptorSetLayoutOffsets[descriptorSetIndex][binding + 1] - this->descriptorSetLayoutOffsets[descriptorSetIndex][binding]), "Provided data is larger than the descriptor set size, This can lead to buffer overflow!");
-		const uint32_t memOffset = this->descriptorSetLayoutOffsets[descriptorSetIndex][binding];
-		memcpy(static_cast<char*>(this->descriptorSetBuffers[this->GetFrameIndex()].memoryLocation) + memOffset, data, size);
+		CS_ASSERT(size <= (this->dataDescriptorSetLayoutOffsets[descriptorSetIndex][binding + 1] - this->dataDescriptorSetLayoutOffsets[descriptorSetIndex][binding]), "Provided data is larger than the descriptor set size, This can lead to buffer overflow!");
+		const uint32_t memOffset = this->dataDescriptorSetLayoutOffsets[descriptorSetIndex][binding];
+		memcpy(static_cast<char*>(this->dataDescriptorSetBuffers[this->GetFrameIndex()].memoryLocation) + memOffset, data, size);
 	}
 }

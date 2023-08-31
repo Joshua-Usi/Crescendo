@@ -73,8 +73,10 @@ namespace Crescendo
 		VkPipeline pipeline;
 		// Shows the associated data descriptor layouts, sets and offsets
 		std::vector<uint32_t> dataDescriptorHandles;
+		// Set number of the sampler descriptor set
+		uint32_t samplerDescriptorSet;
 
-		inline Pipeline(VkPipelineLayout layout, VkPipeline pipeline, std::vector<uint32_t> dataDescriptorHandles) : layout(layout), pipeline(pipeline), dataDescriptorHandles(dataDescriptorHandles) {}
+		inline Pipeline(VkPipelineLayout layout, VkPipeline pipeline, std::vector<uint32_t> dataDescriptorHandles, uint32_t samplerDescriptorSet) : layout(layout), pipeline(pipeline), dataDescriptorHandles(dataDescriptorHandles), samplerDescriptorSet(samplerDescriptorSet) {}
 	};
 
 	class Renderer::RendererImpl
@@ -117,16 +119,18 @@ namespace Crescendo
 		internal::DescriptorManager descriptorManager;
 
 		// Data only descriptor layouts
-		std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
+		std::vector<VkDescriptorSetLayout> dataDescriptorSetLayouts;
 		// Offsets of each binding within a specific layout
-		std::vector<std::vector<uint32_t>> descriptorSetLayoutOffsets;
+		std::vector<std::vector<uint32_t>> dataDescriptorSetLayoutOffsets;
 		// One per frame in flight, each descriptor set is stored in a contiguous block of memory
 		// Not entirely sure how texture descriptors are going to work, so I'm just going to store them in a separate buffer
-		std::vector<internal::Allocator::Buffer> descriptorSetBuffers;
+		std::vector<internal::Allocator::Buffer> dataDescriptorSetBuffers;
 		// Data descriptors for each frame in flight
-		std::vector<VkDescriptorSet> descriptorSets;
+		std::vector<VkDescriptorSet> dataDescriptorSets;
 
-		std::vector<VkDescriptorSetLayout> textureDescriptorSetLayouts;
+		VkDescriptorSetLayout textureDescriptorSetLayout;
+		// One per mip level, dynamically created when a texture is loaded
+		std::vector<VkSampler> samplers;
 
 		// I don't know how to transfer queue ownership, so I'm just going to create a universal queue for uploading textures
 		// TODO figure out how switch texture uploading to dedicated transfer queue
@@ -163,6 +167,7 @@ namespace Crescendo
 		void BeginFrame(const VkClearValue& clearColor);
 		void EndFrame();
 		void BindPipeline(uint32_t pipelineIndex);
+		void BindTexture(uint32_t textureIndex);
 		void UpdatePushConstant(ShaderStage stage, const void* data, uint32_t size);
 		void Draw(uint32_t mesh);
 		void PresentFrame();
@@ -176,6 +181,6 @@ namespace Crescendo
 		// Upload commands
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variations);
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
-		void UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels);
+		void UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 	};
 }

@@ -219,8 +219,19 @@ namespace Crescendo
 	{
 		constexpr uint32_t SETS_PER_POOL = 128;
 		this->descriptorManager = internal::DescriptorManager(this->device).Initialise(SETS_PER_POOL);
+
+		// Create the default texture descriptor set layout
+		std::vector<VkDescriptorSetLayoutBinding> samplerLayoutBinding = { Create::DescriptorSetLayoutBinding(
+			0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr
+		) };
+		VkDescriptorSetLayoutCreateInfo layoutInfo = Create::DescriptorSetLayoutCreateInfo(samplerLayoutBinding);
+		vkCreateDescriptorSetLayout(this->device, &layoutInfo, nullptr, &this->textureDescriptorSetLayout);
+
 		this->mainDeletionQueue.Push([&]() {
-			for (auto& descriptorSetLayout : this->descriptorSetLayouts) vkDestroyDescriptorSetLayout(this->device, descriptorSetLayout, nullptr);
+			for (auto& sampler : this->samplers) vkDestroySampler(this->device, sampler, nullptr);
+			vkDestroyDescriptorSetLayout(this->device, this->textureDescriptorSetLayout, nullptr);
+
+			for (auto& descriptorSetLayout : this->dataDescriptorSetLayouts) vkDestroyDescriptorSetLayout(this->device, descriptorSetLayout, nullptr);
 			this->descriptorManager.Destroy();
 		});
 	}
@@ -248,14 +259,14 @@ namespace Crescendo
 		// Descriptor buffer initialisation
 		for (uint32_t i = 0; i < info.framesInFlight; i++)
 		{
-			this->descriptorSetBuffers.push_back(this->allocator.CreateBuffer(info.descriptorBufferBlockSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU));
+			this->dataDescriptorSetBuffers.push_back(this->allocator.CreateBuffer(info.descriptorBufferBlockSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU));
 		}
 
 		this->mainDeletionQueue.Push([&]() {
 			// Delete vertex buffers
 			for (auto& vertexBuffer : this->vertexBuffers) this->allocator.DestroyBuffer(vertexBuffer);
 			// Delete descriptor buffers
-			for (auto& descriptorSetBuffer : this->descriptorSetBuffers) this->allocator.DestroyBuffer(descriptorSetBuffer);
+			for (auto& descriptorSetBuffer : this->dataDescriptorSetBuffers) this->allocator.DestroyBuffer(descriptorSetBuffer);
 			// Delete texture buffers
 			for (auto& image : this->images) this->allocator.DestroyImage(image);
 		});

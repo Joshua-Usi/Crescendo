@@ -34,8 +34,12 @@ namespace Crescendo::IO
 			model.meshes[s].normals.resize   (3 * VERTICES_PER_FACE * shapes[s].mesh.num_face_vertices.size());
 			model.meshes[s].textureUVs.resize(2 * VERTICES_PER_FACE * shapes[s].mesh.num_face_vertices.size());
 			model.meshes[s].indices.resize   (3                     * shapes[s].mesh.num_face_vertices.size());
+
+			model.meshes[s].albedo = materials[shapes[s].mesh.material_ids[0]].ambient_texname;
+
 			for (size_t f = 0, fSize = shapes[s].mesh.num_face_vertices.size(); f < fSize; f++)
 			{
+				// We are going to assume that all faces are triangles
 				for (size_t v = 0; v < VERTICES_PER_FACE; v++)
 				{
 					const rapidobj::Index& index = shapes[s].mesh.indices[indexOffset + v];

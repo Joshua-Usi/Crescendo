@@ -11,6 +11,8 @@ namespace Crescendo::IO
 	{
 		stbi_set_flip_vertically_on_load(true);
 
+		constexpr int FIXED_CHANNELS = 4;
+
 		int width, height, channels;
 
 		// Force 4 channel RGBA
@@ -21,8 +23,8 @@ namespace Crescendo::IO
 		// MMM I don't like how we have to copy but it is what it is
 		// At least this memory is safe and will be freed
 		std::vector<uint8_t> data;
-		data.insert(data.end(), pixels, pixels + (width * height * 4));
-		Image image(data, width, height, channels);
+		data.insert(data.end(), pixels, pixels + (width * height * FIXED_CHANNELS));
+		Image image(data, width, height, FIXED_CHANNELS);
 
 		stbi_image_free(pixels);
 

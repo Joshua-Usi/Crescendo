@@ -153,7 +153,7 @@ namespace Crescendo
 		std::vector<VkVertexInputBindingDescription> bindings(this->inputVariables.size());
 		for (uint32_t i = 0; i < this->inputVariables.size(); i++)
 		{
-			bindings[i] = { i, this->inputVariables[i].size, VK_VERTEX_INPUT_RATE_VERTEX };
+			bindings[i] = { this->inputVariables[i].location, this->inputVariables[i].size, VK_VERTEX_INPUT_RATE_VERTEX};
 		}
 		return bindings;
 	}

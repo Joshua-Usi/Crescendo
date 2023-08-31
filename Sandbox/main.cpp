@@ -9,6 +9,8 @@ namespace IO = Crescendo::IO;
 #include "glm/gtx/common.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
+#include <unordered_map>
+
 class Sandbox : public Application
 {
 private:
@@ -16,6 +18,8 @@ private:
 	float pMouseX = 0.0f, pMouseY = 0.0f, sens = 1.0f;
 
 	uint32_t meshCount = 0;
+
+	std::vector<uint32_t> textureIDs;
 
 	Renderer renderer = {};
 
@@ -77,7 +81,6 @@ public:
 		struct Shader { std::string name; Renderer::PipelineVariant variant; };
 		std::vector<Shader> shaderList = {
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant() },
-			{"./shaders/compiled/mesh", Renderer::PipelineVariant() },
 		};
 		for (const auto& shader : shaderList)
 		{
@@ -89,11 +92,20 @@ public:
 		}
 
 		// Upload textures
-		std::vector<std::string> textures = { "./assets/textures/background.png" };
-		for (const auto& texture : textures)
+		std::unordered_map<std::string, uint32_t> seenTextures;
+		int i = 0;
+		for (const auto& mesh : model.meshes)
 		{
-			IO::Image image = IO::LoadImage(texture);
-			this->renderer.UploadTexture(image.pixels, image.width, image.height, image.channels);
+			if (mesh.albedo.empty() || seenTextures.find(mesh.albedo) != seenTextures.end())
+			{
+				this->textureIDs.push_back(seenTextures[mesh.albedo]);
+				continue;
+			}
+			seenTextures[mesh.albedo] = i;
+			this->textureIDs.push_back(seenTextures[mesh.albedo]);
+			IO::Image image = IO::LoadImage("./assets/" + mesh.albedo);
+			this->renderer.UploadTexture(image.pixels, image.width, image.height, image.channels, true);
+			i++;
 		}
 	}
 	void OnUpdate(double dt)
@@ -137,19 +149,19 @@ public:
 
 		this->renderer.UpdateDescriptorSetData(0, 0, vp);
 		this->renderer.UpdateDescriptorSetData(1, 0, lighting);
-		this->renderer.UpdateDescriptorSetData(1, 1, glm::vec3(0.1f, 0.0f, 0.0f));
-
-		this->renderer.UpdateDescriptorSetData(2, 0, vp);
-		this->renderer.UpdateDescriptorSetData(3, 0, lighting);
-		this->renderer.UpdateDescriptorSetData(3, 1, glm::vec3(1.0f, 0.0f, 0.0f));
+		this->renderer.UpdateDescriptorSetData(1, 1, glm::vec3(0.5f, 0.0f, 0.0f));
 
 		// Render commands
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.1f, 1.0f);
 
 		this->renderer.CmdBindPipeline(Input::GetKeyDown(Key::One) ? 1 : 0);
-		glm::mat4 model = glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, model);
-		for (uint32_t i = 0; i < this->meshCount; i++) this->renderer.CmdDraw(i);
+		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f)));
+		for (uint32_t i = 0; i < this->meshCount; i++)
+		{
+			// What do you think these arguments denote:
+			this->renderer.CmdBindTexture(textureIDs[i]);
+			this->renderer.CmdDraw(i);
+		}
 
 		this->renderer.CmdEndFrame();
 		this->renderer.CmdPresentFrame();
