@@ -6,6 +6,21 @@ namespace Crescendo
 	constexpr VkPresentModeKHR PRESENT_MODE_MAPPING[2] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR };
 	constexpr VkFormat DEFAULT_DEPTH_FORMAT = VK_FORMAT_D24_UNORM_S8_UINT;
 
+	VkSampleCountFlagBits sampleMap(uint32_t samples)
+	{
+		switch (samples)
+		{
+			case std::numeric_limits<uint32_t>::max():
+			case 64: return VK_SAMPLE_COUNT_64_BIT;
+			case 32: return VK_SAMPLE_COUNT_32_BIT;
+			case 16: return VK_SAMPLE_COUNT_16_BIT;
+			case 8:  return VK_SAMPLE_COUNT_8_BIT;
+			case 4:  return VK_SAMPLE_COUNT_4_BIT;
+			case 2:  return VK_SAMPLE_COUNT_2_BIT;
+			// If an invalid value is provided , default to 1 sample
+			default: return VK_SAMPLE_COUNT_1_BIT;
+		}
+	}
 	VkSampleCountFlagBits getMaxSampleCounts(VkPhysicalDeviceProperties properties)
 	{
 		VkSampleCountFlags counts = properties.limits.framebufferColorSampleCounts & properties.limits.framebufferDepthSampleCounts;
@@ -89,8 +104,8 @@ namespace Crescendo
 		std::cout << "\tMax sampler anisotropy: " << this->physicalDeviceProperties.limits.maxSamplerAnisotropy << "\n";
 		std::cout << "\tMax frame & depth buffer samples: " << getMaxSampleCounts(this->physicalDeviceProperties) << "\n";
 
-		this->msaaSamples = getMaxSampleCounts(this->physicalDeviceProperties);
-		
+		this->msaaSamples = std::min(sampleMap(info.msaaSamples), getMaxSampleCounts(this->physicalDeviceProperties));
+
 		// Push to deletion queue
 		this->mainDeletionQueue.Push([&]() {
 			this->swapChainDeletionQueue.Flush();

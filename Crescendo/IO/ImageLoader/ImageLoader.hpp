@@ -12,7 +12,8 @@ namespace Crescendo::IO
 	{
 		std::vector<uint8_t> pixels;
 		uint32_t width, height, channels;
+		bool isTransparent;
 	};
 
-	Image LoadImage(const std::filesystem::path& path);
+	Image LoadImage(const std::filesystem::path& path, bool flipOnLoad = true);
 }

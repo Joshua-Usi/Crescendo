@@ -13,7 +13,7 @@ namespace Crescendo::IO
 			std::vector<float> vertices, normals, textureUVs;
 			std::vector<uint32_t> indices;
 			// Texture map paths
-			std::string albedo;
+			std::string albedo, diffuse;
 		};
 		std::vector<Mesh> meshes;
 	};

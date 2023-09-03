@@ -36,6 +36,7 @@ namespace Crescendo::IO
 			model.meshes[s].indices.resize   (3                     * shapes[s].mesh.num_face_vertices.size());
 
 			model.meshes[s].albedo = materials[shapes[s].mesh.material_ids[0]].ambient_texname;
+			model.meshes[s].diffuse = materials[shapes[s].mesh.material_ids[0]].diffuse_texname;
 
 			for (size_t f = 0, fSize = shapes[s].mesh.num_face_vertices.size(); f < fSize; f++)
 			{

@@ -20,6 +20,7 @@ private:
 	uint32_t meshCount = 0;
 
 	std::vector<uint32_t> textureIDs;
+	std::vector<bool> isTransparent;
 
 	Renderer renderer = {};
 
@@ -34,7 +35,6 @@ public:
 
 		this->sens = CVar::Get<double>("sensitivity");
 		this->camera = Graphics::Camera(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 100000.0f });
-		this->camera.SetRotation(glm::vec3(0.0f, 0.0f, 0.0f));
 
 		Renderer::BuilderInfo info;
 
@@ -48,58 +48,75 @@ public:
 		info.framesInFlight = 3; // Triple buffering
 		info.vertexBufferBlockSize = std::powl(2, 24); // use 24 for sponza, 28 for rungholt
 		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
+		info.msaaSamples = 1;
 
 		this->renderer = Renderer::Create(info);
 
-		// Upload meshes
-		IO::Model model;
+		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
+		IO::Model skyboxModel = {{{ skybox.vertices, skybox.normals, skybox.textureUVs, skybox.indices, "./assets/skybox-night.png", }}};
 
-		CS_TIME(model = IO::LoadOBJ("./assets/sponza/sponza.obj"), "Sponza Model load");
-		//CS_TIME(model = IO::LoadOBJ("./assets/sponza/rungholt.obj"), "Rungholt Model load");
+		std::vector<IO::Model> models =
+		{
+			IO::LoadOBJ("./assets/sponza/sponza.obj"),
+			skyboxModel
+		};
+
+		for (auto& mesh : models[0].meshes) mesh.albedo = (!mesh.albedo.empty()) ? "./assets/sponza/" + mesh.albedo : "";
 
 		std::unordered_map<std::string, uint32_t> seenTextures;
-		this->meshCount = model.meshes.size();
-		uint32_t triangleCount = 0, i = 0, bufferSpace[4] = { 0, 0, 0, 0 };
-		for (const auto& mesh : model.meshes)
+		std::unordered_map<std::string, bool> seenAlphas;
+		this->meshCount = 0;
+		uint32_t i = 0;
+		for (const auto& model : models)
 		{
-			// Mesh upload
-			triangleCount += mesh.indices.size() / 3;
-			bufferSpace[0] += mesh.vertices.size() * sizeof(float);
-			bufferSpace[1] += mesh.normals.size() * sizeof(float);
-			bufferSpace[2] += mesh.textureUVs.size() * sizeof(float);
-			bufferSpace[3] += mesh.indices.size() * sizeof(uint32_t);
-			this->renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
+			this->meshCount += model.meshes.size();
+			uint32_t triangleCount = 0, bufferSpace[4] = { 0, 0, 0, 0 };
+			
+			for (const auto& mesh : model.meshes)
+			{
+				// Mesh upload
+				triangleCount += mesh.indices.size() / 3;
+				bufferSpace[0] += mesh.vertices.size() * sizeof(float);
+				bufferSpace[1] += mesh.normals.size() * sizeof(float);
+				bufferSpace[2] += mesh.textureUVs.size() * sizeof(float);
+				bufferSpace[3] += mesh.indices.size() * sizeof(uint32_t);
+				this->renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
 
-			// Texture upload
-			if (mesh.albedo.empty() || seenTextures.find(mesh.albedo) != seenTextures.end())
-			{
-				this->textureIDs.push_back(seenTextures[mesh.albedo]);
-			}
-			else
-			{
-				seenTextures[mesh.albedo] = i;
-				this->textureIDs.push_back(seenTextures[mesh.albedo]);
-				IO::Image image = IO::LoadImage("./assets/sponza/" + mesh.albedo);
-				this->renderer.UploadTexture(image.pixels, image.width, image.height, image.channels, true);
-				i++;
+				// Texture upload
+				if (mesh.albedo.empty() || seenTextures.find(mesh.albedo) != seenTextures.end())
+				{
+					this->textureIDs.push_back(seenTextures[mesh.albedo]);
+					this->isTransparent.push_back(seenAlphas[mesh.albedo]);
+				}
+				else
+				{
+					IO::Image image = IO::LoadImage(mesh.albedo);
+					seenTextures[mesh.albedo] = i;
+					this->textureIDs.push_back(seenTextures[mesh.albedo]);
+
+					seenAlphas[mesh.albedo] = image.isTransparent;
+					this->isTransparent.push_back(image.isTransparent);
+
+					this->renderer.UploadTexture(image.pixels, image.width, image.height, image.channels, true);
+					i++;
+				}
 			}
 		}
-
-		std::cout << "Mesh has " << triangleCount << " triangles" << std::endl;
-		std::cout << "Buffer sizes: V:"	<< bufferSpace[0] / 1024 / 1024 << "MB N:" << bufferSpace[1] / 1024 / 1024 << "MB UV:" << bufferSpace[2] / 1024 / 1024 << "MB I:" << bufferSpace[3] / 1024 / 1024 << "MB" << std::endl;
 
 		// Upload shaders (creates pipelines and descriptor sets)
 		// Shader loading
 		struct Shader { std::string name; Renderer::PipelineVariant variant; };
 		std::vector<Shader> shaderList = {
-			{"./shaders/compiled/mesh", Renderer::PipelineVariant() },
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant() }, // Normal meshes
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Transparent meshes
+			{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false) }, // Skybox
 		};
 		for (const auto& shader : shaderList)
 		{
 			this->renderer.UploadPipeline(
 				Crescendo::Core::BinaryFile(shader.name + ".vert.spv").Open().Read(),
 				Crescendo::Core::BinaryFile(shader.name + ".frag.spv").Open().Read(),
-				{ shader.variant }
+				shader.variant
 			);
 		}
 	}
@@ -140,20 +157,40 @@ public:
 
 		// Render prep
 		struct VP { glm::mat4 view, projection; } vp { this->camera.GetViewMatrix(), this->camera.GetProjectionMatrix() };
-		struct Lighting { glm::vec4 lightColor, lightPosition; } lighting{ glm::vec4(0.75f, 0.75f, 1.0f, 1.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f) };
+		struct Lighting { glm::vec4 lightColor, lightPosition; } lighting{ glm::vec4(0.75f, 0.75f, 1.0f, 1.0f), glm::vec4(0.0f, 10000.0f, 0.0f, 1.0f) };
 
 		this->renderer.UpdateDescriptorSetData(0, 0, vp);
 		this->renderer.UpdateDescriptorSetData(1, 0, lighting);
-		this->renderer.UpdateDescriptorSetData(1, 1, glm::vec3(1.0f, 0.0f, 0.0f));
+		this->renderer.UpdateDescriptorSetData(1, 1, glm::vec3(0.25f, 0.75f, 0.0f));
+
+		this->renderer.UpdateDescriptorSetData(2, 0, vp);
+		this->renderer.UpdateDescriptorSetData(3, 0, lighting);
+		this->renderer.UpdateDescriptorSetData(3, 1, glm::vec3(0.25f, 0.75f, 0.0f));
+
+		this->renderer.UpdateDescriptorSetData(4, 0, vp);
 
 		// Render commands
-		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.1f, 1.0f);
+		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
 
-		this->renderer.CmdBindPipeline(Input::GetKeyDown(Key::One) ? 1 : 0);
+		this->renderer.CmdBindPipeline(2);
+		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), this->camera.GetPosition()));
+		this->renderer.CmdBindTexture(textureIDs[this->meshCount - 1]);
+		this->renderer.CmdDraw(this->meshCount - 1);
+
+		this->renderer.CmdBindPipeline(0);
 		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f)));
-		for (uint32_t i = 0; i < this->meshCount; i++)
+		for (uint32_t i = 0; i < this->meshCount - 1; i++)
 		{
-			// What do you think these arguments denote:
+			if (this->isTransparent[i]) continue;
+			this->renderer.CmdBindTexture(textureIDs[i]);
+			this->renderer.CmdDraw(i);
+		}
+
+		this->renderer.CmdBindPipeline(1);
+		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f)));
+		for (uint32_t i = 0; i < this->meshCount - 1; i++)
+		{
+			if (!this->isTransparent[i]) continue;
 			this->renderer.CmdBindTexture(textureIDs[i]);
 			this->renderer.CmdDraw(i);
 		}

@@ -74,11 +74,14 @@ namespace Crescendo
 		}
 		return pipeline;
 	}
-	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variations)
+	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant)
 	{
 		/* -------------------------------- 0. Initialisation -------------------------------- */
 
 		constexpr VkPolygonMode FILL_MODE_MAP[3] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
+		constexpr VkCompareOp DEPTH_COMPARE_MAP[8] = { VK_COMPARE_OP_NEVER, VK_COMPARE_OP_LESS, VK_COMPARE_OP_EQUAL, VK_COMPARE_OP_LESS_OR_EQUAL, VK_COMPARE_OP_GREATER, VK_COMPARE_OP_NOT_EQUAL, VK_COMPARE_OP_GREATER_OR_EQUAL, VK_COMPARE_OP_ALWAYS };
+		constexpr VkCullModeFlags CULL_MODE_MAP[3] = { VK_CULL_MODE_NONE, VK_CULL_MODE_FRONT_BIT, VK_CULL_MODE_BACK_BIT };
+		
 		const VkDeviceSize UNIFORM_ALIGNMENT = this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
 
 		const uint32_t currentLayoutIndex = this->dataDescriptorSetLayouts.size();
@@ -163,7 +166,7 @@ namespace Crescendo
 		// Create the pipeline layout
 		VkPipelineLayout pipelineLayout;
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(
-			0, setLayouts.size(), setLayouts.data(), 1, &pushConstantRange
+			0, setLayouts.size(), setLayouts.data(), vertReflection.HasPushConstant() ? 1 : 0, vertReflection.HasPushConstant() ? &pushConstantRange : nullptr
 		);
 		CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &pipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout!");
 		this->pipelineLayouts.push_back(pipelineLayout);
@@ -188,7 +191,7 @@ namespace Crescendo
 			VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE
 		);
 		pipelineBuilderInfo.rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(
-			nullptr, VK_FALSE, VK_FALSE, FILL_MODE_MAP[static_cast<size_t>(variations[0].fillMode)], VK_CULL_MODE_BACK_BIT,
+			nullptr, VK_FALSE, VK_FALSE, FILL_MODE_MAP[static_cast<size_t>(variant.fillMode)], CULL_MODE_MAP[static_cast<size_t>(variant.cullMode)],
 			VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
 		);
 		pipelineBuilderInfo.multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(
@@ -200,7 +203,10 @@ namespace Crescendo
 			VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
 		);
 		pipelineBuilderInfo.depthStencilInfo = Create::PipelineDepthStencilStateCreateInfo(
-			0, (variations[0].depthTestEnable) ? VK_TRUE : VK_FALSE, VK_TRUE, VK_COMPARE_OP_LESS, VK_FALSE, VK_FALSE, {}, {}, 0.0f, 1.0f
+			0,
+			(variant.depthTestEnable) ? VK_TRUE : VK_FALSE,
+			(variant.depthWriteEnable) ? VK_TRUE : VK_FALSE,
+			DEPTH_COMPARE_MAP[static_cast<size_t>(variant.depthFunc)], VK_FALSE, VK_FALSE, {}, {}, 0.0f, 1.0f
 		);
 		pipelineBuilderInfo.pipelineLayout = pipelineLayout;
 
@@ -209,7 +215,7 @@ namespace Crescendo
 		for (uint32_t i = 0; i < datalayoutCount; i++) descriptorHandles[i] = currentLayoutIndex + i;
 
 		// Create the pipeline
-		this->pipelines.emplace_back(pipelineLayout, this->CreatePipeline(pipelineBuilderInfo), descriptorHandles, 2);
+		this->pipelines.emplace_back(pipelineLayout, this->CreatePipeline(pipelineBuilderInfo), descriptorHandles, datalayoutCount);
 
 		// Destroy shader modules, reflection will delete itself
 		vkDestroyShaderModule(this->device, fragModule, nullptr);
@@ -269,7 +275,6 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps)
 	{
-		CS_ASSERT(channels == 4, "Image is not RGBA, only RGBA images are currently supported");
 		constexpr VkFormat DEFAULT_FORMAT = VK_FORMAT_R8G8B8A8_SRGB;
 
 		uint32_t mipLevels = generateMipmaps ? static_cast<uint32_t>(std::log2(std::max(width, height))) + 1 : 1;

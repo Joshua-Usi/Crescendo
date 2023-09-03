@@ -15,6 +15,7 @@ namespace Crescendo
 		CS_ASSERT(info.window != nullptr, "Window pointer points to nullptr!");
 		CS_ASSERT(info.windowExtent.width > 0, "Window width must be greater than 0!");
 		CS_ASSERT(info.windowExtent.height > 0, "Window height must be greater than 0!");
+		CS_ASSERT((info.msaaSamples & (info.msaaSamples - 1)) == 0 || info.msaaSamples == std::numeric_limits<uint32_t>::max(), "MSAA samples must be a power of 2!");
 
 		CS_TIME(this->impl->InitialiseInstance(info), "Instance Initialisation");
 		CS_TIME(this->impl->InitialiseSwapchain(info), "Swapchain Initialisation");
@@ -39,8 +40,12 @@ namespace Crescendo
 	void Renderer::CmdPresentFrame() { this->impl->PresentFrame(); }
 
 	void Renderer::Resize() { this->impl->Resize(); }
+	std::vector<uint32_t> Renderer::GetPipelineDescriptors(uint32_t pipelineIndex) const
+	{
+		return this->impl->GetPipeline(pipelineIndex).dataDescriptorHandles;
+	}
 	void Renderer::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices) { this->impl->UploadMesh(vertices, normals, textureUVs, indices); }
-	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variations) { this->impl->UploadPipeline(vertexShader, fragmentShader, variations); }
+	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant) { this->impl->UploadPipeline(vertexShader, fragmentShader, variant); }
 	void Renderer::UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps) { this->impl->UploadTexture(textureData, width, height, channels, generateMipmaps); }
 	
 	Renderer Renderer::Create(const Renderer::BuilderInfo& info)

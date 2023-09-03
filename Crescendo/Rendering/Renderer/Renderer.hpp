@@ -20,6 +20,7 @@ namespace Crescendo
 		/// </summary>
 		struct BuilderInfo
 		{
+			enum MultiSamples : uint32_t { Max = std::numeric_limits<uint32_t>::max() };
 			enum class DeviceType : uint32_t { Discrete = 0, Integrated = 1 };
 			enum class PresentMode : uint32_t
 			{
@@ -55,6 +56,8 @@ namespace Crescendo
 			 *	Size is in bytes
 			 */
 			uint64_t descriptorBufferBlockSize;
+			// MSAA samples, 1 for no MSAA, MultiSamples::Max for max supported MSAA
+			uint32_t msaaSamples;
 
 			BuilderInfo() = default;
 		};
@@ -62,16 +65,24 @@ namespace Crescendo
 		struct PipelineVariant
 		{
 			enum class FillMode : uint8_t { Solid = 0, Wireframe = 1, Point = 2 };
+			enum class DepthFunc : uint8_t { Never = 0, Less = 1, Equal = 2, LessEqual = 3, Greater = 4, NotEqual = 5, GreaterEqual = 6, Always = 7 };
+			enum class CullMode : uint8_t { None = 0, Front = 1, Back = 2 };
 			FillMode fillMode;
 			bool depthTestEnable;
 			bool depthWriteEnable;
+			DepthFunc depthFunc;
+			CullMode cullMode;
 			inline PipelineVariant(
 				FillMode fillMode = FillMode::Solid,
 				bool depthTestEnable = true,
-				bool depthWriteEnable = true
+				bool depthWriteEnable = true,
+				DepthFunc depthFunc = DepthFunc::Less,
+				CullMode cullMode = CullMode::Back
 			) : fillMode(fillMode),
 				depthTestEnable(depthTestEnable),
-				depthWriteEnable(depthWriteEnable) {}
+				depthWriteEnable(depthWriteEnable),
+				depthFunc(depthFunc),
+				cullMode(cullMode) {}
 		};
 	private:
 	public:
@@ -104,8 +115,10 @@ namespace Crescendo
 
 		void Resize();
 
+		std::vector<uint32_t> GetPipelineDescriptors(uint32_t pipelineIndex) const;
+
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
-		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variations = { {} });
+		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant = {});
 		void UploadTexture(const std::vector<uint8_t>& data, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 
 		static Renderer Create(const BuilderInfo& info);

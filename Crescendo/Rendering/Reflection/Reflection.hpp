@@ -50,6 +50,7 @@ namespace Crescendo
 		PushConstantLayout pushConstant;
 
 		const std::vector<DescriptorSetLayout> GetDescriptorSetLayouts(SpirvReflection::DescriptorType descriptorType = DescriptorType::All) const;
+		bool HasPushConstant() const;
 
 		const std::vector<std::vector<VkDescriptorSetLayoutBinding>> GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType descriptorType, uint32_t shaderStage) const;
 		const std::vector<VkVertexInputBindingDescription> GetVertexBindings() const;

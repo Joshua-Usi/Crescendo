@@ -157,6 +157,10 @@ namespace Crescendo
 		}
 		return bindings;
 	}
+	bool SpirvReflection::HasPushConstant() const
+	{
+		return !this->pushConstant.members.empty();
+	}
 	const std::vector<VkVertexInputAttributeDescription> SpirvReflection::GetVertexAttributes() const
 	{
 		std::vector<VkVertexInputAttributeDescription> attributes(this->inputVariables.size());
@@ -168,6 +172,6 @@ namespace Crescendo
 	}
 	VkPushConstantRange SpirvReflection::GetPushConstantRange(uint32_t shaderStage) const
 	{
-		return { shaderStage, this->pushConstant.members[0].offset, this->pushConstant.GetSize() };
+		return { shaderStage, (this->HasPushConstant()) ? this->pushConstant.members[0].offset : 0, this->pushConstant.GetSize() };
 	}
 }

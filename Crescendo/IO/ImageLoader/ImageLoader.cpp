@@ -7,9 +7,9 @@
 
 namespace Crescendo::IO
 {
-	Image LoadImage(const std::filesystem::path& path)
+	Image LoadImage(const std::filesystem::path& path, bool flipOnLoad)
 	{
-		stbi_set_flip_vertically_on_load(true);
+		stbi_set_flip_vertically_on_load(flipOnLoad);
 
 		constexpr int FIXED_CHANNELS = 4;
 
@@ -24,7 +24,7 @@ namespace Crescendo::IO
 		// At least this memory is safe and will be freed
 		std::vector<uint8_t> data(width * height * FIXED_CHANNELS);
 		data.insert(data.begin(), pixels, pixels + (width * height * FIXED_CHANNELS));
-		Image image(data, width, height, FIXED_CHANNELS);
+		Image image(data, width, height, FIXED_CHANNELS, channels == 4);
 
 		stbi_image_free(pixels);
 
