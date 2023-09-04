@@ -48,7 +48,7 @@ public:
 		info.framesInFlight = 3; // Triple buffering
 		info.vertexBufferBlockSize = std::powl(2, 24); // use 24 for sponza, 28 for rungholt
 		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
-		info.msaaSamples = 1;
+		info.msaaSamples = Renderer::BuilderInfo::MultiSamples::Max;
 
 		this->renderer = Renderer::Create(info);
 

@@ -32,6 +32,19 @@ namespace Crescendo
 		if (counts & VK_SAMPLE_COUNT_2_BIT)  return VK_SAMPLE_COUNT_2_BIT;
 		return VK_SAMPLE_COUNT_1_BIT;
 	}
+	uint32_t sampleCountMap(VkSampleCountFlagBits samples)
+	{
+		switch (samples)
+		{
+			case VK_SAMPLE_COUNT_64_BIT: return 64;
+			case VK_SAMPLE_COUNT_32_BIT: return 32;
+			case VK_SAMPLE_COUNT_16_BIT: return 16;
+			case VK_SAMPLE_COUNT_8_BIT:  return 8;
+			case VK_SAMPLE_COUNT_4_BIT:  return 4;
+			case VK_SAMPLE_COUNT_2_BIT:  return 2;
+			default: return 1;
+		}
+	}
 
 	void Renderer::RendererImpl::InitialiseInstance(const BuilderInfo& info)
 	{
@@ -199,12 +212,14 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseRenderpasses(const BuilderInfo& info)
 	{
+		bool isMultiSampling = sampleCountMap(this->msaaSamples) != 1;
+
 		// Create the default renderpass
 		VkAttachmentDescription colorAttachment = Create::AttachmentDescription(
 			0, this->swapchain.imageFormat, this->msaaSamples,
 			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
 			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+			VK_IMAGE_LAYOUT_UNDEFINED, (!isMultiSampling) ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 		);
 		VkAttachmentDescription depthAttachment = Create::AttachmentDescription(
 			0, DEFAULT_DEPTH_FORMAT, this->msaaSamples,
@@ -235,10 +250,11 @@ namespace Crescendo
 			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
 			0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0
 		);
-		std::vector<VkAttachmentDescription> attachments{ colorAttachment, depthAttachment, colorAttachmentResolve };
+		std::vector<VkAttachmentDescription> attachments{ colorAttachment, depthAttachment };
+		if (sampleCountMap(this->msaaSamples) != 1) attachments.push_back(colorAttachmentResolve);
 		std::vector<VkSubpassDependency> dependencies{ colorDependency, depthDependency };
 		const VkSubpassDescription subpass = Create::SubpassDescription(
-			0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &colorAttachmentRef, &colorAttachmentResolveRef, &depthAttachmentRef, 0, nullptr
+			0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &colorAttachmentRef, (isMultiSampling) ? &colorAttachmentResolveRef : nullptr, &depthAttachmentRef, 0, nullptr
 		);
 		this->defaultRenderPass = this->CreateRenderPass(attachments, { subpass }, dependencies);
 
@@ -248,13 +264,21 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseFramebuffers(const BuilderInfo& info)
 	{
-		for (size_t i = 0, size = this->swapchain.images.size(); i < size; i++)
-		{
-			const std::vector<VkImageView> attachments = { this->multisamplingBuffer.imageView, this->depthBuffer.imageView, this->swapchain.images[i].imageView };
-			VkFramebufferCreateInfo framebufferInfo = Create::FramebufferCreateInfo(
-				nullptr, 0, this->defaultRenderPass, attachments.size(), attachments.data(), { info.windowExtent.width, info.windowExtent.height }, 1
-			);
+		bool isMultiSampling = sampleCountMap(this->msaaSamples) != 1;
+		uint32_t swapChainViewIndex = isMultiSampling ? 2 : 0;
+		
+		// Add attachments
+		std::vector<VkImageView> attachments;
+		if (isMultiSampling) attachments.push_back(this->multisamplingBuffer.imageView);
+		attachments.push_back(isMultiSampling ? this->depthBuffer.imageView : nullptr);
+		attachments.push_back(isMultiSampling ? nullptr : this->depthBuffer.imageView);
 
+		for (const auto& swapChainImage : this->swapchain.images)
+		{
+			attachments[swapChainViewIndex] = swapChainImage.imageView;
+			VkFramebufferCreateInfo framebufferInfo = Create::FramebufferCreateInfo(
+				nullptr, 0, this->defaultRenderPass, attachments.size(), attachments.data(), {info.windowExtent.width, info.windowExtent.height}, 1
+			);
 			VkFramebuffer fb;
 			CS_ASSERT(vkCreateFramebuffer(this->device, &framebufferInfo, nullptr, &fb) == VK_SUCCESS, "Failed to create framebuffer!");
 			this->framebuffers.push_back(fb);
