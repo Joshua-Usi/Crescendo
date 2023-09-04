@@ -1,6 +1,6 @@
 #include "Cvar.hpp"
-
 #include "Libraries/XML/XML.hpp"
+#include <algorithm>
 
 namespace Crescendo::Engine
 {
@@ -23,6 +23,15 @@ namespace Crescendo::Engine
 	double CVar::Get<double>(const std::string& name)
 	{
 		return std::stod(data[name]);
+	}
+	template <>
+	bool CVar::Get<bool>(const std::string& name)
+	{
+		// Capitalisation doesn't matter
+		// Treat anything else as false
+		std::string value = data[name];
+		std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+		return value == "true";
 	}
 	std::vector<std::string> CVar::GetNames()
 	{

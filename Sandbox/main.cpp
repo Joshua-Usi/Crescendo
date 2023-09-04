@@ -33,22 +33,22 @@ public:
 
 		this->GetWindow()->SetCursorLock(true);
 
-		this->sens = CVar::Get<double>("sensitivity");
+		this->sens = 0.0005;
 		this->camera = Graphics::Camera(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 100000.0f });
 
 		Renderer::BuilderInfo info;
 
-		info.useValidationLayers = true;
+		info.useValidationLayers = CVar::Get<bool>("rc_validationlayers");
 		info.preferredDeviceType = Renderer::BuilderInfo::DeviceType::Discrete;
-		info.appName = "Sandbox";
-		info.engineName = "Crescendo";
+		info.appName = CVar::Get<std::string>("rc_appname");
+		info.engineName = CVar::Get<std::string>("rc_enginename");
 		info.window = this->GetWindow()->GetNative();
 		info.windowExtent = { this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight() };
 		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
-		info.framesInFlight = 3; // Triple buffering
+		info.framesInFlight = CVar::Get<int64_t>("rc_framesinflight");
 		info.vertexBufferBlockSize = std::powl(2, 24); // use 24 for sponza, 28 for rungholt
 		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
-		info.msaaSamples = Renderer::BuilderInfo::MultiSamples::Max;
+		info.msaaSamples = CVar::Get<int64_t>("rc_multisamples");
 
 		this->renderer = Renderer::Create(info);
 
