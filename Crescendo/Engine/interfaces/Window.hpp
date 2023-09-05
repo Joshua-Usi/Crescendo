@@ -29,8 +29,8 @@ namespace Crescendo::Engine
 		{
 			std::string title = "";
 			Window* windowPointer = NULL;
-			uint32_t width = 0, height = 0;
-			bool vSync = false, isCursorLocked = false, isOpen = false;
+			uint32_t width = 0, height = 0, windowedWidth = 0, windowedHeight = 0;
+			bool vSync = false, isCursorLocked = false, isOpen = false, isFullScreen = false;
 		} data;
 	public:
 		/// <summary>
@@ -46,10 +46,6 @@ namespace Crescendo::Engine
 		/// Run once at the beginning of each frame
 		/// </summary>
 		virtual void OnUpdate() = 0;
-		/// <summary>
-		/// Run once at the end of each frame
-		/// </summary>
-		virtual void OnLateUpdate() = 0;
 
 		/// <summary>
 		/// Get the width of the window
@@ -97,6 +93,17 @@ namespace Crescendo::Engine
 		/// </summary>
 		/// <param name="name">New name of the window</param>
 		virtual void SetName(const std::string& name) = 0;
+		/// <summary>
+		/// Set the window to fullscreen
+		/// </summary>
+		/// <param name="isFullScreen"></param>
+		virtual void SetFullScreen(bool isFullScreen) = 0;
+		/// <summary>
+		/// Set the size of the windows specifically, Modifies the resolution
+		/// </summary>
+		/// <param name="width"></param>
+		/// <param name="height"></param>
+		virtual void SetSize(uint32_t width, uint32_t height) = 0;
 
 		/// <summary>
 		/// Determines if a window is vsynced
@@ -112,5 +119,10 @@ namespace Crescendo::Engine
 		/// Determines if a window is open
 		/// </summary>
 		virtual bool IsOpen() const = 0;
+		/// <summary>
+		/// Determines if a window is full screen or not
+		/// </summary>
+		/// <returns></returns>
+		virtual bool IsFullScreen() const = 0;
 	};
 }

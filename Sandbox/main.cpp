@@ -15,9 +15,10 @@ class Sandbox : public Application
 {
 private:
 	Crescendo::Graphics::Camera camera = {};
-	float pMouseX = 0.0f, pMouseY = 0.0f, sens = 1.0f;
+	float pMouseX = 0.0f, pMouseY = 0.0f, sens = 0.0005f;
 
 	uint32_t meshCount = 0;
+	bool uReleased = true;
 
 	std::vector<uint32_t> textureIDs;
 	std::vector<bool> isTransparent;
@@ -29,11 +30,11 @@ private:
 public:
 	void OnStartup()
 	{
-		CVar::LoadConfigXML("Config.xml");
-
+		CVar::LoadConfigXML("config.xml");
+		
+		this->GetWindow()->SetSize(CVar::Get<int64_t>("ec_windowwidth"), CVar::Get<int64_t>("ec_windowheight"));
 		this->GetWindow()->SetCursorLock(true);
 
-		this->sens = 0.0005;
 		this->camera = Graphics::Camera(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 100000.0f });
 
 		Renderer::BuilderInfo info;
@@ -143,6 +144,11 @@ public:
 		float velocity = 0.1f;
 		glm::vec3 movement(0.0f, 0.0f, 0.0f);
 		if (Input::GetKeyPressed(Key::R)) velocity = 10.0f;
+
+		if (Input::GetKeyDown(Key::F11))
+		{
+			this->GetWindow()->SetFullScreen(!this->GetWindow()->IsFullScreen());
+		}
 
 		float sinX = std::sin(rotation.x) * velocity, cosX = std::cos(rotation.x) * velocity;
 

@@ -1,5 +1,7 @@
 #include "WindowsWindow.hpp"
 
+#include "Engine/interfaces/Input.hpp"
+
 namespace Crescendo::Engine
 {
 	static bool IsGLFWInitialised = false;
@@ -51,17 +53,7 @@ namespace Crescendo::Engine
 	}
 	void WindowsWindow::OnUpdate()
 	{
-		if (this->data.isOpen)
-		{
-			glfwPollEvents();
-		}
-	}
-	void WindowsWindow::OnLateUpdate()
-	{
-		if (this->data.isOpen)
-		{
-			// Should be buffer swap
-		}
+		if (this->data.isOpen) Input::PollEvents();
 	}
 	uint32_t WindowsWindow::GetWidth() const
 	{
@@ -90,6 +82,7 @@ namespace Crescendo::Engine
 	{
 		return this->data.title;
 	}
+	// TODO
 	void WindowsWindow::SetVSync(bool isEnabled)
 	{
 		if (isEnabled)
@@ -111,6 +104,31 @@ namespace Crescendo::Engine
 	{
 		glfwSetWindowTitle(this->window, name.c_str());
 	}
+	void WindowsWindow::SetFullScreen(bool isFullScreen)
+	{
+		const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+		this->data.windowedWidth = this->data.width;
+		this->data.windowedHeight = this->data.height;
+
+		if (isFullScreen && !this->data.isFullScreen)
+		{
+			this->data.isFullScreen = true;
+			// Get width and height of monitor
+			glfwSetWindowMonitor(this->window, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, GLFW_DONT_CARE);
+		}
+		else if (this->data.isFullScreen)
+		{
+			this->data.isFullScreen = false;
+			glfwSetWindowMonitor(this->window, nullptr, (mode->width - this->data.windowedWidth) / 2, (mode->height - this->data.windowedHeight) / 2, this->data.windowedWidth, this->data.windowedHeight, GLFW_DONT_CARE);
+		}
+	}
+	void WindowsWindow::SetSize(uint32_t width, uint32_t height)
+	{
+		const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+		this->data.width = width;
+		this->data.height = height;
+		glfwSetWindowMonitor(this->window, nullptr, (mode->width - width) / 2, (mode->height - height) / 2, width, height, GLFW_DONT_CARE);
+	}
 	bool WindowsWindow::IsVSynced() const
 	{
 		return this->data.vSync;
@@ -122,6 +140,10 @@ namespace Crescendo::Engine
 	bool WindowsWindow::IsOpen() const
 	{
 		return this->data.isOpen;
+	}
+	bool WindowsWindow::IsFullScreen() const
+	{
+		return this->data.isFullScreen;
 	}
 	shared<Window> Window::Create(const WindowProperties& props)
 	{

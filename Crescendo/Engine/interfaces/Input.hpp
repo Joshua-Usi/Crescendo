@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/platform/Desktop/inputCodes.hpp"
+#include "Engine/platform/Desktop/InputCodes.hpp"
 
 namespace Crescendo::Engine
 {
@@ -64,15 +64,25 @@ namespace Crescendo::Engine
 		{
 			return self->MouseButtonPressedImpl(button);
 		}
+		/// <summary>
+		/// Poll for input events
+		/// Platform agnostic
+		/// </summary>
+		inline static void PollEvents()
+		{
+			self->PollEventsImpl();
+		}
 	protected:
 		// implementations for platform specifics
-		virtual bool KeyDownImpl(Key keyCode) const = 0;
-		virtual bool KeyPressedImpl(Key keyCode) const = 0;
+		virtual bool KeyDownImpl(Key keyCode) = 0;
+		virtual bool KeyPressedImpl(Key keyCode) = 0;
 
-		virtual double MousePositionXImpl() const = 0;
-		virtual double MousePositionYImpl() const = 0;
+		virtual double MousePositionXImpl() = 0;
+		virtual double MousePositionYImpl() = 0;
 
-		virtual bool MouseButtonDownImpl(MouseButton button) const = 0;
-		virtual bool MouseButtonPressedImpl(MouseButton button) const = 0;
+		virtual bool MouseButtonDownImpl(MouseButton button) = 0;
+		virtual bool MouseButtonPressedImpl(MouseButton button) = 0;
+
+		virtual void PollEventsImpl() = 0;
 	};
 }
