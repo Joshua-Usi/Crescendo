@@ -58,11 +58,9 @@ public:
 
 		std::vector<IO::Model> models =
 		{
-			IO::LoadOBJ("./assets/sponza/sponza.obj"),
+			IO::LoadOBJ("./assets/sponza/sponza.obj", "./assets/sponza/"),
 			skyboxModel
 		};
-
-		for (auto& mesh : models[0].meshes) mesh.albedo = (!mesh.albedo.empty()) ? "./assets/sponza/" + mesh.albedo : "";
 
 		std::unordered_map<std::string, uint32_t> seenTextures;
 		std::unordered_map<std::string, bool> seenAlphas;
@@ -71,16 +69,10 @@ public:
 		for (const auto& model : models)
 		{
 			this->meshCount += model.meshes.size();
-			uint32_t triangleCount = 0, bufferSpace[4] = { 0, 0, 0, 0 };
 			
 			for (const auto& mesh : model.meshes)
 			{
 				// Mesh upload
-				triangleCount += mesh.indices.size() / 3;
-				bufferSpace[0] += mesh.vertices.size() * sizeof(float);
-				bufferSpace[1] += mesh.normals.size() * sizeof(float);
-				bufferSpace[2] += mesh.textureUVs.size() * sizeof(float);
-				bufferSpace[3] += mesh.indices.size() * sizeof(uint32_t);
 				this->renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
 
 				// Texture upload
@@ -145,10 +137,7 @@ public:
 		glm::vec3 movement(0.0f, 0.0f, 0.0f);
 		if (Input::GetKeyPressed(Key::R)) velocity = 10.0f;
 
-		if (Input::GetKeyDown(Key::F11))
-		{
-			this->GetWindow()->SetFullScreen(!this->GetWindow()->IsFullScreen());
-		}
+		if (Input::GetKeyDown(Key::F11)) this->GetWindow()->SetFullScreen(!this->GetWindow()->IsFullScreen());
 
 		float sinX = std::sin(rotation.x) * velocity, cosX = std::cos(rotation.x) * velocity;
 

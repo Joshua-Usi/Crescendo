@@ -18,5 +18,5 @@ namespace Crescendo::IO
 		std::vector<Mesh> meshes;
 	};
 
-	Model LoadOBJ(const std::filesystem::path& path);
+	Model LoadOBJ(const std::filesystem::path& path, const std::filesystem::path& texturePathPrepend = "");
 }
