@@ -36,6 +36,7 @@ public:
 		this->GetWindow()->SetCursorLock(true);
 
 		this->camera = Graphics::Camera(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 100000.0f });
+		this->camera.SetPosition(glm::vec3(0.0f, 0.0f, 1.0f));
 
 		Renderer::BuilderInfo info;
 
@@ -58,7 +59,8 @@ public:
 
 		std::vector<IO::Model> models =
 		{
-			IO::LoadOBJ("./assets/sponza/sponza.obj", "./assets/sponza/"),
+			//IO::LoadOBJ("./assets/sponza/sponza.obj", "./assets/sponza/"),
+			IO::LoadGLTF("./assets/companion-cube/scene.gltf", "./assets/companion-cube/"),
 			skyboxModel
 		};
 
@@ -101,7 +103,7 @@ public:
 		struct Shader { std::string name; Renderer::PipelineVariant variant; };
 		std::vector<Shader> shaderList = {
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant() }, // Normal meshes
-			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Transparent meshes
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Transparent meshes
 			{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false) }, // Skybox
 		};
 		for (const auto& shader : shaderList)
@@ -137,8 +139,6 @@ public:
 		glm::vec3 movement(0.0f, 0.0f, 0.0f);
 		if (Input::GetKeyPressed(Key::R)) velocity = 10.0f;
 
-		if (Input::GetKeyDown(Key::F11)) this->GetWindow()->SetFullScreen(!this->GetWindow()->IsFullScreen());
-
 		float sinX = std::sin(rotation.x) * velocity, cosX = std::cos(rotation.x) * velocity;
 
 		if (Input::GetKeyPressed(Key::W)) movement.x -= sinX, movement.z -= cosX;
@@ -173,7 +173,7 @@ public:
 		this->renderer.CmdDraw(this->meshCount - 1);
 
 		this->renderer.CmdBindPipeline(0);
-		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f)));
+		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::mat4(1.0f));
 		for (uint32_t i = 0; i < this->meshCount - 1; i++)
 		{
 			if (this->isTransparent[i]) continue;
@@ -182,7 +182,7 @@ public:
 		}
 
 		this->renderer.CmdBindPipeline(1);
-		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::rotate(glm::mat4(1.0f), 0.0f, glm::vec3(0.0f, 1.0f, 0.0f)));
+		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::mat4(1.0f));
 		for (uint32_t i = 0; i < this->meshCount - 1; i++)
 		{
 			if (!this->isTransparent[i]) continue;
@@ -193,6 +193,7 @@ public:
 		this->renderer.CmdEndFrame();
 		this->renderer.CmdPresentFrame();
 
+		if (Input::GetKeyDown(Key::F11)) this->GetWindow()->SetFullScreen(!this->GetWindow()->IsFullScreen());
 		if (Input::GetKeyDown(Key::Escape)) this->Exit();
 	}
 	void OnExit()

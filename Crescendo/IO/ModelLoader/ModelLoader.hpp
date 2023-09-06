@@ -19,4 +19,5 @@ namespace Crescendo::IO
 	};
 
 	Model LoadOBJ(const std::filesystem::path& path, const std::filesystem::path& texturePathPrepend = "");
+	Model LoadGLTF(const std::filesystem::path& path, const std::filesystem::path& texturePathPrepend = "");
 }

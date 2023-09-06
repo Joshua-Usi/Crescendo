@@ -2,8 +2,6 @@
 
 #include "rapidobj/rapidobj.hpp"
 
-#include <iostream>
-
 namespace Crescendo::IO
 {
 	Model LoadOBJ(const std::filesystem::path& path, const std::filesystem::path& texturePathPrepend)
@@ -15,11 +13,7 @@ namespace Crescendo::IO
 		rapidobj::Result result = rapidobj::ParseFile(path);
 		rapidobj::Triangulate(result);
 
-		if (result.error)
-		{
-			std::cout << "rapidobj Error: " << result.error.code << std::endl;
-			return model;
-		}
+		if (result.error) return model;
 
 		auto& attrib = result.attributes;
 		auto& shapes = result.shapes;
