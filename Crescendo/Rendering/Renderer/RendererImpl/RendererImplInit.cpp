@@ -17,9 +17,9 @@ namespace Crescendo
 			case 8:  return VK_SAMPLE_COUNT_8_BIT;
 			case 4:  return VK_SAMPLE_COUNT_4_BIT;
 			case 2:  return VK_SAMPLE_COUNT_2_BIT;
-			// If an invalid value is provided , default to 1 sample
-			default: return VK_SAMPLE_COUNT_1_BIT;
 		}
+		// If an invalid value is provided , default to 1 sample
+		return VK_SAMPLE_COUNT_1_BIT;
 	}
 	VkSampleCountFlagBits getMaxSampleCounts(VkPhysicalDeviceProperties properties)
 	{
@@ -42,8 +42,8 @@ namespace Crescendo
 			case VK_SAMPLE_COUNT_8_BIT:  return 8;
 			case VK_SAMPLE_COUNT_4_BIT:  return 4;
 			case VK_SAMPLE_COUNT_2_BIT:  return 2;
-			default: return 1;
 		}
+		return 1;
 	}
 
 	void Renderer::RendererImpl::InitialiseInstance(const BuilderInfo& info)
@@ -104,8 +104,8 @@ namespace Crescendo
 		this->state.framesInFlight = info.framesInFlight;
 		this->state.frameIndex = 0;
 		this->state.frameData.resize(info.framesInFlight);
-
 		this->window = static_cast<GLFWwindow*>(info.window);
+		this->state.msaaSamples = std::min(sampleMap(info.msaaSamples), getMaxSampleCounts(this->physicalDeviceProperties));
 
 		std::cout << "Renderer Stats:" << "\n";
 		std::cout << "\tDevice: " << physicalDeviceResult.name << "\n";
@@ -116,8 +116,6 @@ namespace Crescendo
 		std::cout << "\tMinimum uniform buffer offset alignment: " << this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment << "B\n";
 		std::cout << "\tMax sampler anisotropy: " << this->physicalDeviceProperties.limits.maxSamplerAnisotropy << "\n";
 		std::cout << "\tMax frame & depth buffer samples: " << getMaxSampleCounts(this->physicalDeviceProperties) << "\n";
-
-		this->msaaSamples = std::min(sampleMap(info.msaaSamples), getMaxSampleCounts(this->physicalDeviceProperties));
 
 		// Push to deletion queue
 		this->mainDeletionQueue.Push([&]() {
@@ -145,33 +143,8 @@ namespace Crescendo
 		for (size_t i = 0; i < images.size(); i++) viewableImages[i] = internal::Allocator::Image(images[i], imageViews[i]);
 		this->swapchain = Swapchain(vkbSwapchain.swapchain, vkbSwapchain.image_format, vkbSwapchain.extent, viewableImages);
 
-		// Create msaa buffer
-
-		VkImageCreateInfo multisamplingImageInfo = Create::ImageCreateInfo(
-			nullptr, 0, VK_IMAGE_TYPE_2D, this->swapchain.imageFormat, this->swapchain.GetExtent3D(), 1, 1, this->msaaSamples, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
-		);
-		VkImageViewCreateInfo multisamplingImageViewInfo = Create::ImageViewCreateInfo(
-			0, nullptr, VK_IMAGE_VIEW_TYPE_2D, this->swapchain.imageFormat, {}, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-		);
-		this->multisamplingBuffer = this->allocator.CreateImage(multisamplingImageInfo, multisamplingImageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-		// Create the depth buffer
-		VkExtent3D depthImageExtent = this->swapchain.GetExtent3D();
-		VkImageCreateInfo depthImageInfo = Create::ImageCreateInfo(
-			nullptr, 0, VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, depthImageExtent, 1, 1, this->msaaSamples, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
-		);
-		VkImageViewCreateInfo depthImageViewInfo = Create::ImageViewCreateInfo(
-			0, nullptr, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_DEPTH_FORMAT, {}, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 }
-		);
-
-		this->depthBuffer = this->allocator.CreateImage(depthImageInfo, depthImageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
 		// Add to swapchain deletion queue
 		this->swapChainDeletionQueue.Push([&]() {
-			this->allocator.DestroyImage(this->depthBuffer);
-			this->allocator.DestroyImage(this->multisamplingBuffer);
 			for (auto& image : this->swapchain.images) this->allocator.DestroyImage(image);
 			vkDestroySwapchainKHR(this->device, this->swapchain.swapchain, nullptr);
 		});
@@ -212,17 +185,17 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseRenderpasses(const BuilderInfo& info)
 	{
-		bool isMultiSampling = sampleCountMap(this->msaaSamples) != 1;
+		bool isMultiSampling = sampleCountMap(this->state.msaaSamples) != 1;
 
 		// Create the default renderpass
 		VkAttachmentDescription colorAttachment = Create::AttachmentDescription(
-			0, this->swapchain.imageFormat, this->msaaSamples,
+			0, this->swapchain.imageFormat, this->state.msaaSamples,
 			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
 			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			VK_IMAGE_LAYOUT_UNDEFINED, (!isMultiSampling) ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 		);
 		VkAttachmentDescription depthAttachment = Create::AttachmentDescription(
-			0, DEFAULT_DEPTH_FORMAT, this->msaaSamples,
+			0, DEFAULT_DEPTH_FORMAT, this->state.msaaSamples,
 			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
@@ -251,7 +224,7 @@ namespace Crescendo
 			0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0
 		);
 		std::vector<VkAttachmentDescription> attachments{ colorAttachment, depthAttachment };
-		if (sampleCountMap(this->msaaSamples) != 1) attachments.push_back(colorAttachmentResolve);
+		if (sampleCountMap(this->state.msaaSamples) != 1) attachments.push_back(colorAttachmentResolve);
 		std::vector<VkSubpassDependency> dependencies{ colorDependency, depthDependency };
 		const VkSubpassDescription subpass = Create::SubpassDescription(
 			0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &colorAttachmentRef, (isMultiSampling) ? &colorAttachmentResolveRef : nullptr, &depthAttachmentRef, 0, nullptr
@@ -264,7 +237,29 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseFramebuffers(const BuilderInfo& info)
 	{
-		bool isMultiSampling = sampleCountMap(this->msaaSamples) != 1;
+		// Create msaa buffer
+		VkImageCreateInfo multisamplingImageInfo = Create::ImageCreateInfo(
+			nullptr, 0, VK_IMAGE_TYPE_2D, this->swapchain.imageFormat, this->swapchain.GetExtent3D(), 1, 1, this->state.msaaSamples, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
+		);
+		VkImageViewCreateInfo multisamplingImageViewInfo = Create::ImageViewCreateInfo(
+			0, nullptr, VK_IMAGE_VIEW_TYPE_2D, this->swapchain.imageFormat, {}, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+		);
+		this->multisamplingBuffer = this->allocator.CreateImage(multisamplingImageInfo, multisamplingImageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+		// Create the depth buffer
+		VkExtent3D depthImageExtent = this->swapchain.GetExtent3D();
+		VkImageCreateInfo depthImageInfo = Create::ImageCreateInfo(
+			nullptr, 0, VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, depthImageExtent, 1, 1, this->state.msaaSamples, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
+		);
+		VkImageViewCreateInfo depthImageViewInfo = Create::ImageViewCreateInfo(
+			0, nullptr, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_DEPTH_FORMAT, {}, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 }
+		);
+		this->depthBuffer = this->allocator.CreateImage(depthImageInfo, depthImageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+		
+		bool isMultiSampling = sampleCountMap(this->state.msaaSamples) != 1;
 		uint32_t swapChainViewIndex = isMultiSampling ? 2 : 0;
 		
 		// Add attachments
@@ -287,6 +282,8 @@ namespace Crescendo
 		this->swapChainDeletionQueue.Push([&]() {
 			for (auto& framebuffer : this->framebuffers) vkDestroyFramebuffer(device, framebuffer, nullptr);
 			this->framebuffers.clear();
+			this->allocator.DestroyImage(this->depthBuffer);
+			this->allocator.DestroyImage(this->multisamplingBuffer);
 		});
 	}
 	void Renderer::RendererImpl::InitialiseDescriptors(const BuilderInfo& info)

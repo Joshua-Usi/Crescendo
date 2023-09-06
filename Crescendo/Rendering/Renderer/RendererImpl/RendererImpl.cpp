@@ -195,7 +195,7 @@ namespace Crescendo
 			VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
 		);
 		pipelineBuilderInfo.multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(
-			nullptr, this->msaaSamples, VK_TRUE, 1.0f, nullptr, VK_FALSE, VK_FALSE
+			nullptr, this->state.msaaSamples, VK_TRUE, 1.0f, nullptr, VK_FALSE, VK_FALSE
 		);
 		pipelineBuilderInfo.colorBlendAttachment = Create::PipelineColorBlendAttachmentState(
 			VK_TRUE, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
@@ -206,7 +206,8 @@ namespace Crescendo
 			0,
 			(variant.depthTestEnable) ? VK_TRUE : VK_FALSE,
 			(variant.depthWriteEnable) ? VK_TRUE : VK_FALSE,
-			DEPTH_COMPARE_MAP[static_cast<size_t>(variant.depthFunc)], VK_FALSE, VK_FALSE, {}, {}, 0.0f, 1.0f
+			DEPTH_COMPARE_MAP[static_cast<size_t>(variant.depthFunc)], VK_FALSE, VK_FALSE,
+			{}, {}, 0.0f, 1.0f
 		);
 		pipelineBuilderInfo.pipelineLayout = pipelineLayout;
 

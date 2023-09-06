@@ -62,9 +62,19 @@ namespace Crescendo
 		uint32_t swapchainImageIndex;
 		uint32_t boundPipelineIndex;
 
+		VkSampleCountFlagBits msaaSamples;
+
 		bool didFramebufferResize;
 
-		inline RendererState() : frameData({}), framesInFlight(0), frameIndex(0), swapchainImageIndex(0), boundPipelineIndex(0), didFramebufferResize(false) {};
+		inline RendererState() :
+			frameData({}),
+			framesInFlight(0),
+			frameIndex(0),
+			swapchainImageIndex(0),
+			boundPipelineIndex(0),
+			didFramebufferResize(false),
+			msaaSamples(VK_SAMPLE_COUNT_1_BIT)
+		{};
 	};
 
 	struct Pipeline
@@ -89,12 +99,10 @@ namespace Crescendo
 	class Renderer::RendererImpl
 	{
 	public:
-		internal::FunctionQueue mainDeletionQueue, swapChainDeletionQueue;
-
 		VkPhysicalDeviceProperties physicalDeviceProperties;
-		VkSampleCountFlagBits msaaSamples;
-
+		internal::FunctionQueue mainDeletionQueue, swapChainDeletionQueue;
 		internal::Allocator allocator;
+		RendererState state;
 
 		// Instance related members
 		VkInstance instance;
@@ -103,10 +111,7 @@ namespace Crescendo
 		VkPhysicalDevice physicalDevice;
 		VkDevice device;
 		GLFWwindow* window;
-
 		internal::QueueManager queues;
-
-		RendererState state;
 
 		Swapchain swapchain;
 		internal::Allocator::Image depthBuffer,	multisamplingBuffer;
@@ -131,7 +136,6 @@ namespace Crescendo
 		// Offsets of each binding within a specific layout
 		std::vector<std::vector<uint32_t>> dataDescriptorSetLayoutOffsets;
 		// One per frame in flight, each descriptor set is stored in a contiguous block of memory
-		// Not entirely sure how texture descriptors are going to work, so I'm just going to store them in a separate buffer
 		std::vector<internal::Allocator::Buffer> dataDescriptorSetBuffers;
 		// Data descriptors for each frame in flight
 		std::vector<VkDescriptorSet> dataDescriptorSets;
