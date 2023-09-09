@@ -30,7 +30,6 @@ namespace Crescendo
 	{
 		this->tasks.unlock();
 		this->isRunning = false;
-		int i = 0;
 		for (auto& thread : this->threads) thread.join();
 	}
 	void TaskQueue::AddTask(const std::function<void()> function)
@@ -39,6 +38,6 @@ namespace Crescendo
 	}
 	void TaskQueue::WaitTillFinished()
 	{
-		while (!this->tasks.empty() || this->activeThreads > 0) std::this_thread::yield();
+		while (!this->IsFinished()) std::this_thread::yield();
 	}
 }

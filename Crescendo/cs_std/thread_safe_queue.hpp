@@ -91,6 +91,9 @@ namespace cs_std
 			std::lock_guard<std::mutex> lock(this->mutex);
 			return this->queue.size();
 		}
+		/// <summary>
+		/// Unlock the queue and allow all threads to continue
+		/// </summary>
 		void unlock()
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
