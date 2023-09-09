@@ -3,6 +3,7 @@
 #include "Core/common.hpp"
 #include "Core/LayerStack/LayerStack.hpp"
 #include "Core/include/TimeManager.hpp"
+#include "Core/TaskQueue/TaskQueue.hpp"
 
 #include "Engine/interfaces/Window.hpp"
 
@@ -13,10 +14,12 @@ namespace Crescendo::Engine
 	private:
 		shared<Window> window;
 
-		Core::LayerStack layerManager;
-		Core::TimeManager timeManager;
+		LayerStack layerManager;
+		TimeManager timeManager;
 
 		static Application* self;
+	protected:
+		TaskQueue taskQueue;
 	public:
 		Application();
 		virtual ~Application() = default;

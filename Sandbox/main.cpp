@@ -22,7 +22,6 @@ private:
 
 	std::vector<glm::mat4> meshTransforms;
 	std::vector<uint32_t> textureIDs;
-	std::vector<bool> isTransparent;
 
 	Renderer renderer = {};
 
@@ -68,8 +67,7 @@ public:
 			skyboxModel
 		};
 
-		std::unordered_map<std::string, uint32_t> seenTextures;
-		std::unordered_map<std::string, bool> seenAlphas;
+		std::map<std::string, uint32_t> seenTextures;
 		this->meshCount = 0;
 		uint32_t i = 0;
 		for (const auto& model : models)
@@ -86,23 +84,31 @@ public:
 				if (mesh.diffuse.empty() || seenTextures.find(mesh.diffuse) != seenTextures.end())
 				{
 					this->textureIDs.push_back(seenTextures[mesh.diffuse]);
-					this->isTransparent.push_back(seenAlphas[mesh.diffuse]);
 				}
 				else
 				{
-					IO::Image image = IO::LoadImage(mesh.diffuse);
 					seenTextures[mesh.diffuse] = i;
 					this->textureIDs.push_back(seenTextures[mesh.diffuse]);
-
-					this->isTransparent.push_back(false);
-
-					this->renderer.UploadTexture(image.pixels, image.width, image.height, image.channels, true);
 					i++;
 				}
 			}
 		}
+		seenTextures.erase("");
 
 		std::cout << "Loaded " << seenTextures.size() << " textures" << std::endl;
+
+		std::vector<std::string> textureStrings(seenTextures.size());
+		for (const auto& texture : seenTextures) textureStrings[texture.second] = texture.first;
+		std::vector<IO::Image> images(textureStrings.size());
+		for (uint32_t i = 0; i < textureStrings.size(); i++)
+		{
+			this->taskQueue.AddTask([&images, &textureStrings, i]() { images[i] = IO::LoadImage(textureStrings[i]); });
+		}
+		this->taskQueue.WaitTillFinished();
+
+		for (auto& image : images) this->renderer.UploadTexture(image.pixels.get(), image.width, image.height, image.channels, true);
+
+		std::cout << "Uploaded " << images.size() << " textures" << std::endl;
 
 		// Upload shaders (creates pipelines and descriptor sets)
 		// Shader loading
@@ -115,8 +121,8 @@ public:
 		for (const auto& shader : shaderList)
 		{
 			this->renderer.UploadPipeline(
-				Crescendo::Core::BinaryFile(shader.name + ".vert.spv").Open().Read(),
-				Crescendo::Core::BinaryFile(shader.name + ".frag.spv").Open().Read(),
+				Crescendo::BinaryFile(shader.name + ".vert.spv").Open().Read(),
+				Crescendo::BinaryFile(shader.name + ".frag.spv").Open().Read(),
 				shader.variant
 			);
 		}
@@ -178,23 +184,13 @@ public:
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
 
 		this->renderer.CmdBindPipeline(2);
-		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), -this->camera.GetPosition()));
+		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), this->camera.GetPosition()));
 		this->renderer.CmdBindTexture(textureIDs[this->meshCount - 1]);
 		this->renderer.CmdDraw(this->meshCount - 1);
 
 		this->renderer.CmdBindPipeline(0);		
 		for (uint32_t i = 0; i < this->meshCount - 1; i++)
 		{
-			if (this->isTransparent[i]) continue;
-			this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->meshTransforms[i]);
-			this->renderer.CmdBindTexture(textureIDs[i]);
-			this->renderer.CmdDraw(i);
-		}
-
-		this->renderer.CmdBindPipeline(1);
-		for (uint32_t i = 0; i < this->meshCount - 1; i++)
-		{
-			if (!this->isTransparent[i]) continue;
 			this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->meshTransforms[i]);
 			this->renderer.CmdBindTexture(textureIDs[i]);
 			this->renderer.CmdDraw(i);

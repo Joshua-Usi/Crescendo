@@ -27,7 +27,7 @@ namespace Crescendo::Tools::XML
 	Document ParseFromFile(const std::string& filePath)
 	{
 		std::stringstream data;
-		Core::TextFile file(filePath);
+		TextFile file(filePath);
 		if (!file.Exists()) CS_ASSERT(false, "File does not exist!");
 		file.Open();
 		data << file.Read();

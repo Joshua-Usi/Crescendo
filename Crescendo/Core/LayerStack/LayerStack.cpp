@@ -1,6 +1,6 @@
 #include "LayerStack.hpp"
 
-namespace Crescendo::Core
+namespace Crescendo
 {
 	LayerStack::~LayerStack()
 	{

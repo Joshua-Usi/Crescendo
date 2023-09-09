@@ -5,7 +5,7 @@
 
 #include <vector>
 
-namespace Crescendo::Core
+namespace Crescendo
 {
 	// TODO CRESCENDO Convert to job system / multithread
 	class LayerStack

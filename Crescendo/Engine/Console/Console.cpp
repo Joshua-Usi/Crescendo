@@ -21,7 +21,7 @@ namespace Crescendo::Engine
 
 			std::string fileName = std::format("{}-{}.log", logFileName, ss.str());
 
-			Core::TextFile file(fileName);
+			TextFile file(fileName);
 			if (!file.Exists()) file.Create();
 			file.Open().Append(logFileBuffer.str()).AppendLine("==============================================================");
 

@@ -12,18 +12,12 @@ namespace Crescendo::IO
 		stbi_set_flip_vertically_on_load(flipOnLoad);
 
 		constexpr int FIXED_CHANNELS = 4;
-
 		int width, height, channels;
-
 		// Force 4 channel RGBA
 		stbi_uc* pixels = stbi_load(path.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
 		CS_ASSERT(pixels != nullptr, "Failed to load image: " + path.string());
-		Image image(pixels, width, height, FIXED_CHANNELS);
-
-		return image;
+		return Image(pixels, width, height, FIXED_CHANNELS);
 	}
-	Image::~Image()
-	{
-		if (pixels != nullptr) stbi_image_free(pixels);
-	}
+	inline Image::Image(stbi_uc* pixels, uint32_t width, uint32_t height, uint32_t channels)
+		: pixels(pixels, [](stbi_uc* p) { if (p) stbi_image_free(p); }), width(width), height(height), channels(channels) {}
 }

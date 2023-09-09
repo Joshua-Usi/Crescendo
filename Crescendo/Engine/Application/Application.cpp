@@ -7,11 +7,10 @@ namespace Crescendo::Engine
 	// Assign self and null as no instance exists yet
 	Application* Application::self = nullptr;
 	Application::Application()
+		: taskQueue(TaskQueue()), timeManager(TimeManager()), layerManager(LayerStack()), window(Window::Create())
 	{
 		CS_ASSERT(self == nullptr, "Application instance already exists!");
 		self = this;
-		// Create window
-		this->window = Window::Create();
 		// Attach layers
 		uint32_t refreshRate = this->window->GetRefreshRate();
 		double secondsPerFrame = (refreshRate == 0) ? 0.0 : 1.0 / double(refreshRate);

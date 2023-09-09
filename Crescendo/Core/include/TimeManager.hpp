@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-namespace Crescendo::Core
+namespace Crescendo
 {
 	// Manages timing in any arbitrary format
 	class TimeManager

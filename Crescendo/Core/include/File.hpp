@@ -6,7 +6,7 @@
 #include <fstream>
 #include <fileSystem>
 
-namespace Crescendo::Core
+namespace Crescendo
 {
 	typedef uint8_t byte;
 	/// <summary>

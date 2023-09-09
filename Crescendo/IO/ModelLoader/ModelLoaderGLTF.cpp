@@ -168,6 +168,7 @@ namespace Crescendo::IO
 					const auto& gltfMaterial = gltfModel.materials[primitive.material];
 					for (const auto& texture : gltfMaterial.values)
 					{
+
 						if (texture.first == "baseColorTexture")
 						{
 							mesh.diffuse = texturePathPrepend.string() + gltfModel.images[texture.second.TextureIndex()].uri;
@@ -180,6 +181,7 @@ namespace Crescendo::IO
 						{
 							mesh.normal = texturePathPrepend.string() + gltfModel.images[texture.second.TextureIndex()].uri;
 						}
+
 					}
 				}
 				model.meshes.push_back(mesh);

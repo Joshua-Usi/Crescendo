@@ -2,7 +2,7 @@
 
 #include "Core/common.hpp"
 
-namespace Crescendo::Core
+namespace Crescendo
 {
 	class Layer
 	{
