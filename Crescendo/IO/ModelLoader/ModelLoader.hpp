@@ -4,6 +4,8 @@
 #include <string>
 #include <filesystem>
 
+#include "glm/glm.hpp"
+
 namespace Crescendo::IO
 {
 	struct Model
@@ -13,7 +15,9 @@ namespace Crescendo::IO
 			std::vector<float> vertices, normals, textureUVs;
 			std::vector<uint32_t> indices;
 			// Texture map paths
-			std::string albedo, diffuse;
+			std::string diffuse, specular, normal, emissive, occlusion;
+			std::string metallicRoughness;
+			glm::mat4 transform;
 		};
 		std::vector<Mesh> meshes;
 	};

@@ -233,10 +233,10 @@ namespace Crescendo
 		// It should not be possible, but just in case
 		CS_ASSERT(sizeof(uint32_t) == sizeof(float), "Somehow sizeof uint32_t and sizeof float don't match!");
 
-		CS_ASSERT(indices.size()    % 3 == 0, "Invalid mesh indices!");
-		CS_ASSERT(vertices.size()   % 3 == 0, "Invalid mesh vertices!");
-		CS_ASSERT(normals.size()    % 3 == 0, "Invalid mesh normals!");
-		CS_ASSERT(textureUVs.size() % 2 == 0, "Invalid mesh texture UVs!");
+		CS_ASSERT(indices.size()    % 3 == 0, "Invalid mesh indices! mesh has " + std::to_string(indices.size()) + " indices!");
+		CS_ASSERT(vertices.size()   % 3 == 0, "Invalid mesh vertices! mesh has " + std::to_string(vertices.size()) + " vertices!");
+		CS_ASSERT(normals.size()    % 3 == 0, "Invalid mesh normals! mesh has " + std::to_string(normals.size()) + " normals!");
+		CS_ASSERT(textureUVs.size() % 2 == 0, "Invalid mesh texture UVs! mesh has " + std::to_string(textureUVs.size()) + " texture UVs!");
 		// TODO assert for potential buffer overflow
 
 		std::array<uint32_t, 5> offsets = {};
@@ -274,11 +274,12 @@ namespace Crescendo
 
 		this->allocator.DestroyBuffer(staging);
 	}
-	void Renderer::RendererImpl::UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps)
+	void Renderer::RendererImpl::UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps)
 	{
 		constexpr VkFormat DEFAULT_FORMAT = VK_FORMAT_R8G8B8A8_SRGB;
 
-		uint32_t mipLevels = generateMipmaps ? static_cast<uint32_t>(std::log2(std::max(width, height))) + 1 : 1;
+		const size_t imageSize = width * height * channels;
+		const uint32_t mipLevels = generateMipmaps ? static_cast<uint32_t>(std::log2(std::max(width, height))) + 1 : 1;
 		
 		// Create samplers dynamically as required for mip levels
 		for (uint32_t i = static_cast<uint32_t>(samplers.size()); i < mipLevels; i++)
@@ -294,8 +295,8 @@ namespace Crescendo
 		}
 
 		// Stage the image data
-		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(textureData.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-		staging.Fill(0, textureData.data(), textureData.size());
+		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		staging.Fill(0, textureData, imageSize);
 
 		// Create the image
 		VkExtent3D extent = { width, height, 1 };
@@ -316,30 +317,23 @@ namespace Crescendo
 		vkGetPhysicalDeviceFormatProperties(this->physicalDevice, DEFAULT_FORMAT, &formatProperties);
 		CS_ASSERT(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT, "Format is not blit compatible");
 
-		// Transition to blit compatible
 		this->uploadTextureQueue.InstantSubmit([&](const internal::CommandQueue& cmd) {
+			// Transition to blit compatible
 			VkImageMemoryBarrier barrier = Create::ImageMemoryBarrier(
 				0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, image.image,
 				Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 			);
+			vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-			VkPipelineStageFlags srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
-			vkCmdPipelineBarrier(cmd.commandBuffer, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-		});
-
-		// Copy buffer to image
-		this->uploadTextureQueue.InstantSubmit([&](const internal::CommandQueue& cmd) {
+			// Copy buffer to image
 			VkBufferImageCopy region = Create::BufferImageCopy(
 				0, 0, 0, Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1), { 0, 0, 0 }, extent
 			);
 			vkCmdCopyBufferToImage(cmd.commandBuffer, staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-		});
 
-		// Transition the image to a transfer destination
-		this->uploadTextureQueue.InstantSubmit([&](const internal::CommandQueue& cmd) {
-			VkImageMemoryBarrier barrier = Create::ImageMemoryBarrier(
+			// Transition the image to a transfer destination
+			barrier = Create::ImageMemoryBarrier(
 				0, 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_UNDEFINED,
 				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, image.image,
 				Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)

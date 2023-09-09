@@ -20,6 +20,7 @@ private:
 	uint32_t meshCount = 0;
 	bool uReleased = true;
 
+	std::vector<glm::mat4> meshTransforms;
 	std::vector<uint32_t> textureIDs;
 	std::vector<bool> isTransparent;
 
@@ -35,8 +36,8 @@ public:
 		this->GetWindow()->SetSize(CVar::Get<int64_t>("ec_windowwidth"), CVar::Get<int64_t>("ec_windowheight"));
 		this->GetWindow()->SetCursorLock(true);
 
-		this->camera = Graphics::Camera(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 100000.0f });
-		this->camera.SetPosition(glm::vec3(0.0f, 0.0f, 1.0f));
+		this->camera = Graphics::Camera(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 10000.0f });
+		this->camera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
 
 		Renderer::BuilderInfo info;
 
@@ -48,19 +49,22 @@ public:
 		info.windowExtent = { this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight() };
 		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
 		info.framesInFlight = CVar::Get<int64_t>("rc_framesinflight");
-		info.vertexBufferBlockSize = std::powl(2, 24); // use 24 for sponza, 28 for rungholt
+		info.vertexBufferBlockSize = std::powl(2, 28); // use 24 for sponza, 28 for rungholt
 		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
 		info.msaaSamples = CVar::Get<int64_t>("rc_multisamples");
 
 		this->renderer = Renderer::Create(info);
 
 		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
-		IO::Model skyboxModel = {{{ skybox.vertices, skybox.normals, skybox.textureUVs, skybox.indices, "./assets/skybox-night.png", }}};
+		IO::Model skyboxModel = {{{ skybox.vertices, skybox.normals, skybox.textureUVs, skybox.indices, "./assets/skybox-night.png" }}};
 
 		std::vector<IO::Model> models =
 		{
-			//IO::LoadOBJ("./assets/sponza/sponza.obj", "./assets/sponza/"),
-			IO::LoadGLTF("./assets/companion-cube/scene.gltf", "./assets/companion-cube/"),
+			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf", "./assets/modern-sponza/"),
+			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf", "./assets/sponza-curtains/"),
+			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj", "./assets/obj-sponza/"),
+			//IO::LoadGLTF("./assets/companion-cube/scene.gltf", "./assets/companion-cube/"),
+			IO::LoadGLTF("./assets/tree/tree.gltf", "./assets/tree/"),
 			skyboxModel
 		};
 
@@ -76,21 +80,21 @@ public:
 			{
 				// Mesh upload
 				this->renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
+				meshTransforms.push_back(mesh.transform);
 
 				// Texture upload
-				if (mesh.albedo.empty() || seenTextures.find(mesh.albedo) != seenTextures.end())
+				if (mesh.diffuse.empty() || seenTextures.find(mesh.diffuse) != seenTextures.end())
 				{
-					this->textureIDs.push_back(seenTextures[mesh.albedo]);
-					this->isTransparent.push_back(seenAlphas[mesh.albedo]);
+					this->textureIDs.push_back(seenTextures[mesh.diffuse]);
+					this->isTransparent.push_back(seenAlphas[mesh.diffuse]);
 				}
 				else
 				{
-					IO::Image image = IO::LoadImage(mesh.albedo);
-					seenTextures[mesh.albedo] = i;
-					this->textureIDs.push_back(seenTextures[mesh.albedo]);
+					IO::Image image = IO::LoadImage(mesh.diffuse);
+					seenTextures[mesh.diffuse] = i;
+					this->textureIDs.push_back(seenTextures[mesh.diffuse]);
 
-					seenAlphas[mesh.albedo] = image.isTransparent;
-					this->isTransparent.push_back(image.isTransparent);
+					this->isTransparent.push_back(false);
 
 					this->renderer.UploadTexture(image.pixels, image.width, image.height, image.channels, true);
 					i++;
@@ -98,13 +102,15 @@ public:
 			}
 		}
 
+		std::cout << "Loaded " << seenTextures.size() << " textures" << std::endl;
+
 		// Upload shaders (creates pipelines and descriptor sets)
 		// Shader loading
 		struct Shader { std::string name; Renderer::PipelineVariant variant; };
 		std::vector<Shader> shaderList = {
-			{"./shaders/compiled/mesh", Renderer::PipelineVariant() }, // Normal meshes
-			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Transparent meshes
-			{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false) }, // Skybox
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Normal meshes
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Transparent meshes
+			{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) }, // Skybox
 		};
 		for (const auto& shader : shaderList)
 		{
@@ -135,9 +141,9 @@ public:
 		this->camera.SetRotation(rotation);
 
 		// Camera movement
-		float velocity = 0.1f;
+		float velocity = 0.01f;
 		glm::vec3 movement(0.0f, 0.0f, 0.0f);
-		if (Input::GetKeyPressed(Key::R)) velocity = 10.0f;
+		if (Input::GetKeyPressed(Key::R)) velocity = 1.0f;
 
 		float sinX = std::sin(rotation.x) * velocity, cosX = std::cos(rotation.x) * velocity;
 
@@ -151,41 +157,45 @@ public:
 		this->camera.MovePosition(movement);
 
 		// Render prep
-		struct VP { glm::mat4 view, projection; } vp { this->camera.GetViewMatrix(), this->camera.GetProjectionMatrix() };
-		struct Lighting { glm::vec4 lightColor, lightPosition; } lighting{ glm::vec4(0.75f, 0.75f, 1.0f, 1.0f), glm::vec4(0.0f, 10000.0f, 0.0f, 1.0f) };
+		struct Lighting { glm::vec4 lightColor, lightPosition, viewPosition; } lighting{
+			glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
+			glm::vec4(10000.0f * sinf(this->GetTime()), 10000.0f * cos(this->GetTime()), 0.0f, 1.0f),
+			glm::vec4(this->camera.GetPosition(), 1.0f)
+		};
+		const glm::vec3 lightIntensities = glm::vec3(0.25f, 0.5f, 0.25f);
 
-		this->renderer.UpdateDescriptorSetData(0, 0, vp);
+		this->renderer.UpdateDescriptorSetData(0, 0, this->camera.GetViewProjectionMatrix());
 		this->renderer.UpdateDescriptorSetData(1, 0, lighting);
-		this->renderer.UpdateDescriptorSetData(1, 1, glm::vec3(0.25f, 0.75f, 0.0f));
+		this->renderer.UpdateDescriptorSetData(1, 1, lightIntensities);
 
-		this->renderer.UpdateDescriptorSetData(2, 0, vp);
+		this->renderer.UpdateDescriptorSetData(2, 0, this->camera.GetViewProjectionMatrix());
 		this->renderer.UpdateDescriptorSetData(3, 0, lighting);
-		this->renderer.UpdateDescriptorSetData(3, 1, glm::vec3(0.25f, 0.75f, 0.0f));
+		this->renderer.UpdateDescriptorSetData(3, 1, lightIntensities);
 
-		this->renderer.UpdateDescriptorSetData(4, 0, vp);
+		this->renderer.UpdateDescriptorSetData(4, 0, this->camera.GetViewProjectionMatrix());
 
 		// Render commands
 		this->renderer.CmdBeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
 
 		this->renderer.CmdBindPipeline(2);
-		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), this->camera.GetPosition()));
+		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), -this->camera.GetPosition()));
 		this->renderer.CmdBindTexture(textureIDs[this->meshCount - 1]);
 		this->renderer.CmdDraw(this->meshCount - 1);
 
-		this->renderer.CmdBindPipeline(0);
-		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::mat4(1.0f));
+		this->renderer.CmdBindPipeline(0);		
 		for (uint32_t i = 0; i < this->meshCount - 1; i++)
 		{
 			if (this->isTransparent[i]) continue;
+			this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->meshTransforms[i]);
 			this->renderer.CmdBindTexture(textureIDs[i]);
 			this->renderer.CmdDraw(i);
 		}
 
 		this->renderer.CmdBindPipeline(1);
-		this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::mat4(1.0f));
 		for (uint32_t i = 0; i < this->meshCount - 1; i++)
 		{
 			if (!this->isTransparent[i]) continue;
+			this->renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->meshTransforms[i]);
 			this->renderer.CmdBindTexture(textureIDs[i]);
 			this->renderer.CmdDraw(i);
 		}

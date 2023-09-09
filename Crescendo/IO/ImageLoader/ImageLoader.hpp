@@ -3,17 +3,17 @@
 #include <vector>
 #include <filesystem>
 
+#include <iostream>
+
 namespace Crescendo::IO
 {
-	/// <summary>
-	/// This class breaks RAII concepts but at least it avoids memcpys
-	/// </summary>
 	struct Image
 	{
-		std::vector<uint8_t> pixels;
+		void* pixels;
 		uint32_t width, height, channels;
-		bool isTransparent;
+		// Automatically frees itself
+		~Image();
 	};
 
-	Image LoadImage(const std::filesystem::path& path, bool flipOnLoad = true);
+	Image LoadImage(const std::filesystem::path& path, bool flipOnLoad = false);
 }

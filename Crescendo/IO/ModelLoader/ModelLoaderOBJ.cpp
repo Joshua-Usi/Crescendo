@@ -2,6 +2,8 @@
 
 #include "rapidobj/rapidobj.hpp"
 
+#include "Core/common.hpp"
+
 namespace Crescendo::IO
 {
 	Model LoadOBJ(const std::filesystem::path& path, const std::filesystem::path& texturePathPrepend)
@@ -13,7 +15,10 @@ namespace Crescendo::IO
 		rapidobj::Result result = rapidobj::ParseFile(path);
 		rapidobj::Triangulate(result);
 
-		if (result.error) return model;
+		if (result.error)
+		{
+			CS_ASSERT(false, "Failed to load obj: " + path.string());
+		}
 
 		auto& attrib = result.attributes;
 		auto& shapes = result.shapes;
@@ -23,17 +28,26 @@ namespace Crescendo::IO
 
 		for (size_t s = 0, sSize = shapes.size(); s < sSize; s++)
 		{
+			model.meshes[s].transform = glm::mat4(1.0f);
+
 			size_t indexOffset = 0;
 			model.meshes[s].vertices.resize  (3 * VERTICES_PER_FACE * shapes[s].mesh.num_face_vertices.size());
 			model.meshes[s].normals.resize   (3 * VERTICES_PER_FACE * shapes[s].mesh.num_face_vertices.size());
 			model.meshes[s].textureUVs.resize(2 * VERTICES_PER_FACE * shapes[s].mesh.num_face_vertices.size());
 			model.meshes[s].indices.resize   (3                     * shapes[s].mesh.num_face_vertices.size());
 
-			const std::string& ambient = materials[shapes[s].mesh.material_ids[0]].ambient_texname;
-			const std::string& diffuse = materials[shapes[s].mesh.material_ids[0]].diffuse_texname;
+			const std::string& ambient  = materials[shapes[s].mesh.material_ids[0]].ambient_texname;
+			const std::string& diffuse  = materials[shapes[s].mesh.material_ids[0]].diffuse_texname;
+			const std::string& specular = materials[shapes[s].mesh.material_ids[0]].specular_texname;
+			const std::string& normal   = materials[shapes[s].mesh.material_ids[0]].normal_texname;
+			const std::string& emissive = materials[shapes[s].mesh.material_ids[0]].emissive_texname;
 
-			model.meshes[s].albedo = (ambient.empty() ? "" : texturePathPrepend.string()) + ambient;
-			model.meshes[s].diffuse = (diffuse.empty() ? "" : texturePathPrepend.string()) + diffuse;
+			model.meshes[s].diffuse  = (ambient.empty()  ? "" : texturePathPrepend.string()) + ambient;
+			model.meshes[s].diffuse  = (diffuse.empty()  ? "" : texturePathPrepend.string()) + diffuse;
+			model.meshes[s].specular = (specular.empty() ? "" : texturePathPrepend.string()) + specular;
+			model.meshes[s].normal   = (normal.empty()   ? "" : texturePathPrepend.string()) + normal;
+			model.meshes[s].emissive = (emissive.empty() ? "" : texturePathPrepend.string()) + emissive;
+
 
 			for (size_t f = 0, fSize = shapes[s].mesh.num_face_vertices.size(); f < fSize; f++)
 			{

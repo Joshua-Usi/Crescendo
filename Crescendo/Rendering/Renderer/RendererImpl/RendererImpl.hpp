@@ -193,7 +193,7 @@ namespace Crescendo
 		// Upload commands
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant);
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
-		void UploadTexture(const std::vector<uint8_t>& textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
+		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 	
 		// Getters
 		inline Pipeline GetPipeline(uint32_t pipeline) const { return this->pipelines[pipeline]; }
