@@ -15,8 +15,6 @@
 
 #include "./internal/Create.hpp"
 
-#include <functional>
-
 namespace Crescendo
 {
 	namespace Create = internal::Create;

@@ -16,7 +16,10 @@ namespace Crescendo
 		CS_ASSERT(info.windowExtent.width > 0, "Window width must be greater than 0!");
 		CS_ASSERT(info.windowExtent.height > 0, "Window height must be greater than 0!");
 		CS_ASSERT((info.msaaSamples & (info.msaaSamples - 1)) == 0 || info.msaaSamples == std::numeric_limits<uint32_t>::max(), "MSAA samples must be a power of 2!");
-		
+		CS_ASSERT(info.framesInFlight > 0, "Frames in flight must be greater than 0!");
+		CS_ASSERT(info.vertexBufferBlockSize > 0, "Vertex buffer block size must be greater than 0!");
+		CS_ASSERT(info.descriptorBufferBlockSize > 0, "Descriptor buffer block size must be greater than 0!");
+
 		// Fixed initialisation
 		CS_TIME(this->impl->InitialiseInstance(info), "Instance Initialisation");
 		CS_TIME(this->impl->InitialiseCommands(info), "Command Initialisation");
@@ -60,6 +63,7 @@ namespace Crescendo
 	}
 	void Renderer::Destroy(Renderer& renderer)
 	{
+		if (renderer.impl == nullptr) return;
 		vkDeviceWaitIdle(renderer.impl->device);
 		renderer.impl->mainDeletionQueue.Flush();
 	}

@@ -61,6 +61,7 @@ namespace Crescendo
 
 		// Create surface
 		CS_ASSERT(glfwCreateWindowSurface(this->instance, static_cast<GLFWwindow*>(info.window), nullptr, &this->surface) == VK_SUCCESS, "Failed to create window surface!");
+		
 		// Device features
 		VkPhysicalDeviceFeatures deviceFeatures = {};
 		deviceFeatures.fillModeNonSolid = VK_TRUE;
@@ -106,16 +107,6 @@ namespace Crescendo
 		this->state.frameData.resize(info.framesInFlight);
 		this->window = static_cast<GLFWwindow*>(info.window);
 		this->state.msaaSamples = std::min(sampleMap(info.msaaSamples), getMaxSampleCounts(this->physicalDeviceProperties));
-
-		std::cout << "Renderer Stats:" << "\n";
-		std::cout << "\tDevice: " << physicalDeviceResult.name << "\n";
-		std::cout << "\tFrames in flight: " << info.framesInFlight << "\n";
-		std::cout << "\tVertex buffer block size: 4 x " << info.vertexBufferBlockSize / 1024 / 1024 << "MB\n";
-		std::cout << "\tMax push constant size: " << this->physicalDeviceProperties.limits.maxPushConstantsSize << "B\n";
-		std::cout << "\tDescriptor buffer block size: " << info.framesInFlight << " x " << info.descriptorBufferBlockSize / 1024 << "KB\n";
-		std::cout << "\tMinimum uniform buffer offset alignment: " << this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment << "B\n";
-		std::cout << "\tMax sampler anisotropy: " << this->physicalDeviceProperties.limits.maxSamplerAnisotropy << "\n";
-		std::cout << "\tMax frame & depth buffer samples: " << getMaxSampleCounts(this->physicalDeviceProperties) << "\n";
 
 		// Push to deletion queue
 		this->mainDeletionQueue.Push([&]() {

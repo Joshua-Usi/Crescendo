@@ -11,6 +11,9 @@
 
 namespace Crescendo
 {
+	/// <summary>
+	/// Safe multithreaded task queue designed to automatically assign tasks to threads
+	/// </summary>
 	class TaskQueue
 	{
 	private:

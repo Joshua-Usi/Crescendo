@@ -84,7 +84,6 @@ namespace Crescendo
 				depthFunc(depthFunc),
 				cullMode(cullMode) {}
 		};
-	private:
 	public:
 		Renderer();
 		~Renderer();

@@ -6,9 +6,12 @@
 
 namespace Crescendo::IO
 {
-	Model LoadOBJ(const std::filesystem::path& path, const std::filesystem::path& texturePathPrepend)
+	Model LoadOBJ(const std::filesystem::path& path)
 	{
+
 		constexpr uint32_t VERTICES_PER_FACE = 3;
+
+		const std::filesystem::path texturePathPrepend = path.parent_path();
 
 		Model model;
 
@@ -36,18 +39,20 @@ namespace Crescendo::IO
 			model.meshes[s].textureUVs.resize(2 * VERTICES_PER_FACE * shapes[s].mesh.num_face_vertices.size());
 			model.meshes[s].indices.resize   (3                     * shapes[s].mesh.num_face_vertices.size());
 
-			const std::string& ambient  = materials[shapes[s].mesh.material_ids[0]].ambient_texname;
-			const std::string& diffuse  = materials[shapes[s].mesh.material_ids[0]].diffuse_texname;
-			const std::string& specular = materials[shapes[s].mesh.material_ids[0]].specular_texname;
-			const std::string& normal   = materials[shapes[s].mesh.material_ids[0]].normal_texname;
-			const std::string& emissive = materials[shapes[s].mesh.material_ids[0]].emissive_texname;
+			const std::string ambient  = materials[shapes[s].mesh.material_ids[0]].ambient_texname;
+			const std::string diffuse  = materials[shapes[s].mesh.material_ids[0]].diffuse_texname;
+			const std::string specular = materials[shapes[s].mesh.material_ids[0]].specular_texname;
+			const std::string normal   = materials[shapes[s].mesh.material_ids[0]].normal_texname;
+			const std::string emissive = materials[shapes[s].mesh.material_ids[0]].emissive_texname;
 
-			model.meshes[s].diffuse  = (ambient.empty()  ? "" : texturePathPrepend.string()) + ambient;
-			model.meshes[s].diffuse  = (diffuse.empty()  ? "" : texturePathPrepend.string()) + diffuse;
-			model.meshes[s].specular = (specular.empty() ? "" : texturePathPrepend.string()) + specular;
-			model.meshes[s].normal   = (normal.empty()   ? "" : texturePathPrepend.string()) + normal;
-			model.meshes[s].emissive = (emissive.empty() ? "" : texturePathPrepend.string()) + emissive;
+			model.meshes[s].diffuse = (ambient.empty() ? "" : texturePathPrepend) / ambient;
+			model.meshes[s].specular = "";
+			model.meshes[s].normal = "";
+			model.meshes[s].emissive = "";
+			model.meshes[s].metallicRoughness = "";
 
+			model.meshes[s].isDoubleSided = false;
+			model.meshes[s].isTransparent = false;
 
 			for (size_t f = 0, fSize = shapes[s].mesh.num_face_vertices.size(); f < fSize; f++)
 			{

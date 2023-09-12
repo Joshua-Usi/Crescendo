@@ -1,6 +1,7 @@
 #include "Application.hpp"
 
 #include "Engine/layers/Update.hpp"
+#include "Engine/CVar/Cvar.hpp"
 
 namespace Crescendo::Engine
 {
@@ -11,12 +12,32 @@ namespace Crescendo::Engine
 	{
 		CS_ASSERT(self == nullptr, "Application instance already exists!");
 		self = this;
+
+		CVar::LoadConfigXML("config.xml");
+
 		// Attach layers
 		uint32_t refreshRate = this->window->GetRefreshRate();
 		double secondsPerFrame = (refreshRate == 0) ? 0.0 : 1.0 / double(refreshRate);
-		this->layerManager.Attach(new Core::LayerUpdate(secondsPerFrame, 0));
-		// Initialise layers at current time
+		this->layerManager.Attach(new LayerUpdate(secondsPerFrame, 0));
 		this->layerManager.Init(this->timeManager.GetTimeSinceStart<double>());
+
+		this->window->SetSize(CVar::Get<int64_t>("ec_windowwidth"), CVar::Get<int64_t>("ec_windowheight"));
+
+		Renderer::BuilderInfo info = {};
+
+		info.useValidationLayers = CVar::Get<bool>("rc_validationlayers");
+		info.preferredDeviceType = Renderer::BuilderInfo::DeviceType::Discrete;
+		info.appName = CVar::Get<std::string>("rc_appname");
+		info.engineName = CVar::Get<std::string>("rc_enginename");
+		info.window = this->window->GetNative();
+		info.windowExtent = { this->window->GetWidth(), this->window->GetHeight() };
+		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
+		info.framesInFlight = CVar::Get<int64_t>("rc_framesinflight");
+		info.vertexBufferBlockSize = std::powl(2, 28); // 256MB
+		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
+		info.msaaSamples = CVar::Get<int64_t>("rc_multisamples");
+
+		this->renderer = Atlas(info);
 	}
 	void Application::Run()
 	{
@@ -33,6 +54,6 @@ namespace Crescendo::Engine
 			this->layerManager.QueryForUpdate(time);
 			this->layerManager.Update(time);
 		}
-		CS_TIME(this->OnExit(), "Exit");
+		this->OnExit();
 	}
 }

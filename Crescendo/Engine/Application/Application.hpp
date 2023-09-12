@@ -7,6 +7,8 @@
 
 #include "Engine/interfaces/Window.hpp"
 
+#include "Rendering/Atlas/Atlas.hpp"
+
 namespace Crescendo::Engine
 {
 	class Application
@@ -20,6 +22,7 @@ namespace Crescendo::Engine
 		static Application* self;
 	protected:
 		TaskQueue taskQueue;
+		Atlas renderer;
 	public:
 		Application();
 		virtual ~Application() = default;

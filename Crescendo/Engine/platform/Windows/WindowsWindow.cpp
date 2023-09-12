@@ -51,10 +51,7 @@ namespace Crescendo::Engine
 			IsGLFWInitialised = false;
 		}
 	}
-	void WindowsWindow::OnUpdate()
-	{
-		if (this->data.isOpen) Input::PollEvents();
-	}
+	void WindowsWindow::OnUpdate() {}
 	uint32_t WindowsWindow::GetWidth() const
 	{
 		return this->data.width;

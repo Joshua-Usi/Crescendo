@@ -91,8 +91,10 @@ namespace Crescendo::IO
 			traverseNode(model, nodeMap, model.nodes[child], finalTransform);
 		}
 	}
-	Model LoadGLTF(const std::filesystem::path& path, const std::filesystem::path& texturePathPrepend)
+	Model LoadGLTF(const std::filesystem::path& path)
 	{
+		const std::filesystem::path texturePathPrepend = path.parent_path();
+
 		Model model = {};
 
 		tinygltf::TinyGLTF loader;
@@ -104,9 +106,7 @@ namespace Crescendo::IO
 		if (!ret) return model;
 
 		std::unordered_map<uint32_t, NodeData> nodeToMesh;
-
-		auto& scene = gltfModel.scenes[gltfModel.defaultScene];
-		for (auto& node : scene.nodes)
+		for (auto& node : gltfModel.scenes[gltfModel.defaultScene].nodes)
 		{
 			traverseNode(gltfModel, nodeToMesh, gltfModel.nodes[node]);
 		}
@@ -114,12 +114,12 @@ namespace Crescendo::IO
 		for (uint32_t i = 0; i < gltfModel.meshes.size(); i++)
 		{
 
-			glm::mat4& transform = nodeToMesh[i].transform;
+			const glm::mat4& transform = nodeToMesh[i].transform;
 			for (const auto& primitive : gltfModel.meshes[i].primitives)
 			{
 				Model::Mesh mesh = {};
 
-				mesh.transform  = transform;
+				mesh.transform = transform;
 
 				std::unordered_map <std::string, std::vector<float>*> attributes = {
 					{ "POSITION", &mesh.vertices },
@@ -166,22 +166,22 @@ namespace Crescendo::IO
 				if (primitive.material >= 0)
 				{
 					const auto& gltfMaterial = gltfModel.materials[primitive.material];
+					mesh.isDoubleSided = gltfMaterial.doubleSided;
+					mesh.isTransparent = gltfMaterial.alphaMode == "BLEND";
 					for (const auto& texture : gltfMaterial.values)
 					{
-
 						if (texture.first == "baseColorTexture")
 						{
-							mesh.diffuse = texturePathPrepend.string() + gltfModel.images[texture.second.TextureIndex()].uri;
+							mesh.diffuse = texturePathPrepend / gltfModel.images[texture.second.TextureIndex()].uri;
 						}
-						else if (texture.first == "metallicRoughnessTexture")
+						/*else if (texture.first == "metallicRoughnessTexture")
 						{
-							mesh.metallicRoughness = texturePathPrepend.string() + gltfModel.images[texture.second.TextureIndex()].uri;
+							mesh.metallicRoughness = texturePathPrepend / gltfModel.images[texture.second.TextureIndex()].uri;
 						}
 						else if (texture.first == "normalTexture")
 						{
-							mesh.normal = texturePathPrepend.string() + gltfModel.images[texture.second.TextureIndex()].uri;
-						}
-
+							mesh.normal = texturePathPrepend / gltfModel.images[texture.second.TextureIndex()].uri;
+						}*/
 					}
 				}
 				model.meshes.push_back(mesh);
