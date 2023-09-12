@@ -33,9 +33,10 @@ namespace Crescendo::Engine
 		info.windowExtent = { this->window->GetWidth(), this->window->GetHeight() };
 		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
 		info.framesInFlight = CVar::Get<int64_t>("rc_framesinflight");
-		info.vertexBufferBlockSize = std::powl(2, 28); // 256MB
-		info.descriptorBufferBlockSize = std::powl(2, 18); // 256KB
+		info.vertexBufferBlockSize = CVar::Get<int64_t>("rc_vertexbufferblocksize");
+		info.descriptorBufferBlockSize = CVar::Get<int64_t>("rc_descriptorbufferblocksize");
 		info.msaaSamples = CVar::Get<int64_t>("rc_multisamples");
+		info.desriptorSetsPerPool = CVar::Get<int64_t>("rc_descriptorsetsperpool");
 
 		this->renderer = Atlas(info);
 	}

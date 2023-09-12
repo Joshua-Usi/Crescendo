@@ -14,37 +14,36 @@ namespace Crescendo::internal
 		struct Pool
 		{
 			VkDescriptorPool pool;
-			uint32_t descriptorsUsed;
 			VkDescriptorType poolType;
+			uint32_t descriptorsUsed;
 		};
 		std::vector<Pool> pools;
 		VkDevice device;
 		// This value is designed NOT to change once it is set
 		uint32_t maxDescriptorsPerPool;
 	private:
-		inline VkDescriptorPool FindCompatibleAndOpenPool(VkDescriptorType poolType)
+		inline Pool* FindCompatibleAndOpenPool(VkDescriptorType poolType)
 		{
-			for (const auto& pool : this->pools)
+			for (auto& pool : this->pools)
 			{
-				if (pool.poolType == poolType && pool.descriptorsUsed < this->maxDescriptorsPerPool)
+				if (pool.poolType == poolType && pool.descriptorsUsed < this->maxDescriptorsPerPool - 1)
 				{
-					return pool.pool;
+					return &pool;
 				}
 			}
 			// If we didn't find a valid pool, return nullptr
 			return nullptr;
 		}
-		inline VkDescriptorPool AllocatePool(VkDescriptorType poolType)
+		inline Pool& AllocatePool(VkDescriptorType poolType)
 		{
-			Pool pool = {};
+			Pool pool(nullptr, poolType, 0);
 
 			const std::vector<VkDescriptorPoolSize> sizes = { { poolType, this->maxDescriptorsPerPool } };
 			VkDescriptorPoolCreateInfo poolInfo = Create::DescriptorPoolCreateInfo(0, this->maxDescriptorsPerPool, sizes);
 			vkCreateDescriptorPool(this->device, &poolInfo, nullptr, &pool.pool);
-			
-			this->pools.push_back(pool);
 
-			return pool.pool;
+			this->pools.push_back(pool);
+			return pool;
 		}
 	public:
 		DescriptorManager() = default;
@@ -55,6 +54,7 @@ namespace Crescendo::internal
 		{
 			CS_ASSERT(maxDescriptorsPerPool > 0, "Max Descriptors per pool cannot be O, must be at least 1");
 			this->maxDescriptorsPerPool = maxDescriptorsPerPool;
+
 			return *this;
 		}
 		inline void Destroy()
@@ -64,12 +64,13 @@ namespace Crescendo::internal
 	public:
 		inline VkDescriptorSet AllocateSet(VkDescriptorType type, VkDescriptorSetLayout layout)
 		{
-			VkDescriptorPool pool = this->FindCompatibleAndOpenPool(type);
-			if (pool == nullptr) pool = this->AllocatePool(type);
+			Pool* pool = this->FindCompatibleAndOpenPool(type);
+			if (pool == nullptr) pool = &this->AllocatePool(type);
 
-			VkDescriptorSetAllocateInfo allocInfo = Create::DescriptorSetAllocateInfo(pool, { layout });
+			VkDescriptorSetAllocateInfo allocInfo = Create::DescriptorSetAllocateInfo(pool->pool, { layout });
 			VkDescriptorSet set;
 			vkAllocateDescriptorSets(this->device, &allocInfo, &set);
+			pool->descriptorsUsed++;
 			return set;
 		}
 	};

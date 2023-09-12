@@ -37,6 +37,25 @@ public:
 
 		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 10000.0f });
 
+		// Upload shaders (creates pipelines and descriptor sets)
+		// Shader loading
+		struct Shader { std::string name; Renderer::PipelineVariant variant; };
+		std::vector<Shader> shaderList = {
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back) }, // Single sides, opaque meshes
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, opaque meshes
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back) }, // Single sided, transparent meshes
+			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, transparent meshes
+			{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) }, // Skybox
+		};
+		for (const auto& shader : shaderList)
+		{
+			this->renderer.renderer.UploadPipeline(
+				Crescendo::BinaryFile(shader.name + ".vert.spv").Open().Read(),
+				Crescendo::BinaryFile(shader.name + ".frag.spv").Open().Read(),
+				shader.variant
+			);
+		}
+
 		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
 		IO::Model skyboxModel = {{{ skybox.vertices, skybox.normals, skybox.textureUVs, skybox.indices, "./assets/skybox-night.png" }}};
 
@@ -89,23 +108,16 @@ public:
 		this->taskQueue.WaitTillFinished();
 		for (auto& image : images) this->renderer.renderer.UploadTexture(image.pixels.get(), image.width, image.height, image.channels, false);
 
-		// Upload shaders (creates pipelines and descriptor sets)
-		// Shader loading
-		struct Shader { std::string name; Renderer::PipelineVariant variant; };
-		std::vector<Shader> shaderList = {
-			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back) }, // Single sides, opaque meshes
-			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, opaque meshes
-			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back) }, // Single sided, transparent meshes
-			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, transparent meshes
-			{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) }, // Skybox
+		struct Lighting { glm::vec4 lightColor, lightPosition, viewPosition; } lighting{
+			glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
+			glm::vec4(0.0f, 100.0f * cos(this->GetTime()), 0.0f, 1.0f),
+			glm::vec4(this->camera.camera->GetPosition(), 1.0f)
 		};
-		for (const auto& shader : shaderList)
+		const glm::vec3 lightIntensities = glm::vec3(0.25f, 0.5f, 0.25f);
+		for (uint32_t i = 0; i < 4; i++)
 		{
-			this->renderer.renderer.UploadPipeline(
-				Crescendo::BinaryFile(shader.name + ".vert.spv").Open().Read(),
-				Crescendo::BinaryFile(shader.name + ".frag.spv").Open().Read(),
-				shader.variant
-			);
+			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 0, lighting);
+			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 1, lightIntensities);
 		}
 	}
 	void OnUpdate(double dt)
@@ -122,20 +134,10 @@ public:
 		this->camera.Update();
 
 		// Render prep
-		struct Lighting { glm::vec4 lightColor, lightPosition, viewPosition; } lighting {
-			glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
-			glm::vec4(100.0f * sinf(this->GetTime()), 100.0f * cos(this->GetTime()), 0.0f, 1.0f),
-			glm::vec4(this->camera.camera->GetPosition(), 1.0f)
-		};
-		const glm::vec3 lightIntensities = glm::vec3(0.25f, 0.5f, 0.25f);
-
 		glm::mat4 viewProj = this->camera.camera->GetViewProjectionMatrix();
-
 		for (uint32_t i = 0; i < 4; i++)
 		{
 			this->renderer.renderer.UpdateDescriptorSetData(i * 2, 0, viewProj);
-			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 0, lighting);
-			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 1, lightIntensities);
 		}
 		this->renderer.renderer.UpdateDescriptorSetData(8, 0, viewProj);
 

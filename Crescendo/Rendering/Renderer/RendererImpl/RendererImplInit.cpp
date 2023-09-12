@@ -279,8 +279,7 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseDescriptors(const BuilderInfo& info)
 	{
-		constexpr uint32_t SETS_PER_POOL = 128;
-		this->descriptorManager = internal::DescriptorManager(this->device).Initialise(SETS_PER_POOL);
+		this->descriptorManager = internal::DescriptorManager(this->device).Initialise(info.desriptorSetsPerPool);
 
 		// Create the default texture descriptor set layout
 		std::vector<VkDescriptorSetLayoutBinding> samplerLayoutBinding = { Create::DescriptorSetLayoutBinding(

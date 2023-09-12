@@ -127,7 +127,7 @@ namespace Crescendo
 			this->dataDescriptorSetLayoutOffsets.push_back(offsets);
 
 			// Create and write descriptor sets
-			for (uint32_t j = 0; j < this->state.framesInFlight; j++)
+			  for (uint32_t j = 0; j < this->state.framesInFlight; j++)
 			{
 				VkDescriptorSet descriptorSet = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, setLayouts[i]);
 				this->dataDescriptorSets.push_back(descriptorSet);
@@ -141,7 +141,7 @@ namespace Crescendo
 					);
 					vkUpdateDescriptorSets(this->device, 1, &setWrite, 0, nullptr);
 				}
-			}
+			};
 		}
 		this->dataDescriptorSetLayouts.insert(this->dataDescriptorSetLayouts.end(), setLayouts.begin(), setLayouts.end());
 

@@ -59,6 +59,9 @@ namespace Crescendo
 			// MSAA samples, 1 for no MSAA, MultiSamples::Max for max supported MSAA
 			uint32_t msaaSamples;
 
+			// Number of descriptor sets per pool. If a descriptor set is requested and there are no free sets in the pool, a new pool is created
+			uint32_t desriptorSetsPerPool;
+
 			BuilderInfo() = default;
 		};
 		// Generates variations of a pipeline based on the given information
