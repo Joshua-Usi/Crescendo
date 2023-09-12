@@ -23,7 +23,7 @@ private:
 	uint32_t meshCount = 0;
 	bool uReleased = true;
 
-	std::vector<Crescendo::Algorithms::AABB> meshBounds;
+	std::vector<Crescendo::Algorithms::BoundingAABB> meshBounds;
 	std::vector<glm::mat4> meshTransforms;
 	std::vector<uint32_t> textureIDs;
 
@@ -81,7 +81,7 @@ public:
 				// Mesh upload
 				this->renderer.renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
 				meshTransforms.push_back(mesh.transform);
-				meshBounds.push_back(Crescendo::Algorithms::CalculateMeshBoundingAABB(mesh.vertices));
+				meshBounds.push_back(Crescendo::Algorithms::CalculateMeshBoundingAABB(mesh.vertices).Transform(mesh.transform));
 
 				// Texture upload
 				if (mesh.diffuse.empty() || seenTextures.find(mesh.diffuse) != seenTextures.end())
@@ -107,18 +107,6 @@ public:
 		}
 		this->taskQueue.WaitTillFinished();
 		for (auto& image : images) this->renderer.renderer.UploadTexture(image.pixels.get(), image.width, image.height, image.channels, false);
-
-		struct Lighting { glm::vec4 lightColor, lightPosition, viewPosition; } lighting{
-			glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
-			glm::vec4(0.0f, 100.0f * cos(this->GetTime()), 0.0f, 1.0f),
-			glm::vec4(this->camera.camera->GetPosition(), 1.0f)
-		};
-		const glm::vec3 lightIntensities = glm::vec3(0.25f, 0.5f, 0.25f);
-		for (uint32_t i = 0; i < 4; i++)
-		{
-			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 0, lighting);
-			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 1, lightIntensities);
-		}
 	}
 	void OnUpdate(double dt)
 	{
@@ -135,9 +123,17 @@ public:
 
 		// Render prep
 		glm::mat4 viewProj = this->camera.camera->GetViewProjectionMatrix();
+		struct Lighting { glm::vec4 lightColor, lightPosition, viewPosition; } lighting{
+			glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
+			glm::vec4(0.0f, 100.0f * cos(this->GetTime()), 0.0f, 1.0f),
+			glm::vec4(this->camera.camera->GetPosition(), 1.0f)
+		};
+		const glm::vec3 lightIntensities = glm::vec3(0.25f, 0.5f, 0.25f);
 		for (uint32_t i = 0; i < 4; i++)
 		{
 			this->renderer.renderer.UpdateDescriptorSetData(i * 2, 0, viewProj);
+			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 0, lighting);
+			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 1, lightIntensities);
 		}
 		this->renderer.renderer.UpdateDescriptorSetData(8, 0, viewProj);
 
@@ -152,9 +148,12 @@ public:
 		this->renderer.renderer.CmdDraw(this->meshCount - 1);
 		this->actualDrawCount++;
 
+		Crescendo::Algorithms::Frustum frustum = Crescendo::Algorithms::GetFrustum(viewProj);
+
 		this->renderer.renderer.CmdBindPipeline(0);
 		for (uint32_t i = 0; i < this->meshCount - 1; i++)
 		{
+			if (!Crescendo::Algorithms::IsInFrustum(frustum, this->meshBounds[i])) continue;
 			this->actualDrawCount++;
 			this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->meshTransforms[i]);
 			this->renderer.renderer.CmdBindTexture(textureIDs[i]);
