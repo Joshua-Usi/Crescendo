@@ -29,7 +29,7 @@ namespace cs_std
 		/// Add a new value to the queue
 		/// </summary>
 		/// <param name="value">Value to push</param>
-		void push(const T& value)
+		inline void push(const T& value)
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			this->queue.push(value);
@@ -39,7 +39,7 @@ namespace cs_std
 		/// Add a new value to the queue using move semantics
 		/// </summary>
 		/// <param name="value"></param>
-		void push(T&& value)
+		inline void push(T&& value)
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			this->queue.push(std::move(value));
@@ -49,7 +49,7 @@ namespace cs_std
 		/// Peek the front of the queue
 		/// </summary>
 		/// <returns>Front of the queue</returns>
-		T front() const
+		inline T front() const
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			return this->queue.front();
@@ -60,11 +60,13 @@ namespace cs_std
 		/// If the queue is empty when it is unlocked, then the return value will be default constructed
 		/// </summary>
 		/// <returns></returns>
-		T pop()
+		inline std::optional<T> pop()
 		{
 			std::unique_lock<std::mutex> lock(this->mutex);
 			this->condition.wait(lock, [this]() { return !this->queue.empty() || unlocked; });
-			if (this->queue.empty()) return T();
+			
+			if (this->queue.empty()) return std::nullopt;
+
 			T value = std::move(this->queue.front());
 			this->queue.pop();
 			return value;
@@ -75,7 +77,7 @@ namespace cs_std
 		/// At any moment
 		/// </summary>
 		/// <returns>If the queue is empty</returns>
-		bool empty() const
+		inline bool empty() const
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			return this->queue.empty();
@@ -86,15 +88,15 @@ namespace cs_std
 		/// At any moment
 		/// </summary>
 		/// <returns>Size of the queue</returns>
-		size_t size() const
+		inline size_t size() const
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			return this->queue.size();
 		}
 		/// <summary>
-		/// Unlock the queue and allow all threads to continue
+		/// Unlock the queue and allow all threads to continue, all pop operations will return nullopts
 		/// </summary>
-		void unlock()
+		inline void unlock()
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			this->unlocked = true;

@@ -14,12 +14,11 @@ namespace Crescendo
 			this->threads.emplace_back([this]() {
 				while (this->isRunning)
 				{
-					std::function<void()> func;
-					func = tasks.pop();
-					if (func)
+					auto func = tasks.pop();
+					if (func.has_value())
 					{
 						activeThreads++;
-						func();
+						func.value()();
 						activeThreads--;
 					}
 				}
