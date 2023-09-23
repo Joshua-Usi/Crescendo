@@ -43,7 +43,7 @@ namespace Crescendo::internal
 			vkCreateDescriptorPool(this->device, &poolInfo, nullptr, &pool.pool);
 
 			this->pools.push_back(pool);
-			return pool;
+			return this->pools.back();
 		}
 	public:
 		DescriptorManager() = default;

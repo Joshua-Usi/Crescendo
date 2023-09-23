@@ -46,9 +46,9 @@ namespace Crescendo::IO
 			const std::string emissive = materials[shapes[s].mesh.material_ids[0]].emissive_texname;
 
 			model.meshes[s].diffuse = (ambient.empty() ? "" : texturePathPrepend) / ambient;
-			model.meshes[s].specular = "";
 			model.meshes[s].normal = "";
 			model.meshes[s].emissive = "";
+			model.meshes[s].occlusion = "";
 			model.meshes[s].metallicRoughness = "";
 
 			model.meshes[s].isDoubleSided = false;

@@ -17,8 +17,8 @@ namespace Crescendo::Engine
 
 		// Attach layers
 		uint32_t refreshRate = this->window->GetRefreshRate();
-		double secondsPerFrame = (refreshRate == 0) ? 0.0 : 1.0 / double(refreshRate);
-		this->layerManager.Attach(new LayerUpdate(0.0, 0));
+		double secondsPerFrame = (refreshRate == 0 || !CVar::Get<bool>("ec_vsync")) ? 0.0 : 1.0 / double(refreshRate);
+		this->layerManager.Attach(new LayerUpdate(secondsPerFrame, 0));
 		this->layerManager.Init(this->timeManager.GetTimeSinceStart<double>());
 
 		this->window->SetSize(CVar::Get<int64_t>("ec_windowwidth"), CVar::Get<int64_t>("ec_windowheight"));

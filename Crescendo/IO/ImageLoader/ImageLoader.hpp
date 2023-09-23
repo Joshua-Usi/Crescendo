@@ -13,9 +13,8 @@ namespace Crescendo::IO
 		std::shared_ptr<stbi_uc> pixels;
 		uint32_t width, height, channels;
 		// Automatically frees itself
-		Image() = default;
-		inline Image(stbi_uc* pixels, uint32_t width, uint32_t height, uint32_t channels);
+		inline Image(stbi_uc* pixels = nullptr, uint32_t width = 0, uint32_t height = 0, uint32_t channels = 0);
 	};
 
-	Image LoadImage(const std::filesystem::path& path, bool flipOnLoad = false);
+	Image LoadImage(const std::filesystem::path& path);
 }

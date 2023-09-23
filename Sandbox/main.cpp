@@ -19,6 +19,7 @@ class Sandbox : public Application
 {
 private:
 	CameraController camera;
+	Graphics::OrthographicCamera UICamera;
 
 	uint32_t meshCount = 0;
 	bool uReleased = true;
@@ -26,16 +27,22 @@ private:
 	std::vector<Crescendo::Algorithms::BoundingAABB> meshBounds;
 	std::vector<glm::mat4> meshTransforms;
 	std::vector<uint32_t> textureIDs;
+	std::vector<bool> isTransparent, isDoubleSided;
 
 	int frame = 0;
 	double lastTime = 0.0;
-	int actualDrawCount = 0;
 public:
 	void OnStartup()
 	{
 		this->GetWindow()->SetCursorLock(true);
 
 		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 10000.0f });
+		this->UICamera = Graphics::OrthographicCamera(
+			glm::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f),
+			glm::vec2(-1.0f, 1.0f)
+		);
+		this->UICamera.SetPosition(glm::vec3(0.0f, 0.0f, 1.0f));
+		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
 
 		// Upload shaders (creates pipelines and descriptor sets)
 		// Shader loading
@@ -46,6 +53,7 @@ public:
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back) }, // Single sided, transparent meshes
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, transparent meshes
 			{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) }, // Skybox
+			{"./shaders/compiled/ui", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // UI
 		};
 		for (const auto& shader : shaderList)
 		{
@@ -57,16 +65,21 @@ public:
 		}
 
 		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
-		IO::Model skyboxModel = {{{ skybox.vertices, skybox.normals, skybox.textureUVs, skybox.indices, "./assets/skybox-night.png" }}};
+		IO::Model skyboxModel = { {{ skybox.vertices, skybox.normals, skybox.textureUVs, {}, skybox.indices, "./assets/skybox-night.png"}} };
+
+		Construct::Mesh quad = Construct::Quad();
+		IO::Model quadModel = { {{ quad.vertices, quad.normals, quad.textureUVs, {}, quad.indices, "./assets/water.png"}} };
 
 		std::vector<IO::Model> models =
 		{
-			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
-			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
+			//IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
+			//IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
+			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
-			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
-			IO::LoadGLTF("./assets/tree/tree.gltf"),
-			skyboxModel
+			IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
+			//IO::LoadGLTF("./assets/tree/tree.gltf"),
+			skyboxModel,
+			quadModel,
 		};
 
 		std::map<std::filesystem::path, uint32_t> seenTextures;
@@ -80,20 +93,19 @@ public:
 			{
 				// Mesh upload
 				this->renderer.renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
+				
 				meshTransforms.push_back(mesh.transform);
 				meshBounds.push_back(Crescendo::Algorithms::CalculateMeshBoundingAABB(mesh.vertices).Transform(mesh.transform));
+				isTransparent.push_back(mesh.isTransparent);
+				isDoubleSided.push_back(mesh.isDoubleSided);
 
 				// Texture upload
-				if (mesh.diffuse.empty() || seenTextures.find(mesh.diffuse) != seenTextures.end())
-				{
-					this->textureIDs.push_back(seenTextures[mesh.diffuse]);
-				}
-				else
+				if (!mesh.diffuse.empty() && seenTextures.find(mesh.diffuse) == seenTextures.end())
 				{
 					seenTextures[mesh.diffuse] = i;
-					this->textureIDs.push_back(seenTextures[mesh.diffuse]);
 					i++;
 				}
+				this->textureIDs.push_back(seenTextures[mesh.diffuse]);
 			}
 		}
 		seenTextures.erase("");
@@ -106,19 +118,10 @@ public:
 			this->taskQueue.AddTask([&images, &textureStrings, i]() { images[i] = IO::LoadImage(textureStrings[i]); });
 		}
 		this->taskQueue.WaitTillFinished();
-		for (auto& image : images) this->renderer.renderer.UploadTexture(image.pixels.get(), image.width, image.height, image.channels, false);
+		for (auto& image : images) this->renderer.renderer.UploadTexture(image.pixels.get(), image.width, image.height, image.channels, true);
 	}
 	void OnUpdate(double dt)
 	{
-		// Frame counter
-		frame++;
-		if (this->GetTime() - this->lastTime >= 1.0)
-		{
-			this->lastTime = this->GetTime();
-			this->GetWindow()->SetName("Crescendo | FPS: " + std::to_string(this->frame) + " | Dc: " + std::to_string(this->meshCount) + "| aDc: " + std::to_string(this->actualDrawCount));
-			this->frame = 0;
-		}
-
 		this->camera.Update();
 
 		// Render prep
@@ -136,32 +139,75 @@ public:
 			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 1, lightIntensities);
 		}
 		this->renderer.renderer.UpdateDescriptorSetData(8, 0, viewProj);
+		this->renderer.renderer.UpdateDescriptorSetData(9, 0, this->UICamera.GetProjectionMatrix());
+		this->renderer.renderer.UpdateDescriptorSetData(10, 0, this->GetTime<float>());
 
-		this->actualDrawCount = 0;
+		uint32_t actualDrawCount = 0;
 
 		// Render commands
 		this->renderer.renderer.CmdBeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
 
 		this->renderer.renderer.CmdBindPipeline(4);
 		this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), this->camera.camera->GetPosition()));
-		this->renderer.renderer.CmdBindTexture(textureIDs[this->meshCount - 1]);
-		this->renderer.renderer.CmdDraw(this->meshCount - 1);
-		this->actualDrawCount++;
+		this->renderer.renderer.CmdBindTexture(textureIDs[this->meshCount - 2]);
+		this->renderer.renderer.CmdDraw(this->meshCount - 2);
+		actualDrawCount++;
 
 		Crescendo::Algorithms::Frustum frustum = Crescendo::Algorithms::GetFrustum(viewProj);
 
-		this->renderer.renderer.CmdBindPipeline(0);
-		for (uint32_t i = 0; i < this->meshCount - 1; i++)
+		uint32_t drawTypes[4] = { 0 };
+
+		for (uint32_t i = 0; i < this->meshCount - 2; i++)
 		{
 			if (!Crescendo::Algorithms::IsInFrustum(frustum, this->meshBounds[i])) continue;
-			this->actualDrawCount++;
+
+			if (!isTransparent[i] && !isDoubleSided[i]) { this->renderer.renderer.CmdBindPipeline(0); drawTypes[0]++; }
+			if (!isTransparent[i] && isDoubleSided[i]) { this->renderer.renderer.CmdBindPipeline(1); drawTypes[1]++; }
+			if (isTransparent[i] && !isDoubleSided[i]) { this->renderer.renderer.CmdBindPipeline(2); drawTypes[2]++; }
+			if (isTransparent[i] && isDoubleSided[i]) { this->renderer.renderer.CmdBindPipeline(3); drawTypes[3]++; }
+
+			actualDrawCount++;
 			this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->meshTransforms[i]);
 			this->renderer.renderer.CmdBindTexture(textureIDs[i]);
 			this->renderer.renderer.CmdDraw(i);
 		}
 
+		/*this->renderer.renderer.CmdBindPipeline(5);
+
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(100.0f, 100.0f, 0.0f));
+		model = glm::scale(model, glm::vec3(200.0f, 200.0f, 1.0f));
+
+		for (uint32_t i = 0; i < 2; i++)
+		{
+			for (uint32_t j = 0; j < 2; j++)
+			{
+				this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, model);
+				this->renderer.renderer.CmdBindTexture(textureIDs[this->meshCount - 1]);
+				this->renderer.renderer.CmdDraw(this->meshCount - 1);
+				actualDrawCount++;
+				model = glm::translate(model, glm::vec3(1.0f, 0.0f, 0.0f));
+			}
+			model = glm::translate(model, glm::vec3(-2.0f, 1.0f, 0.0f));
+		}*/
+
 		this->renderer.renderer.CmdEndFrame();
 		this->renderer.renderer.CmdPresentFrame();
+
+		// Frame counter
+		frame++;
+		if (this->GetTime() - this->lastTime >= 1.0)
+		{
+			this->lastTime = this->GetTime();
+			this->GetWindow()->SetName(	"Crescendo | FPS: " + std::to_string(this->frame) +
+										" | Dc: " + std::to_string(this->meshCount) +
+										" | aDc: " + std::to_string(actualDrawCount) +
+										"(" + std::to_string(drawTypes[0]) +
+										", " + std::to_string(drawTypes[1]) + 
+										", " + std::to_string(drawTypes[2]) +
+										", " + std::to_string(drawTypes[3]) + ")");
+			this->frame = 0;
+		}
 
 		if (Input::GetKeyDown(Key::F11)) this->GetWindow()->SetFullScreen(!this->GetWindow()->IsFullScreen());
 		if (Input::GetKeyDown(Key::Escape)) this->Exit();

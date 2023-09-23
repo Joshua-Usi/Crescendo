@@ -105,11 +105,12 @@ namespace Crescendo::Graphics
 		float fov, aspectRatio;
 		glm::vec2 clipPlanes;
 	public:
-		PerspectiveCamera(const glm::vec3& initialPosition, const glm::quat& initialRotation, float fov, float aspectRatio, const glm::vec2& clipPlanes) :
+		inline PerspectiveCamera() : Camera(), fov(0.0f), aspectRatio(0.0f), clipPlanes(0.0f, 0.0f) {}
+		inline PerspectiveCamera(const glm::vec3& initialPosition, const glm::quat& initialRotation, float fov, float aspectRatio, const glm::vec2& clipPlanes) :
 			Camera(initialPosition, initialRotation), fov(fov), aspectRatio(aspectRatio), clipPlanes(clipPlanes) {}
-		PerspectiveCamera(float fov, float aspectRatio, const glm::vec2& clipPlanes) :
+		inline PerspectiveCamera(float fov, float aspectRatio, const glm::vec2& clipPlanes) :
 			Camera(), fov(fov), aspectRatio(aspectRatio), clipPlanes(clipPlanes) {}
-		virtual ~PerspectiveCamera() = default;
+		virtual ~PerspectiveCamera() override final = default;
 
 		inline virtual glm::mat4 GetProjectionMatrix() const final { return glm::perspective(this->fov, this->aspectRatio, this->clipPlanes.x, this->clipPlanes.y); };
 		inline virtual void SetClipPlanes(const glm::vec2& clipPlanes) final { this->clipPlanes = clipPlanes; };
@@ -132,10 +133,12 @@ namespace Crescendo::Graphics
 		glm::vec4 bounds; // left, right, top, bottom
 		glm::vec2 clipPlanes;
 	public:
-		OrthographicCamera(const glm::vec3& initialPosition, const glm::quat& initialRotation, const glm::vec4& bounds, const glm::vec2& clipPlanes) :
+		inline OrthographicCamera() : Camera(), bounds(0.0f, 0.0f, 0.0f, 0.0f), clipPlanes(0.0f, 0.0f) {}
+		inline OrthographicCamera(const glm::vec3& initialPosition, const glm::quat& initialRotation, const glm::vec4& bounds, const glm::vec2& clipPlanes) :
 			Camera(initialPosition, initialRotation), bounds(bounds), clipPlanes(clipPlanes) {}
-		OrthographicCamera(const glm::vec4& bounds, const glm::vec2& clipPlanes) :
+		inline OrthographicCamera(const glm::vec4& bounds, const glm::vec2& clipPlanes) :
 			Camera(), bounds(bounds), clipPlanes(clipPlanes) {}
+		virtual ~OrthographicCamera() override final = default;
 
 		inline virtual glm::mat4 GetProjectionMatrix() const final { return glm::ortho(this->bounds.x, this->bounds.y, this->bounds.z, this->bounds.w, this->clipPlanes.x, this->clipPlanes.y); };
 		inline virtual void SetClipPlanes(const glm::vec2& clipPlanes) final { this->clipPlanes = clipPlanes; };

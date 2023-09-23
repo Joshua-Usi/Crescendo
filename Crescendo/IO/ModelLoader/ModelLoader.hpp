@@ -11,10 +11,12 @@ namespace Crescendo::IO
 	{
 		struct Mesh
 		{
-			std::vector<float> vertices, normals, textureUVs;
+			// Don't need to store bitangents cause we can calculate them
+			std::vector<float> vertices, normals, textureUVs, tangents;
 			std::vector<uint32_t> indices;
 			// Texture map paths
-			std::filesystem::path diffuse, specular, normal, emissive, occlusion, metallicRoughness;
+			// Sometimes metallicRoughness is used instead of metallic and roughness
+			std::filesystem::path diffuse, normal, emissive, occlusion, metallicRoughness;
 			glm::mat4 transform;
 			bool isDoubleSided, isTransparent;
 

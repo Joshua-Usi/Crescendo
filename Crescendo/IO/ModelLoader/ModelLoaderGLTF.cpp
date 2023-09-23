@@ -124,7 +124,8 @@ namespace Crescendo::IO
 				std::unordered_map <std::string, std::vector<float>*> attributes = {
 					{ "POSITION", &mesh.vertices },
 					{ "NORMAL", &mesh.normals },
-					{ "TEXCOORD_0", &mesh.textureUVs }
+					{ "TEXCOORD_0", &mesh.textureUVs },
+					{ "TANGENT", &mesh.tangents }
 				};
 				if (primitive.indices >= 0)
 				{
@@ -132,9 +133,9 @@ namespace Crescendo::IO
 					const auto& bufferView = gltfModel.bufferViews[accessor.bufferView];
 					const auto& buffer = gltfModel.buffers[bufferView.buffer];
 
+					// Convert from unsigned short to unsigned int
 					if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
 					{
-						// Convert from unsigned short to unsigned int
 						for (size_t i = 0; i < accessor.count; i++)
 						{
 							mesh.indices.push_back(static_cast<uint32_t>(*(reinterpret_cast<const uint16_t*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset) + i)));
@@ -170,18 +171,17 @@ namespace Crescendo::IO
 					mesh.isTransparent = gltfMaterial.alphaMode == "BLEND";
 					for (const auto& texture : gltfMaterial.values)
 					{
-						if (texture.first == "baseColorTexture")
-						{
-							mesh.diffuse = texturePathPrepend / gltfModel.images[texture.second.TextureIndex()].uri;
-						}
-						/*else if (texture.first == "metallicRoughnessTexture")
-						{
-							mesh.metallicRoughness = texturePathPrepend / gltfModel.images[texture.second.TextureIndex()].uri;
-						}
-						else if (texture.first == "normalTexture")
-						{
-							mesh.normal = texturePathPrepend / gltfModel.images[texture.second.TextureIndex()].uri;
-						}*/
+						int baseColorTextureIndex			= gltfMaterial.pbrMetallicRoughness.baseColorTexture.index,
+							metallicRoughnessTextureIndex	= gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index,
+							normalTextureIndex				= gltfMaterial.normalTexture.index,
+							occlusionTextureIndex			= gltfMaterial.occlusionTexture.index,
+							emissiveTextureIndex			= gltfMaterial.emissiveTexture.index;
+
+						if (baseColorTextureIndex			!= -1) mesh.diffuse				= texturePathPrepend / gltfModel.images[baseColorTextureIndex].uri;
+						if (metallicRoughnessTextureIndex	!= -1) mesh.metallicRoughness	= texturePathPrepend / gltfModel.images[metallicRoughnessTextureIndex].uri;
+						if (normalTextureIndex				!= -1) mesh.normal				= texturePathPrepend / gltfModel.images[normalTextureIndex].uri;
+						if (occlusionTextureIndex			!= -1) mesh.occlusion			= texturePathPrepend / gltfModel.images[occlusionTextureIndex].uri;
+						if (emissiveTextureIndex			!= -1) mesh.emissive			= texturePathPrepend / gltfModel.images[emissiveTextureIndex].uri;
 					}
 				}
 				model.meshes.push_back(mesh);
