@@ -75,22 +75,23 @@ namespace Crescendo
 		cmd.BindPipeline(currentPipeline.pipeline);
 
 		// Bind the vertex buffers
-		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
+		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TANGENTS = 3, TEXTURE_UVS = 4;
 		cmd.BindVertexBuffers({
 			this->vertexBuffers[POSITION].buffer,
 			this->vertexBuffers[NORMALS].buffer,
+			this->vertexBuffers[TANGENTS].buffer,
 			this->vertexBuffers[TEXTURE_UVS].buffer
-			}, { 0, 0, 0 });
+			}, { 0, 0, 0, 0 });
 		cmd.BindIndexBuffer(this->vertexBuffers[INDICES].buffer);
 	}
-	void Renderer::RendererImpl::BindTexture(uint32_t textureIndex)
+	void Renderer::RendererImpl::BindTexture(uint32_t set, uint32_t textureIndex)
 	{
 		const FrameData& currentFrame = this->GetCurrentFrameData();
 		const internal::CommandQueue& cmd = currentFrame.commandQueue;
 
 		const Pipeline currentPipeline = this->pipelines[this->state.boundPipelineIndex];
 
-		cmd.BindDescriptorSets(currentPipeline.layout, { this->imageDescriptorSets[textureIndex] }, {}, currentPipeline.samplerDescriptorSet);
+		cmd.BindDescriptorSets(currentPipeline.layout, { this->imageDescriptorSets[textureIndex] }, {}, set);
 	}
 	void Renderer::RendererImpl::UpdatePushConstant(ShaderStage stage, const void* data, uint32_t size)
 	{

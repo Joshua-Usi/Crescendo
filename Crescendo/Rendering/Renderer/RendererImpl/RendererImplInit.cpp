@@ -305,9 +305,9 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseBuffers(const BuilderInfo& info)
 	{
-		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
+		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TANGENTS = 3, TEXTURE_UVS = 4;
 
-		this->vertexBuffers.resize(4);
+		this->vertexBuffers.resize(5);
 
 		this->offsets = std::vector<uint32_t>(1, 0);
 		this->indiceOffsets = std::vector<uint32_t>(1, 0);
@@ -315,6 +315,7 @@ namespace Crescendo
 		this->vertexBuffers[INDICES]     = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT  | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
 		this->vertexBuffers[POSITION]    = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
 		this->vertexBuffers[NORMALS]     = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
+		this->vertexBuffers[TANGENTS]	 = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
 		this->vertexBuffers[TEXTURE_UVS] = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
 	
 		// Descriptor buffer initialisation

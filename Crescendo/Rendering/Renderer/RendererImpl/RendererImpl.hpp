@@ -177,7 +177,7 @@ namespace Crescendo
 		void BeginFrame(const VkClearValue& clearColor);
 		void EndFrame();
 		void BindPipeline(uint32_t pipelineIndex);
-		void BindTexture(uint32_t textureIndex);
+		void BindTexture(uint32_t set, uint32_t textureIndex);
 		void UpdatePushConstant(ShaderStage stage, const void* data, uint32_t size);
 		void Draw(uint32_t mesh);
 		void PresentFrame();
@@ -190,7 +190,7 @@ namespace Crescendo
 
 		// Upload commands
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant);
-		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
+		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<float>& tangents, const std::vector<uint32_t>& indices);
 		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 	
 		// Getters

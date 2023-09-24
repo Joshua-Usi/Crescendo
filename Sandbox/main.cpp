@@ -26,7 +26,10 @@ private:
 
 	std::vector<Crescendo::Algorithms::BoundingAABB> meshBounds;
 	std::vector<glm::mat4> meshTransforms;
-	std::vector<uint32_t> textureIDs;
+
+	struct TextureIDs { uint32_t diffuse, normal; };
+
+	std::vector<TextureIDs> textureIDs;
 	std::vector<bool> isTransparent, isDoubleSided;
 
 	int frame = 0;
@@ -52,8 +55,8 @@ public:
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, opaque meshes
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back) }, // Single sided, transparent meshes
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, transparent meshes
-			{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) }, // Skybox
-			{"./shaders/compiled/ui", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // UI
+			//{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) }, // Skybox
+			//{"./shaders/compiled/ui", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // UI
 		};
 		for (const auto& shader : shaderList)
 		{
@@ -64,27 +67,28 @@ public:
 			);
 		}
 
-		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
-		IO::Model skyboxModel = { {{ skybox.vertices, skybox.normals, skybox.textureUVs, {}, skybox.indices, "./assets/skybox-night.png"}} };
+		//Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
+		//IO::Model skyboxModel = { {{ skybox.vertices, skybox.normals, skybox.textureUVs, {}, skybox.indices, "./assets/skybox-night.png"}} };
 
-		Construct::Mesh quad = Construct::Quad();
-		IO::Model quadModel = { {{ quad.vertices, quad.normals, quad.textureUVs, {}, quad.indices, "./assets/water.png"}} };
+		//Construct::Mesh quad = Construct::Quad();
+		//IO::Model quadModel = { {{ quad.vertices, quad.normals, quad.textureUVs, {}, quad.indices, "./assets/water.png"}} };
 
 		std::vector<IO::Model> models =
 		{
-			//IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
-			//IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
+			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
+			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
 			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
 			//IO::LoadGLTF("./assets/tree/tree.gltf"),
-			skyboxModel,
-			quadModel,
+			//skyboxModel,
+			//quadModel,
 		};
 
-		std::map<std::filesystem::path, uint32_t> seenTextures;
+		std::map<std::filesystem::path, uint32_t> seenTexturesDiffuse;
+		std::map<std::filesystem::path, uint32_t> seenTexturesNormal;
 		this->meshCount = 0;
-		uint32_t i = 0;
+		uint32_t i = 0, j = 0;
 		for (const auto& model : models)
 		{
 			this->meshCount += model.meshes.size();
@@ -92,26 +96,35 @@ public:
 			for (const auto& mesh : model.meshes)
 			{
 				// Mesh upload
-				this->renderer.renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.indices);
-				
+				this->renderer.renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.tangents, mesh.indices);
+
 				meshTransforms.push_back(mesh.transform);
 				meshBounds.push_back(Crescendo::Algorithms::CalculateMeshBoundingAABB(mesh.vertices).Transform(mesh.transform));
 				isTransparent.push_back(mesh.isTransparent);
 				isDoubleSided.push_back(mesh.isDoubleSided);
 
 				// Texture upload
-				if (!mesh.diffuse.empty() && seenTextures.find(mesh.diffuse) == seenTextures.end())
+				if (!mesh.diffuse.empty() && seenTexturesDiffuse.find(mesh.diffuse) == seenTexturesDiffuse.end())
 				{
-					seenTextures[mesh.diffuse] = i;
+					seenTexturesDiffuse[mesh.diffuse] = i;
 					i++;
 				}
-				this->textureIDs.push_back(seenTextures[mesh.diffuse]);
+				if (!mesh.normal.empty() && seenTexturesNormal.find(mesh.normal) == seenTexturesNormal.end())
+				{
+					seenTexturesNormal[mesh.normal] = j;
+					j++;
+				}
+				this->textureIDs.push_back(TextureIDs(seenTexturesDiffuse[mesh.diffuse], seenTexturesNormal[mesh.normal]));
 			}
 		}
-		seenTextures.erase("");
+		seenTexturesDiffuse.erase("");
+		seenTexturesNormal.erase("");
+		for (auto& textureIDs : this->textureIDs) textureIDs.normal += seenTexturesDiffuse.size();
 
-		std::vector<std::filesystem::path> textureStrings(seenTextures.size());
-		for (const auto& texture : seenTextures) textureStrings[texture.second] = texture.first;
+		std::vector<std::filesystem::path> textureStrings(seenTexturesDiffuse.size() + seenTexturesNormal.size());
+		for (const auto& texture : seenTexturesDiffuse) textureStrings[texture.second] = texture.first;
+		for (const auto& texture : seenTexturesNormal) textureStrings[seenTexturesDiffuse.size() + texture.second] = texture.first;
+
 		std::vector<IO::Image> images(textureStrings.size());
 		for (uint32_t i = 0; i < textureStrings.size(); i++)
 		{
@@ -126,8 +139,7 @@ public:
 
 		// Render prep
 		glm::mat4 viewProj = this->camera.camera->GetViewProjectionMatrix();
-		struct Lighting { glm::vec4 lightColor, lightPosition, viewPosition; } lighting{
-			glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
+		struct VSLighting {glm::vec4 lightPosition, viewPosition; } vsLighting {
 			glm::vec4(0.0f, 100.0f * cos(this->GetTime()), 0.0f, 1.0f),
 			glm::vec4(this->camera.camera->GetPosition(), 1.0f)
 		};
@@ -135,23 +147,24 @@ public:
 		for (uint32_t i = 0; i < 4; i++)
 		{
 			this->renderer.renderer.UpdateDescriptorSetData(i * 2, 0, viewProj);
-			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 0, lighting);
+			this->renderer.renderer.UpdateDescriptorSetData(i * 2, 1, vsLighting);
+			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 0, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 1, lightIntensities);
 		}
-		this->renderer.renderer.UpdateDescriptorSetData(8, 0, viewProj);
-		this->renderer.renderer.UpdateDescriptorSetData(9, 0, this->UICamera.GetProjectionMatrix());
-		this->renderer.renderer.UpdateDescriptorSetData(10, 0, this->GetTime<float>());
+		//this->renderer.renderer.UpdateDescriptorSetData(8, 0, viewProj);
+		//this->renderer.renderer.UpdateDescriptorSetData(9, 0, this->UICamera.GetProjectionMatrix());
+		//this->renderer.renderer.UpdateDescriptorSetData(10, 0, this->GetTime<float>());
 
 		uint32_t actualDrawCount = 0;
 
 		// Render commands
 		this->renderer.renderer.CmdBeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
 
-		this->renderer.renderer.CmdBindPipeline(4);
+		/*this->renderer.renderer.CmdBindPipeline(4);
 		this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), this->camera.camera->GetPosition()));
 		this->renderer.renderer.CmdBindTexture(textureIDs[this->meshCount - 2]);
 		this->renderer.renderer.CmdDraw(this->meshCount - 2);
-		actualDrawCount++;
+		actualDrawCount++;*/
 
 		Crescendo::Algorithms::Frustum frustum = Crescendo::Algorithms::GetFrustum(viewProj);
 
@@ -168,7 +181,9 @@ public:
 
 			actualDrawCount++;
 			this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->meshTransforms[i]);
-			this->renderer.renderer.CmdBindTexture(textureIDs[i]);
+			this->renderer.renderer.CmdBindTexture(2, textureIDs[i].diffuse);
+			this->renderer.renderer.CmdBindTexture(3, textureIDs[i].normal);
+
 			this->renderer.renderer.CmdDraw(i);
 		}
 

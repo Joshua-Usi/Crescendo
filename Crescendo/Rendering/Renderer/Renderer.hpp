@@ -104,7 +104,7 @@ namespace Crescendo
 		void CmdBeginFrame(float r, float g, float b, float a);
 		void CmdEndFrame();
 		void CmdBindPipeline(uint32_t pipelineIndex);
-		void CmdBindTexture(uint32_t texture);
+		void CmdBindTexture(uint32_t set, uint32_t texture);
 		void CmdUpdatePushConstant(ShaderStage stage, const void* data, uint32_t size);
 		template<typename T>
 		void CmdUpdatePushConstant(ShaderStage stage, const T& data) { this->CmdUpdatePushConstant(stage, &data, sizeof(data)); }
@@ -119,7 +119,7 @@ namespace Crescendo
 
 		std::vector<uint32_t> GetPipelineDescriptors(uint32_t pipelineIndex) const;
 
-		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices);
+		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<float>& tangents, const std::vector<uint32_t>& indices);
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant = {});
 		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 

@@ -148,11 +148,13 @@ namespace Crescendo
 		/* -------------------------------- 3. Sampler Descriptors -------------------------------- */
 
 		// Collect sampler descriptor set layouts
+		// TODO make sure texture descriptor sets support vertex shaders
 		std::vector<SpirvReflection::DescriptorSetLayout>	samplerSets = vertReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Sampler),
 															fragSamplerSets = fragReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Sampler);
 		samplerSets.insert(samplerSets.end(), fragSamplerSets.begin(), fragSamplerSets.end());
 
-		setLayouts.push_back(this->textureDescriptorSetLayout);
+		// I feel like vulkan should complain here, but it literally doesn't!
+		for (uint32_t i = 0; i < samplerSets.size(); i++) setLayouts.push_back(this->textureDescriptorSetLayout);
 
 		/* -------------------------------- 3. Pipeline Creation -------------------------------- */
 
@@ -222,13 +224,14 @@ namespace Crescendo
 		vkDestroyShaderModule(this->device, fragModule, nullptr);
 		vkDestroyShaderModule(this->device, vertModule, nullptr);
 	}
-	void Renderer::RendererImpl::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<uint32_t>& indices)
+	void Renderer::RendererImpl::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<float>& tangents, const std::vector<uint32_t>& indices)
 	{
 		constexpr size_t VERTICES_PER_INDEX = 3;
 		constexpr size_t NORMALS_PER_INDEX = 3;
+		constexpr size_t TANGENTS_PER_INDEX = 4;
 		constexpr size_t UVS_PER_INDEX = 2;
 
-		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TEXTURE_UVS = 3;
+		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TANGENTS = 3, TEXTURE_UVS = 4;
 		
 		// It should not be possible, but just in case
 		CS_ASSERT(sizeof(uint32_t) == sizeof(float), "Somehow sizeof uint32_t and sizeof float don't match!");
@@ -236,33 +239,38 @@ namespace Crescendo
 		CS_ASSERT(indices.size()    % 3 == 0, "Invalid mesh indices! mesh has " + std::to_string(indices.size()) + " indices!");
 		CS_ASSERT(vertices.size()   % 3 == 0, "Invalid mesh vertices! mesh has " + std::to_string(vertices.size()) + " vertices!");
 		CS_ASSERT(normals.size()    % 3 == 0, "Invalid mesh normals! mesh has " + std::to_string(normals.size()) + " normals!");
+		CS_ASSERT(tangents.size()   % 4 == 0, "Invalid mesh tangents! mesh has " + std::to_string(tangents.size()) + " tangents!");
 		CS_ASSERT(textureUVs.size() % 2 == 0, "Invalid mesh texture UVs! mesh has " + std::to_string(textureUVs.size()) + " texture UVs!");
 		// TODO assert for potential buffer overflow
 
-		std::array<uint32_t, 5> offsets = {};
+		std::array<uint32_t, 6> offsets = {};
 		offsets[0] = 0;
-		offsets[1] = indices.size() * sizeof(uint32_t);
-		offsets[2] = offsets[1] + vertices.size() * sizeof(uint32_t);
-		offsets[3] = offsets[2] + normals.size() * sizeof(uint32_t);
-		offsets[4] = offsets[3] + textureUVs.size() * sizeof(uint32_t);
+		offsets[1] = indices.size()					* sizeof(uint32_t);
+		offsets[2] = offsets[1] + vertices.size()	* sizeof(uint32_t);
+		offsets[3] = offsets[2] + normals.size()	* sizeof(uint32_t);
+		offsets[4] = offsets[3] + tangents.size()	* sizeof(uint32_t);
+		offsets[5] = offsets[4] + textureUVs.size() * sizeof(uint32_t);
 
 		// Stage all data into one buffer, reduces allocations
 		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(sizeof(uint32_t) * offsets.back(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 		staging.Fill(offsets[0], indices.data(),    indices.size()    * sizeof(uint32_t));
 		staging.Fill(offsets[1], vertices.data(),   vertices.size()   * sizeof(uint32_t));
 		staging.Fill(offsets[2], normals.data(),    normals.size()    * sizeof(uint32_t));
-		staging.Fill(offsets[3], textureUVs.data(), textureUVs.size() * sizeof(uint32_t));
+		staging.Fill(offsets[3], tangents.data(),   tangents.size()   * sizeof(uint32_t));
+		staging.Fill(offsets[4], textureUVs.data(), textureUVs.size() * sizeof(uint32_t));
 
 
 		this->uploadQueue.InstantSubmit([=](const internal::CommandQueue& cmd) {
 			VkBufferCopy copyIndices    = Create::BufferCopy(offsets[0], this->indiceOffsets.back() * sizeof(uint32_t), indices.size() * sizeof(uint32_t));
 			VkBufferCopy copyVertices   = Create::BufferCopy(offsets[1], this->offsets.back() * sizeof(float) * VERTICES_PER_INDEX, vertices.size() * sizeof(float));
 			VkBufferCopy copyNormals    = Create::BufferCopy(offsets[2], this->offsets.back() * sizeof(float) * NORMALS_PER_INDEX, normals.size() * sizeof(float));
-			VkBufferCopy copyTextureUVs = Create::BufferCopy(offsets[3], this->offsets.back() * sizeof(float) * UVS_PER_INDEX, textureUVs.size() * sizeof(float));
+			VkBufferCopy copyTangents   = Create::BufferCopy(offsets[3], this->offsets.back() * sizeof(float) * TANGENTS_PER_INDEX, tangents.size() * sizeof(float));
+			VkBufferCopy copyTextureUVs = Create::BufferCopy(offsets[4], this->offsets.back() * sizeof(float) * UVS_PER_INDEX, textureUVs.size() * sizeof(float));
 		
 			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[INDICES].buffer,     { copyIndices });
 			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[POSITION].buffer,    { copyVertices });
 			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[NORMALS].buffer,     { copyNormals });
+			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[TANGENTS].buffer,    { copyTangents });
 			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[TEXTURE_UVS].buffer, { copyTextureUVs });
 		});
 
