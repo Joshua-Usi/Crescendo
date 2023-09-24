@@ -112,9 +112,10 @@ namespace Crescendo
 		internal::QueueManager queues;
 
 		Swapchain swapchain;
-		internal::Allocator::Image depthBuffer,	multisamplingBuffer;
-		VkRenderPass defaultRenderPass;
+		internal::Allocator::Image depthBuffer,	multisamplingBuffer, shadowMapBuffer;
+		VkRenderPass defaultRenderPass, shadowMapRenderPass;
 		std::vector<VkFramebuffer> framebuffers;
+		VkFramebuffer shadowMapFramebuffer;
 
 		// universal buffers that contain all the data for the respective vertex attribute
 		// By default holds 4 buffers, one for each vertex attribute: position, normal, textureUV, indices

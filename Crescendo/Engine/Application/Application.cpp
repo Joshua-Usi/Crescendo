@@ -37,6 +37,7 @@ namespace Crescendo::Engine
 		info.descriptorBufferBlockSize = CVar::Get<int64_t>("rc_descriptorbufferblocksize");
 		info.msaaSamples = CVar::Get<int64_t>("rc_multisamples");
 		info.desriptorSetsPerPool = CVar::Get<int64_t>("rc_descriptorsetsperpool");
+		info.shadowMapResolution = CVar::Get<int64_t>("rc_shadowmapresolution");
 
 		this->renderer = Atlas(info);
 	}

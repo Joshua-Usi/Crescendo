@@ -62,6 +62,9 @@ namespace Crescendo
 			// Number of descriptor sets per pool. If a descriptor set is requested and there are no free sets in the pool, a new pool is created
 			uint32_t desriptorSetsPerPool;
 
+			// The resolution of the shadow map, is a square
+			uint32_t shadowMapResolution;
+
 			BuilderInfo() = default;
 		};
 		// Generates variations of a pipeline based on the given information

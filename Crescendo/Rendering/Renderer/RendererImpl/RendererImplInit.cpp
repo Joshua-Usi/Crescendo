@@ -178,7 +178,8 @@ namespace Crescendo
 	{
 		bool isMultiSampling = sampleCountMap(this->state.msaaSamples) != 1;
 
-		// Create the default renderpass
+		/* -------------------------------- 1. Default Renderpass -------------------------------- */
+
 		VkAttachmentDescription colorAttachment = Create::AttachmentDescription(
 			0, this->swapchain.imageFormat, this->state.msaaSamples,
 			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
@@ -222,12 +223,39 @@ namespace Crescendo
 		);
 		this->defaultRenderPass = this->CreateRenderPass(attachments, { subpass }, dependencies);
 
+		/* -------------------------------- 2. Shadowmap Renderpass -------------------------------- */
+
+		VkAttachmentDescription shadowMapAttachment = Create::AttachmentDescription(
+			0, VK_FORMAT_D32_SFLOAT, VK_SAMPLE_COUNT_1_BIT,
+			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		);
+		VkAttachmentReference shadowMapAttachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+		VkSubpassDescription shadowMapSubpass = Create::SubpassDescription(
+			0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 0, nullptr, nullptr, &shadowMapAttachmentRef, 0, nullptr
+		);
+
+		VkSubpassDependency shadowMapDependency = Create::SubpassDependency(
+			VK_SUBPASS_EXTERNAL, 0,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+			0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0
+		);
+
+		this->shadowMapRenderPass = this->CreateRenderPass({ shadowMapAttachment }, { shadowMapSubpass }, { shadowMapDependency });
+
 		this->mainDeletionQueue.Push([&]() {
 			vkDestroyRenderPass(this->device, this->defaultRenderPass, nullptr);
+			vkDestroyRenderPass(this->device, this->shadowMapRenderPass, nullptr);
 		});
 	}
 	void Renderer::RendererImpl::InitialiseFramebuffers(const BuilderInfo& info)
 	{
+
+		/* -------------------------------- 1. Image buffer creation -------------------------------- */
+
 		// Create msaa buffer
 		VkImageCreateInfo multisamplingImageInfo = Create::ImageCreateInfo(
 			nullptr, 0, VK_IMAGE_TYPE_2D, this->swapchain.imageFormat, this->swapchain.GetExtent3D(), 1, 1, this->state.msaaSamples, VK_IMAGE_TILING_OPTIMAL,
@@ -249,9 +277,20 @@ namespace Crescendo
 		);
 		this->depthBuffer = this->allocator.CreateImage(depthImageInfo, depthImageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
+		// Create the shadow map buffer
+		VkImageViewCreateInfo shadowMapImageViewInfo = Create::ImageViewCreateInfo(
+			0, nullptr, VK_IMAGE_VIEW_TYPE_2D, VK_FORMAT_D32_SFLOAT, {}, { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 }
+		);
+		VkImageCreateInfo shadowMapImageInfo = Create::ImageCreateInfo(
+			nullptr, 0, VK_IMAGE_TYPE_2D, VK_FORMAT_D32_SFLOAT, { info.shadowMapResolution, info.shadowMapResolution, 1 }, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
+		);
+		this->shadowMapBuffer = this->allocator.CreateImage(shadowMapImageInfo, shadowMapImageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		
 		bool isMultiSampling = sampleCountMap(this->state.msaaSamples) != 1;
 		uint32_t swapChainViewIndex = isMultiSampling ? 2 : 0;
+
+		/* -------------------------------- 2. Framebuffer creation -------------------------------- */
 		
 		// Add attachments
 		std::vector<VkImageView> attachments;
@@ -269,12 +308,21 @@ namespace Crescendo
 			CS_ASSERT(vkCreateFramebuffer(this->device, &framebufferInfo, nullptr, &fb) == VK_SUCCESS, "Failed to create framebuffer!");
 			this->framebuffers.push_back(fb);
 		}
+
+		// Create shadowmap framebuffer
+		VkFramebufferCreateInfo shadowMapFramebufferInfo = Create::FramebufferCreateInfo(
+			nullptr, 0, this->shadowMapRenderPass, 1, &this->shadowMapBuffer.imageView, { info.shadowMapResolution, info.shadowMapResolution }, 1
+		);
+		CS_ASSERT(vkCreateFramebuffer(this->device, &shadowMapFramebufferInfo, nullptr, &this->shadowMapFramebuffer) == VK_SUCCESS, "Failed to create shadowmap framebuffer!");
+
 		// Add to swapchain deletion queue because it can be destroyed by window resizes
 		this->swapChainDeletionQueue.Push([&]() {
 			for (auto& framebuffer : this->framebuffers) vkDestroyFramebuffer(device, framebuffer, nullptr);
+			vkDestroyFramebuffer(device, this->shadowMapFramebuffer, nullptr);
 			this->framebuffers.clear();
 			this->allocator.DestroyImage(this->depthBuffer);
 			this->allocator.DestroyImage(this->multisamplingBuffer);
+			this->allocator.DestroyImage(this->shadowMapBuffer);
 		});
 	}
 	void Renderer::RendererImpl::InitialiseDescriptors(const BuilderInfo& info)

@@ -9,9 +9,11 @@ layout (location = 0) out vec2 oTexCoord;
 layout (location = 1) out vec3 oTanFragPos;
 layout (location = 2) out vec3 oTanLightPos;
 layout (location = 3) out vec3 oTanViewPos;
+layout (location = 4) out vec4 oFragPosLightSpace;
 
 layout(set = 0, binding = 0) uniform uniformBuffer {
 	mat4 viewProjection;
+	mat4 lightSpaceMatrix;
 };
 
 layout(set = 0, binding = 1) uniform blinnPhongLightingData {
@@ -39,6 +41,8 @@ void main()
 	oTanLightPos = TBN * lightPosition.xyz;
 	oTanViewPos = TBN * viewPosition.xyz;
 	oTanFragPos = TBN * vec3(model * vec4(iPosition, 1.0));
+
+	oFragPosLightSpace = lightSpaceMatrix * model * vec4(iPosition, 1.0f);
 	
 	gl_Position = viewProjection * model * vec4(iPosition, 1.0f);
 }

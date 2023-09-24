@@ -20,6 +20,7 @@ class Sandbox : public Application
 private:
 	CameraController camera;
 	Graphics::OrthographicCamera UICamera;
+	Graphics::OrthographicCamera shadowMapCamera;
 
 	uint32_t meshCount = 0;
 	bool uReleased = true;
@@ -44,9 +45,13 @@ public:
 			glm::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f),
 			glm::vec2(-1.0f, 1.0f)
 		);
+		this->shadowMapCamera = Graphics::OrthographicCamera(
+			glm::vec4(-100.0f, 000.0f, 100.0f, -100.0f),
+			glm::vec2(-1.0f, 1.0f)
+		);
 		this->UICamera.SetPosition(glm::vec3(0.0f, 0.0f, 1.0f));
 		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
-
+			
 		// Upload shaders (creates pipelines and descriptor sets)
 		// Shader loading
 		struct Shader { std::string name; Renderer::PipelineVariant variant; };
@@ -55,6 +60,7 @@ public:
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, opaque meshes
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back) }, // Single sided, transparent meshes
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, transparent meshes
+			// {"./shaders/compiled/shadow_map", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back) }, // Shadow map
 			//{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) }, // Skybox
 			//{"./shaders/compiled/ui", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // UI
 		};
