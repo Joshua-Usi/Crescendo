@@ -1,4 +1,4 @@
-#pragma once
+ #pragma once
 
 #include "Core/common.hpp"
 
@@ -7,13 +7,17 @@
 #include "GLFW/glfw3.h"
 
 #include "Rendering/Renderer/Renderer.hpp"
-#include "internal/FunctionQueue.hpp"
 #include "internal/QueueManager.hpp"
 #include "internal/CommandQueue.hpp"
-#include "internal/Allocator.hpp"
+#include "internal/Allocator/Allocator.hpp"
 #include "internal/DescriptorManager.hpp"
+#include "internal/Device/Device.hpp"
+
+#include "Rendering/Reflection/Reflection.hpp"
 
 #include "./internal/Create.hpp"
+
+#include "cs_std/function_queue.hpp"
 
 namespace Crescendo
 {
@@ -36,26 +40,10 @@ namespace Crescendo
 		VkSemaphore presentSemaphore, renderSemaphore;
 	};
 
-	struct PipelineBuilderInfo
-	{
-		VkPipelineDynamicStateCreateInfo dynamicState;
-		std::vector<VkPipelineShaderStageCreateInfo> shaderStagesInfo;
-		VkPipelineVertexInputStateCreateInfo vertexInputInfo;
-		VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
-		VkPipelineTessellationStateCreateInfo tessellationInfo;
-		VkPipelineRasterizationStateCreateInfo rasterizerInfo;
-		VkPipelineMultisampleStateCreateInfo multisamplingInfo;
-		VkPipelineColorBlendAttachmentState colorBlendAttachment;
-		VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
-		VkPipelineLayout pipelineLayout;
-		VkRenderPass renderPass;
-	};
-
 	struct RendererState
 	{
 		std::vector<FrameData> frameData;
 
-		uint32_t framesInFlight;
 		uint32_t frameIndex;
 		uint32_t swapchainImageIndex;
 		uint32_t boundPipelineIndex;
@@ -66,7 +54,6 @@ namespace Crescendo
 
 		inline RendererState() :
 			frameData({}),
-			framesInFlight(0),
 			frameIndex(0),
 			swapchainImageIndex(0),
 			boundPipelineIndex(0),
@@ -74,7 +61,37 @@ namespace Crescendo
 			msaaSamples(VK_SAMPLE_COUNT_1_BIT)
 		{};
 	};
+	
+	// Minimum required data to build a pipeline from scratch
+	// Also contains useful metadata about the pipeline
+	struct PipelineData {
+		SpirvReflection vertexReflection, fragmentReflection;
+		VkShaderModule vertexShader, fragmentShader;
 
+		inline PipelineData() = default;
+		inline PipelineData(const SpirvReflection& vertexReflection, const SpirvReflection& fragmentReflection, VkShaderModule vertexShader, VkShaderModule fragmentShader) :
+			vertexReflection(vertexReflection), fragmentReflection(fragmentReflection), vertexShader(vertexShader), fragmentShader(fragmentShader) {}
+
+		inline void Destroy(VkDevice device) {
+			vkDestroyShaderModule(device, this->vertexShader, nullptr);
+			vkDestroyShaderModule(device, this->fragmentShader, nullptr);
+		}
+	};
+
+	// Perfectly fits in 8 bits
+	// Minimum required support by the GLTF format
+	//enum class PipelineVertexAttribute : uint8_t
+	//{
+	//	Position = 0,
+	//	Normal,
+	//	Tangents,
+	//	TexCoord0,
+	//	TexCoord1,
+	//	Color0,
+	//	Joints0,
+	//	Weights0,
+	//};
+		
 	struct Pipeline
 	{
 		VkPipelineLayout layout;
@@ -82,9 +99,9 @@ namespace Crescendo
 		// Shows the associated data descriptor layouts, sets and offsets
 		std::vector<uint32_t> dataDescriptorHandles;
 		// Set number of the sampler descriptor set
-		uint32_t samplerDescriptorSet;
+		std::vector<uint32_t> samplerDescriptorHandles;
 
-		inline Pipeline(VkPipelineLayout layout, VkPipeline pipeline, std::vector<uint32_t> dataDescriptorHandles, uint32_t samplerDescriptorSet) : layout(layout), pipeline(pipeline), dataDescriptorHandles(dataDescriptorHandles), samplerDescriptorSet(samplerDescriptorSet) {}
+		inline Pipeline(VkPipelineLayout layout, VkPipeline pipeline, const std::vector<uint32_t>& dataDescriptorHandles, const std::vector<uint32_t>& samplerDescriptorHandles) : layout(layout), pipeline(pipeline), dataDescriptorHandles(dataDescriptorHandles), samplerDescriptorHandles(samplerDescriptorHandles) {}
 	};
 
 	struct Framebuffer
@@ -97,8 +114,9 @@ namespace Crescendo
 	class Renderer::RendererImpl
 	{
 	public:
+		BuilderInfo rendererInfo;
 		VkPhysicalDeviceProperties physicalDeviceProperties;
-		internal::FunctionQueue mainDeletionQueue, swapChainDeletionQueue;
+		cs_std::function_queue mainDeletionQueue, swapChainDeletionQueue;
 		internal::Allocator allocator;
 		RendererState state;
 
@@ -107,8 +125,7 @@ namespace Crescendo
 		VkDebugUtilsMessengerEXT debugMessenger;
 		VkSurfaceKHR surface;
 		VkPhysicalDevice physicalDevice;
-		VkDevice device;
-		GLFWwindow* window;
+		internal::Device device;
 		internal::QueueManager queues;
 
 		Swapchain swapchain;
@@ -140,15 +157,14 @@ namespace Crescendo
 		std::vector<VkDescriptorSet> dataDescriptorSets;
 
 		VkDescriptorSetLayout textureDescriptorSetLayout;
-		// One per mip level, dynamically created when a texture is loaded
+		// One per mip level, dynamically created when a texture is loaded, supports non-mipped textures too
 		std::vector<VkSampler> samplers;
 
-		// I don't know how to transfer queue ownership, so I'm just going to create a universal queue for uploading textures
+		// I don't know how to transfer queue ownership, so I'm just going to use the universal queue for uploading textures
 		// TODO figure out how switch texture uploading to dedicated transfer queue
 		internal::CommandQueue uploadQueue, uploadTextureQueue;
 
 		// List of all the texture images that have been uploaded to the GPU.
-		// TODO switch to single buffer for all images
 		std::vector<internal::Allocator::Image> images;
 		std::vector<VkDescriptorSet> imageDescriptorSets;
  
@@ -160,16 +176,15 @@ namespace Crescendo
 		FrameData& GetCurrentFrameData();
 
 		void InitialiseInstance(const BuilderInfo& info);
-		void InitialiseSwapchain(const BuilderInfo& info);
-		void InitialiseCommands(const BuilderInfo& info);
-		void InitialiseSyncStructures(const BuilderInfo& info);
-
-		void InitialiseRenderpasses(const BuilderInfo& info); // Also initialises the default renderpass
-		void InitialiseFramebuffers(const BuilderInfo& info);
+		void InitialiseTransferQueues(const BuilderInfo& info);
 		void InitialiseDescriptors(const BuilderInfo& info);
 		void InitialisePipelines(const BuilderInfo& info);
-		// Doesn't necessarily load buffers with data. But it does create and allocate them
 		void InitialiseBuffers(const BuilderInfo& info);
+
+		void InitialiseFlightFrames(const BuilderInfo& info);
+		void InitialiseSwapchain(const BuilderInfo& info);
+		void InitialiseRenderpasses(const BuilderInfo& info);
+		void InitialiseFramebuffers(const BuilderInfo& info);
 
 		void RecreateSwapchain();
 		inline void Resize() { this->state.didFramebufferResize = true; }
@@ -184,17 +199,9 @@ namespace Crescendo
 		void PresentFrame();
 		void UpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size);
 
-		// Creation abstraction
-		VkShaderModule CreateShaderModule(const std::vector<uint8_t>& code);
-		VkRenderPass CreateRenderPass(const std::vector<VkAttachmentDescription>& attachments, const std::vector<VkSubpassDescription>& subpasses, const std::vector<VkSubpassDependency>& subpassDependencies);
-		VkPipeline CreatePipeline(PipelineBuilderInfo& info);
-
 		// Upload commands
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant);
 		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<float>& tangents, const std::vector<uint32_t>& indices);
 		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
-	
-		// Getters
-		inline Pipeline GetPipeline(uint32_t pipeline) const { return this->pipelines[pipeline]; }
 	};
 }

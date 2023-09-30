@@ -5,6 +5,9 @@
 #include "vulkan/vulkan.h"
 #include "Create.hpp"
 
+#include "Device/Device.hpp"
+#include "QueueManager.hpp"
+
 #include <functional>
 #include <vector>
 
@@ -13,7 +16,7 @@ namespace Crescendo::internal
 	class CommandQueue
 	{
 	private:
-		VkDevice device;
+		Device device;
 	public:
 		VkCommandPool commandPool;
 		VkCommandBuffer commandBuffer;
@@ -22,20 +25,12 @@ namespace Crescendo::internal
 		uint32_t queueFamily;
 
 		CommandQueue() = default;
-		inline CommandQueue(VkDevice device, VkQueue queue, uint32_t queueFamily) : device(device), queue(queue), queueFamily(queueFamily), commandPool(nullptr), commandBuffer(nullptr), completionFence(nullptr) {}
+		inline CommandQueue(VkDevice device, QueueManager::Queue queue) : device(device), queue(queue.queue), queueFamily(queue.family), commandPool(nullptr), commandBuffer(nullptr), completionFence(nullptr) {}
 		inline CommandQueue& Initialise(bool startSignalled)
 		{
-			// Create pool
-			const VkCommandPoolCreateInfo poolInfo = Create::CommandPoolCreateInfo(this->queueFamily);
-			CS_ASSERT(vkCreateCommandPool(this->device, &poolInfo, nullptr, &this->commandPool) == VK_SUCCESS, "Failed to create command pool!");
-
-			// Create buffer
-			const VkCommandBufferAllocateInfo cmdBufferInfo = Create::CommandBufferAllocateInfo(this->commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
-			CS_ASSERT(vkAllocateCommandBuffers(this->device, &cmdBufferInfo, &this->commandBuffer) == VK_SUCCESS, "Failed to allocate command buffers!");
-
-			// Create fence that denotes when the command buffer has finished executing
-			const VkFenceCreateInfo fenceInfo = Create::FenceCreateInfo(startSignalled);
-			CS_ASSERT(vkCreateFence(this->device, &fenceInfo, nullptr, &this->completionFence) == VK_SUCCESS, "Failed to create in flight fences");
+			this->commandPool = this->device.CreateCommandPool(this->queueFamily);
+			this->commandBuffer = this->device.AllocateCommandBuffer(this->commandPool);
+			this->completionFence = this->device.CreateFence(startSignalled);
 			
 			return *this;
 		}
@@ -152,7 +147,7 @@ namespace Crescendo::internal
 		/// Makes no gaurantees if the user has created an infinite loop
 		/// </summary>
 		/// <param name="function">Commands</param>
-		/// <param name="timeout">Time to wait in nanoseconds until we continue execution, leave blank to always gaurantee execution completion</param>
+		/// <param name="timeout">Time to wait in nanoseconds until we continue presume timeout and continue execution, leave blank to basically gaurantee execution completion</param>
 		inline void InstantSubmit(std::function<void(const CommandQueue& cmd)>&& function, uint64_t timeout = UINT64_MAX) const
 		{
 			this->Begin();

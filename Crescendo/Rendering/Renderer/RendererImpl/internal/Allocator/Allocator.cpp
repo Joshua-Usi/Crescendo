@@ -5,16 +5,17 @@
 #include "Core/common.hpp"
 #include "Allocator.hpp"
 #include "VMA/vk_mem_alloc.h"
-#include "Create.hpp"
+#include "../Create.hpp"
 
 namespace Crescendo::internal
 {
-	Allocator& Allocator::Initialise()
+	Allocator& Allocator::Initialise(VkInstance instance, VkPhysicalDevice physicalDevice)
 	{
-		VmaAllocatorCreateInfo allocatorInfo = {};
-		allocatorInfo.physicalDevice = physicalDevice;
+		VmaAllocatorCreateInfo allocatorInfo {};
 		allocatorInfo.device = device;
 		allocatorInfo.instance = instance;
+		allocatorInfo.physicalDevice = physicalDevice;
+
 		vmaCreateAllocator(&allocatorInfo, &this->allocator);
 
 		return *this;
@@ -25,7 +26,7 @@ namespace Crescendo::internal
 	}
 	Allocator::Buffer Allocator::CreateBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
 	{
-		Buffer buffer;
+		Buffer buffer {};
 
 		VkBufferCreateInfo bufferInfo = Create::BufferCreateInfo(nullptr, 0, allocationSize, usage, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr);
 		VmaAllocationCreateInfo vmaAllocInfo{};
@@ -42,32 +43,42 @@ namespace Crescendo::internal
 		if (buffer.memoryLocation != nullptr) vmaUnmapMemory(this->allocator, buffer.allocation);
 		vmaDestroyBuffer(this->allocator, buffer.buffer, buffer.allocation);
 	}
-	Allocator::Image Allocator::CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags)
-	{
-		Image image;
-
-		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = memoryUsage;
-		allocInfo.requiredFlags = requiredFlags;
-
-		CS_ASSERT(vmaCreateImage(this->allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) == VK_SUCCESS, "Failed to create image!");
-
-		return image;
-	}
 	// Create image with image view, allocator will fill viewInfo.image attribute;
-	Allocator::Image Allocator::CreateImage(const VkImageCreateInfo& imageInfo, VkImageViewCreateInfo& viewInfo, VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags)
+	Allocator::Image Allocator::CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage)
 	{
+		// Maps VmaMemoryUsage to VkMemoryPropertyFlags
+		constexpr VkMemoryPropertyFlags FLAG_MAP[5]{
+			0,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		};
+		// Maps VkImageType to VkImageViewType
+		constexpr VkImageViewType FORMAT_MAP[7] {
+			VK_IMAGE_VIEW_TYPE_1D,
+			VK_IMAGE_VIEW_TYPE_2D,
+			VK_IMAGE_VIEW_TYPE_3D,
+		};
 
-		Image image = this->CreateImage(imageInfo, memoryUsage, requiredFlags);
-		viewInfo.image = image.image;
+		Image image{};
+		VmaAllocationCreateInfo allocInfo{};
+		allocInfo.usage = memoryUsage;
+		allocInfo.requiredFlags = FLAG_MAP[memoryUsage];
+		CS_ASSERT(vmaCreateImage(this->allocator, &imageInfo, &allocInfo, &image.image, &image.allocation, nullptr) == VK_SUCCESS, "Failed to create image!");
+		
+		// Automatically create image view
+		const VkImageViewCreateInfo viewInfo = Create::ImageViewCreateInfo(
+			image.image, FORMAT_MAP[imageInfo.imageType], imageInfo.format, {},
+			Create::ImageSubresourceRange((imageInfo.format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT, 0, imageInfo.mipLevels, 0, 1)
+		);
 		CS_ASSERT(vkCreateImageView(this->device, &viewInfo, nullptr, &image.imageView) == VK_SUCCESS, "Failed to create image view!");
 	
 		return image;
 	}
 	void Allocator::DestroyImage(Allocator::Image& image)
 	{
+		// Some images can have no image views
 		if (image.imageView != nullptr) vkDestroyImageView(this->device, image.imageView, nullptr);
-		// Some images can be from the swap chain
+		// Some images can be from the swap chain, as such they have no allocation
 		if (image.allocation != nullptr) vmaDestroyImage(this->allocator, image.image, image.allocation);
 	}
 }

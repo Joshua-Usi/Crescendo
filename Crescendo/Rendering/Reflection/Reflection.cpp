@@ -109,18 +109,23 @@ namespace Crescendo
 			for (uint32_t i = 0; i < pushConstantCount; i++)
 			{
 				SpvReflectBlockVariable* pushConstant = pushConstants[i];
-				reflection.pushConstant.members.resize(pushConstant->member_count);
+
+				SpirvReflection::PushConstantLayout pushConstantLayout;
+
 				for (uint32_t j = 0; j < pushConstant->member_count; j++)
 				{
 					SpvReflectBlockVariable member = pushConstant->members[j];
-					reflection.pushConstant.members[j] = { member.offset, member.size };
+					pushConstantLayout.members.emplace_back(member.offset, member.size);
 				}
+
+				reflection.pushConstants.push_back(pushConstantLayout);
 			}
 		}
 		spvReflectDestroyShaderModule(&reflectionModule);
+
 		return reflection;
 	}
-	const std::vector<std::vector<VkDescriptorSetLayoutBinding>> SpirvReflection::GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType descriptorType, uint32_t shaderStage) const
+	std::vector<std::vector<VkDescriptorSetLayoutBinding>> SpirvReflection::GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType descriptorType, uint32_t shaderStage) const
 	{
 		std::vector<std::vector<VkDescriptorSetLayoutBinding>> bindings;
 		for (const auto& setLayout : this->descriptorSetLayouts)
@@ -138,7 +143,7 @@ namespace Crescendo
 		}
 		return bindings;
 	}
-	const std::vector<SpirvReflection::DescriptorSetLayout> SpirvReflection::GetDescriptorSetLayouts(SpirvReflection::DescriptorType descriptorType) const
+	std::vector<SpirvReflection::DescriptorSetLayout> SpirvReflection::GetDescriptorSetLayouts(SpirvReflection::DescriptorType descriptorType) const
 	{
 		std::vector<SpirvReflection::DescriptorSetLayout> layouts;
 		for (const auto& setLayout : this->descriptorSetLayouts)
@@ -148,7 +153,7 @@ namespace Crescendo
 		}
 		return layouts;
 	}
-	const std::vector<VkVertexInputBindingDescription> SpirvReflection::GetVertexBindings() const
+	std::vector<VkVertexInputBindingDescription> SpirvReflection::GetVertexBindings() const
 	{
 		std::vector<VkVertexInputBindingDescription> bindings(this->inputVariables.size());
 		for (uint32_t i = 0; i < this->inputVariables.size(); i++)
@@ -157,11 +162,7 @@ namespace Crescendo
 		}
 		return bindings;
 	}
-	bool SpirvReflection::HasPushConstant() const
-	{
-		return !this->pushConstant.members.empty();
-	}
-	const std::vector<VkVertexInputAttributeDescription> SpirvReflection::GetVertexAttributes() const
+	std::vector<VkVertexInputAttributeDescription> SpirvReflection::GetVertexAttributes() const
 	{
 		std::vector<VkVertexInputAttributeDescription> attributes(this->inputVariables.size());
 		for (uint32_t i = 0; i < this->inputVariables.size(); i++)
@@ -170,8 +171,13 @@ namespace Crescendo
 		}
 		return attributes;
 	}
-	VkPushConstantRange SpirvReflection::GetPushConstantRange(uint32_t shaderStage) const
+	std::vector<VkPushConstantRange> SpirvReflection::GetPushConstantRanges(uint32_t shaderStage) const
 	{
-		return { shaderStage, (this->HasPushConstant()) ? this->pushConstant.members[0].offset : 0, this->pushConstant.GetSize() };
+		std::vector<VkPushConstantRange> ranges;
+		for (const auto& pushConstant : this->pushConstants)
+		{
+			ranges.push_back({ shaderStage, pushConstant.members[0].offset, pushConstant.GetSize() });
+		}
+		return ranges;
 	}
 }

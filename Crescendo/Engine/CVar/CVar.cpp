@@ -24,6 +24,11 @@ namespace Crescendo::Engine
 	{
 		return std::stod(data[name]);
 	}
+	template<>
+	float CVar::Get<float>(const std::string& name)
+	{
+		return std::stof(data[name]);
+	}
 	template <>
 	bool CVar::Get<bool>(const std::string& name)
 	{

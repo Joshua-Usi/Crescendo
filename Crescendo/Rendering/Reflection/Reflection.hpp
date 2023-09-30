@@ -12,6 +12,7 @@ namespace Crescendo
 {
 	struct SpirvReflection
 	{
+		// We only ever use block and sampler descriptors
 		enum class DescriptorType : uint32_t { Unknown = 0, Block = 1, Sampler = 2, All = 3 };
 		struct InterfaceVariable { uint32_t location, size; };
 		struct BlockMember { uint32_t offset, size; };
@@ -47,15 +48,14 @@ namespace Crescendo
 		std::vector<InterfaceVariable> inputVariables;
 		std::vector<InterfaceVariable> outputVariables;
 		std::vector<DescriptorSetLayout> descriptorSetLayouts;
-		PushConstantLayout pushConstant;
+		std::vector<PushConstantLayout> pushConstants;
 
-		const std::vector<DescriptorSetLayout> GetDescriptorSetLayouts(SpirvReflection::DescriptorType descriptorType = DescriptorType::All) const;
-		bool HasPushConstant() const;
+		std::vector<DescriptorSetLayout> GetDescriptorSetLayouts(SpirvReflection::DescriptorType descriptorType = DescriptorType::All) const;
 
-		const std::vector<std::vector<VkDescriptorSetLayoutBinding>> GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType descriptorType, uint32_t shaderStage) const;
-		const std::vector<VkVertexInputBindingDescription> GetVertexBindings() const;
-		const std::vector<VkVertexInputAttributeDescription> GetVertexAttributes() const;
-		VkPushConstantRange GetPushConstantRange(uint32_t shaderStage) const;
+		std::vector<std::vector<VkDescriptorSetLayoutBinding>> GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType descriptorType, uint32_t shaderStage) const;
+		std::vector<VkVertexInputBindingDescription> GetVertexBindings() const;
+		std::vector<VkVertexInputAttributeDescription> GetVertexAttributes() const;
+		std::vector<VkPushConstantRange> GetPushConstantRanges(uint32_t shaderStage) const;
 	};
 
 	SpirvReflection ReflectSpirv(const std::vector<uint8_t>& code);

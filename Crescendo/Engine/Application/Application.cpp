@@ -36,6 +36,7 @@ namespace Crescendo::Engine
 		info.vertexBufferBlockSize = CVar::Get<int64_t>("rc_vertexbufferblocksize");
 		info.descriptorBufferBlockSize = CVar::Get<int64_t>("rc_descriptorbufferblocksize");
 		info.msaaSamples = CVar::Get<int64_t>("rc_multisamples");
+		info.anistropicFiltering = CVar::Get<float>("rc_anisotropicfiltering");
 		info.desriptorSetsPerPool = CVar::Get<int64_t>("rc_descriptorsetsperpool");
 		info.shadowMapResolution = CVar::Get<int64_t>("rc_shadowmapresolution");
 

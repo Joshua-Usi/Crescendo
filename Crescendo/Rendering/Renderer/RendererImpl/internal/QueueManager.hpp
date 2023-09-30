@@ -7,23 +7,23 @@ namespace Crescendo::internal
 	class QueueManager
 	{
 	public:
+		struct Queue { VkQueue queue;  uint32_t family; };
 		/*
 		 *	Universal is capable of all operations
 		 *	Transfer is transfer dedicated
 		 *	Compute is compute dedicated
 		 */
-		VkQueue universal, transfer, compute, present;
-		uint32_t universalFamily, transferFamily, computeFamily;
+		Queue universal, transfer, compute, present;
 
 		inline void GetQueues(const vkb::Device& device)
 		{
-			this->universal = device.get_queue(vkb::QueueType::graphics).value();
-			this->transfer = device.get_queue(vkb::QueueType::transfer).value();
-			this->compute = device.get_queue(vkb::QueueType::compute).value();
+			this->universal.queue = device.get_queue(vkb::QueueType::graphics).value();
+			this->transfer.queue = device.get_queue(vkb::QueueType::transfer).value();
+			this->compute.queue = device.get_queue(vkb::QueueType::compute).value();
 
-			this->universalFamily = device.get_queue_index(vkb::QueueType::graphics).value();
-			this->transferFamily = device.get_queue_index(vkb::QueueType::transfer).value();
-			this->computeFamily = device.get_queue_index(vkb::QueueType::compute).value();
+			this->universal.family = device.get_queue_index(vkb::QueueType::graphics).value();
+			this->transfer.family = device.get_queue_index(vkb::QueueType::transfer).value();
+			this->compute.family = device.get_queue_index(vkb::QueueType::compute).value();
 		}
 
 		QueueManager() = default;

@@ -9,8 +9,6 @@ namespace Crescendo::internal
 	{
 	private:
 		VmaAllocator allocator;
-		VkInstance instance;
-		VkPhysicalDevice physicalDevice;
 		VkDevice device;
 	public:
 		struct Buffer
@@ -19,9 +17,9 @@ namespace Crescendo::internal
 			VmaAllocation allocation;
 			void* memoryLocation;
 
-			inline Buffer() : buffer(nullptr), allocation(nullptr), memoryLocation(nullptr) {}
+			Buffer() = default;
 
-			// Offset in bytes
+			// Offset in bytes, only valid for host visible mapped memory
 			inline void Fill(size_t offset, const void* data, size_t size)
 			{
 				memcpy(static_cast<char*>(this->memoryLocation) + offset, data, size);
@@ -40,13 +38,13 @@ namespace Crescendo::internal
 		};
 	public:
 		Allocator() = default;
-		inline Allocator(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device) : allocator(nullptr), instance(instance), physicalDevice(physicalDevice), device(device) {}
+		inline Allocator(VkDevice device) : allocator(nullptr), device(device) {}
 		~Allocator() = default;
 		/// <summary>
 		/// Initialise the allocator
 		/// </summary>
 		/// <returns>Reference to allocator if you want one line creation and initialisation</returns>
-		Allocator& Initialise();
+		Allocator& Initialise(VkInstance instance, VkPhysicalDevice physicalDevice);
 		/// <summary>
 		/// Destroy the allocator, should be called before destroying the device
 		/// </summary>
@@ -54,9 +52,7 @@ namespace Crescendo::internal
 	public:
 		Buffer CreateBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 		void DestroyBuffer(Buffer& buffer);
-		Image CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags = 0);
-		// Create image with image view
-		Image CreateImage(const VkImageCreateInfo& imageInfo, VkImageViewCreateInfo& viewInfo, VmaMemoryUsage memoryUsage, VkMemoryPropertyFlags requiredFlags = 0);
+		Image CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage);
 		void DestroyImage(Allocator::Image& image);
 	};
 };

@@ -63,7 +63,7 @@ namespace Crescendo
 		std::vector<uint32_t> offsets;
 		for (uint32_t i = 0; i < currentPipeline.dataDescriptorHandles.size(); i++)
 		{
-			descriptorSets.push_back(this->dataDescriptorSets[currentPipeline.dataDescriptorHandles[i] * this->state.framesInFlight + this->GetFrameIndex()]);
+			descriptorSets.push_back(this->dataDescriptorSets[currentPipeline.dataDescriptorHandles[i] * this->rendererInfo.framesInFlight + this->GetFrameIndex()]);
 			// -1 because we ignore the last element because it specifies the end of the buffer
 			offsets.insert(
 				offsets.end(),
@@ -91,7 +91,14 @@ namespace Crescendo
 
 		const Pipeline currentPipeline = this->pipelines[this->state.boundPipelineIndex];
 
-		cmd.BindDescriptorSets(currentPipeline.layout, { this->imageDescriptorSets[textureIndex] }, {}, set);
+		if (textureIndex == SHADOW_MAP_ID)
+		{
+
+		}
+		else
+		{
+			cmd.BindDescriptorSets(currentPipeline.layout, { this->imageDescriptorSets[textureIndex] }, {}, set);
+		}
 	}
 	void Renderer::RendererImpl::UpdatePushConstant(ShaderStage stage, const void* data, uint32_t size)
 	{
@@ -124,7 +131,7 @@ namespace Crescendo
 		const VkPresentInfoKHR presentInfo = Create::PresentInfoKHR(
 			1, &currentFrame.renderSemaphore, 1, &this->swapchain.swapchain, &this->state.swapchainImageIndex, nullptr
 		);
-		const VkResult presentResult = vkQueuePresentKHR(this->queues.universal, &presentInfo);
+		const VkResult presentResult = vkQueuePresentKHR(this->queues.universal.queue, &presentInfo);
 		if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || this->state.didFramebufferResize)
 		{
 			this->state.didFramebufferResize = false;
@@ -132,12 +139,13 @@ namespace Crescendo
 		}
 		else CS_ASSERT(presentResult == VK_SUCCESS, "Failed to present!");
 		// Advance the frame index to use the next buffer
-		this->state.frameIndex = (this->state.frameIndex + 1) % this->state.framesInFlight;
+		this->state.frameIndex = (this->state.frameIndex + 1) % this->rendererInfo.framesInFlight;
 	}
 	void Renderer::RendererImpl::UpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size)
 	{
 		CS_ASSERT(size <= (this->dataDescriptorSetLayoutOffsets[descriptorSetIndex][binding + 1] - this->dataDescriptorSetLayoutOffsets[descriptorSetIndex][binding]), "Provided data is larger than the descriptor set size, This can lead to buffer overflow!");
+		const uint32_t frameIndex = this->GetFrameIndex();
 		const uint32_t memOffset = this->dataDescriptorSetLayoutOffsets[descriptorSetIndex][binding];
-		memcpy(static_cast<char*>(this->dataDescriptorSetBuffers[this->GetFrameIndex()].memoryLocation) + memOffset, data, size);
+		memcpy(static_cast<char*>(this->dataDescriptorSetBuffers[frameIndex].memoryLocation) + memOffset, data, size);
 	}
 }

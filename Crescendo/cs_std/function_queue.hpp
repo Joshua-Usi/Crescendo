@@ -3,15 +3,15 @@
 #include <vector>
 #include <functional>
 
-namespace Crescendo::internal
+namespace cs_std
 {
-	class FunctionQueue
+	class function_queue
 	{
 	private:
 		std::vector<std::function<void()>> queue;
 	public:
-		inline void Push(std::function<void()>&& function) { queue.push_back(function); }
-		inline void Flush()
+		inline void push(std::function<void()>&& function) { queue.push_back(function); }
+		inline void flush()
 		{
 			for (auto it = queue.rbegin(); it != queue.rend(); it++) (*it)();
 			this->queue.clear();

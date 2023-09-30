@@ -17,8 +17,7 @@ namespace Crescendo::Algorithms
 
 	struct BoundingAABB
 	{
-		glm::vec3 min;
-		glm::vec3 max;
+		glm::vec3 min, max;
 
 		/// <summary>
 		/// Return the center of the AABB.

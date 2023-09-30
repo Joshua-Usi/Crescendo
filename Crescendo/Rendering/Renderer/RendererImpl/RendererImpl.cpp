@@ -1,11 +1,23 @@
 #include "RendererImpl.hpp"
 
-#include "Rendering/Reflection/Reflection.hpp"
-
+#include "cs_std/algorithms.hpp"
 #include <numeric>
 
 namespace Crescendo
 {
+	uint32_t sampleCountMap(VkSampleCountFlagBits samples)
+	{
+		switch (samples)
+		{
+			case VK_SAMPLE_COUNT_64_BIT: return 64;
+			case VK_SAMPLE_COUNT_32_BIT: return 32;
+			case VK_SAMPLE_COUNT_16_BIT: return 16;
+			case VK_SAMPLE_COUNT_8_BIT:  return 8;
+			case VK_SAMPLE_COUNT_4_BIT:  return 4;
+			case VK_SAMPLE_COUNT_2_BIT:  return 2;
+		}
+		return 1;
+	}
 	size_t PaddedSize(size_t size, size_t alignmentRequirement)
 	{
 		return (alignmentRequirement > 0) ? (size + alignmentRequirement - 1) & ~(alignmentRequirement - 1) : size;
@@ -21,58 +33,28 @@ namespace Crescendo
 		int width = 0, height = 0;
 		while (width == 0 || height == 0)
 		{
-			glfwGetFramebufferSize(this->window, &width, &height);
+			glfwGetFramebufferSize(static_cast<GLFWwindow*>(this->rendererInfo.window), &width, &height);
 			glfwWaitEvents();
 		}
 
 		// Destroy old buffers
-		this->swapChainDeletionQueue.Flush();
-		// Create new info, with new extent. This could be a little slow since it is a massive struct but it's not like we're recreating the swapchain every frame
+		this->swapChainDeletionQueue.flush();
+		// Create new info, with new data
 		BuilderInfo info = {};
 		info.windowExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
-		// Create swapchain and framebuffers again
+		info.msaaSamples = this->rendererInfo.msaaSamples;
+		info.shadowMapResolution = this->rendererInfo.shadowMapResolution;
+		info.framesInFlight = this->rendererInfo.framesInFlight;
+		// Rebuild dynamic data
+		this->InitialiseFlightFrames(info);
 		this->InitialiseSwapchain(info);
+		this->InitialiseRenderpasses(info);
 		this->InitialiseFramebuffers(info);
-	}
-	VkShaderModule Renderer::RendererImpl::CreateShaderModule(const std::vector<uint8_t>& code)
-	{
-		VkShaderModule shaderModule;
-		const VkShaderModuleCreateInfo createInfo = Create::ShaderModuleCreateInfo(code);
-		CS_ASSERT(vkCreateShaderModule(this->device, &createInfo, nullptr, &shaderModule) == VK_SUCCESS, "Failed to create shader module!");
-		return shaderModule;
-	}
-	VkRenderPass Renderer::RendererImpl::CreateRenderPass(const std::vector<VkAttachmentDescription>& attachments, const std::vector<VkSubpassDescription>& subpasses, const std::vector<VkSubpassDependency>& subpassDependencies)
-	{
-		const VkRenderPassCreateInfo renderPassInfo = Create::RenderPassCreateInfo(
-			attachments, subpasses, subpassDependencies
-		);
-		VkRenderPass renderPass;
-		vkCreateRenderPass(this->device, &renderPassInfo, nullptr, &renderPass);
-		return renderPass;
-	}
-	VkPipeline Renderer::RendererImpl::CreatePipeline(PipelineBuilderInfo& info)
-	{
-		VkPipelineViewportStateCreateInfo viewportState = Create::PipelineViewportStateCreateInfo(nullptr, 1, nullptr, 1, nullptr);
-		VkPipelineColorBlendStateCreateInfo colorBlending = Create::PipelineColorBlendStateCreateInfo(
-			nullptr, 0, VK_FALSE, VK_LOGIC_OP_COPY, 1, &info.colorBlendAttachment, { 0.0f, 0.0f, 0.0f, 0.0f }
-		);
-		// Fill pipeline info
-		VkGraphicsPipelineCreateInfo pipelineInfo = Create::GraphicsPipelineCreateInfo(
-			nullptr, 0,
-			static_cast<uint32_t>(info.shaderStagesInfo.size()), info.shaderStagesInfo.data(),
-			&info.vertexInputInfo, &info.inputAssemblyInfo, &info.tessellationInfo,
-			&viewportState, &info.rasterizerInfo, &info.multisamplingInfo,
-			&info.depthStencilInfo, &colorBlending, &info.dynamicState,
-			info.pipelineLayout, info.renderPass, 0, VK_NULL_HANDLE, 0
-		);
-		// Sometimes pipelines can fail to generate, but it's not a critical error
-		// So we just return a null handle and let the user handle it
-		VkPipeline pipeline = VK_NULL_HANDLE;
-		if (vkCreateGraphicsPipelines(this->device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
-		{
-			std::cout << "Failed to create graphics pipeline!" << std::endl;
-		}
-		return pipeline;
+
+		this->rendererInfo.windowExtent = info.windowExtent;
+		this->rendererInfo.msaaSamples = info.msaaSamples;
+		this->rendererInfo.shadowMapResolution = info.shadowMapResolution;
+		this->rendererInfo.framesInFlight = info.framesInFlight;
 	}
 	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant)
 	{
@@ -81,29 +63,27 @@ namespace Crescendo
 		constexpr VkPolygonMode FILL_MODE_MAP[3] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
 		constexpr VkCompareOp DEPTH_COMPARE_MAP[8] = { VK_COMPARE_OP_NEVER, VK_COMPARE_OP_LESS, VK_COMPARE_OP_EQUAL, VK_COMPARE_OP_LESS_OR_EQUAL, VK_COMPARE_OP_GREATER, VK_COMPARE_OP_NOT_EQUAL, VK_COMPARE_OP_GREATER_OR_EQUAL, VK_COMPARE_OP_ALWAYS };
 		constexpr VkCullModeFlags CULL_MODE_MAP[3] = { VK_CULL_MODE_NONE, VK_CULL_MODE_FRONT_BIT, VK_CULL_MODE_BACK_BIT };
+
+		// We we always use dynamic states, there is really no performance penalty for just viewports and scissors and it means we don't need to recreate pipelines when resizing
+		constexpr std::array<VkDynamicState, 2> dynamicStates { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 		
 		const VkDeviceSize UNIFORM_ALIGNMENT = this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
-
 		const uint32_t currentLayoutIndex = this->dataDescriptorSetLayouts.size();
 
-		// Load shader modules
-		VkShaderModule	vertModule = this->CreateShaderModule(vertexShader),
-						fragModule = this->CreateShaderModule(fragmentShader);
-
-		// Create reflection data
-		SpirvReflection vertReflection = ReflectSpirv(vertexShader),
-						fragReflection = ReflectSpirv(fragmentShader);
+		PipelineData pipelineData(ReflectSpirv(vertexShader), ReflectSpirv(fragmentShader), this->device.CreateShaderModule(vertexShader), this->device.CreateShaderModule(fragmentShader));
 
 		/* -------------------------------- 1. Data Descriptors -------------------------------- */
 		
 		// Collect descriptor set layouts bindings
-		std::vector<std::vector<VkDescriptorSetLayoutBinding>>	dataLayoutsBindings = vertReflection.GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType::Block, VK_SHADER_STAGE_VERTEX_BIT),
-																fragDataLayoutsBindings = fragReflection.GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType::Block, VK_SHADER_STAGE_FRAGMENT_BIT);
-		dataLayoutsBindings.insert(dataLayoutsBindings.end(), fragDataLayoutsBindings.begin(), fragDataLayoutsBindings.end());
+		std::vector<std::vector<VkDescriptorSetLayoutBinding>> dataLayoutsBindings = cs_std::combine(
+			pipelineData.vertexReflection.GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType::Block, VK_SHADER_STAGE_VERTEX_BIT),
+			pipelineData.fragmentReflection.GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType::Block, VK_SHADER_STAGE_FRAGMENT_BIT)
+		);
 
-		std::vector<SpirvReflection::DescriptorSetLayout>	dataSets = vertReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Block),
-															fragSets = fragReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Block);	
-		dataSets.insert(dataSets.end(), fragSets.begin(), fragSets.end());
+		std::vector<SpirvReflection::DescriptorSetLayout> dataSets = cs_std::combine(
+			pipelineData.vertexReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Block),
+			pipelineData.fragmentReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Block)
+		);
 
 		uint32_t datalayoutCount = static_cast<uint32_t>(dataLayoutsBindings.size());
 
@@ -113,9 +93,7 @@ namespace Crescendo
 		for (uint32_t i = 0; i < datalayoutCount; i++)
 		{
 			// Layout creation
-			VkDescriptorSetLayout layout;
-			VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(dataLayoutsBindings[i]);
-			vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &setLayouts[i]);
+			setLayouts[i] = this->device.CreateDescriptorSetLayout(dataLayoutsBindings[i]);
 			
 			// Set layout offsets
 			uint32_t lastSize = (this->dataDescriptorSetLayoutOffsets.size() >= 1) ? this->dataDescriptorSetLayoutOffsets.back().back() : 0;
@@ -127,7 +105,7 @@ namespace Crescendo
 			this->dataDescriptorSetLayoutOffsets.push_back(offsets);
 
 			// Create and write descriptor sets
-			  for (uint32_t j = 0; j < this->state.framesInFlight; j++)
+			for (uint32_t j = 0; j < this->rendererInfo.framesInFlight; j++)
 			{
 				VkDescriptorSet descriptorSet = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, setLayouts[i]);
 				this->dataDescriptorSets.push_back(descriptorSet);
@@ -149,9 +127,10 @@ namespace Crescendo
 
 		// Collect sampler descriptor set layouts
 		// TODO make sure texture descriptor sets support vertex shaders
-		std::vector<SpirvReflection::DescriptorSetLayout>	samplerSets = vertReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Sampler),
-															fragSamplerSets = fragReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Sampler);
-		samplerSets.insert(samplerSets.end(), fragSamplerSets.begin(), fragSamplerSets.end());
+		std::vector<SpirvReflection::DescriptorSetLayout> samplerSets = cs_std::combine(
+			pipelineData.vertexReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Sampler),
+			pipelineData.fragmentReflection.GetDescriptorSetLayouts(SpirvReflection::DescriptorType::Sampler)
+		);
 
 		// I feel like vulkan should complain here, but it literally doesn't!
 		for (uint32_t i = 0; i < samplerSets.size(); i++) setLayouts.push_back(this->textureDescriptorSetLayout);
@@ -159,45 +138,34 @@ namespace Crescendo
 		/* -------------------------------- 3. Pipeline Creation -------------------------------- */
 
 		// Get binding and attribute descriptions
-		std::vector<VkVertexInputBindingDescription> bindingDescriptions = vertReflection.GetVertexBindings();
-		std::vector<VkVertexInputAttributeDescription> attributeDescriptions = vertReflection.GetVertexAttributes();
+		std::vector<VkVertexInputBindingDescription> bindingDescriptions = pipelineData.vertexReflection.GetVertexBindings();
+		std::vector<VkVertexInputAttributeDescription> attributeDescriptions = pipelineData.vertexReflection.GetVertexAttributes();
 
 		// Get push constant range
-		VkPushConstantRange pushConstantRange = vertReflection.GetPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT);
+		std::vector<VkPushConstantRange> pushConstantRanges = pipelineData.vertexReflection.GetPushConstantRanges(VK_SHADER_STAGE_VERTEX_BIT);
 
 		// Create the pipeline layout
 		VkPipelineLayout pipelineLayout;
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(
-			0, setLayouts.size(), setLayouts.data(), vertReflection.HasPushConstant() ? 1 : 0, vertReflection.HasPushConstant() ? &pushConstantRange : nullptr
+			0, setLayouts, pushConstantRanges
 		);
 		CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &pipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout!");
 		this->pipelineLayouts.push_back(pipelineLayout);
 
-		// We we always use dyanmic states, there is really no performance penalty for just viewports and scissors and it means we don't need to recreate pipelines when resizing
-		constexpr std::array<VkDynamicState, 2> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-
 		// Create the information required to build the pipeline
-		PipelineBuilderInfo pipelineBuilderInfo = {};
-		pipelineBuilderInfo.dynamicState = Create::PipelineDynamicStateCreateInfo(dynamicStates.size(), dynamicStates.data());
-		pipelineBuilderInfo.renderPass = this->defaultRenderPass;
-		pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(
-			nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vertModule, "main", nullptr
-		));
-		pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(
-			nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, fragModule, "main", nullptr
-		));
-		pipelineBuilderInfo.vertexInputInfo = Create::PipelineVertexInputStateCreateInfo(
-			nullptr, static_cast<uint32_t>(bindingDescriptions.size()), bindingDescriptions.data(), static_cast<uint32_t>(attributeDescriptions.size()), attributeDescriptions.data()
-		);
-		pipelineBuilderInfo.inputAssemblyInfo = Create::PipelineInputAssemblyStateCreateInfo(
-			VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE
-		);
+		internal::Device::PipelineBuilderInfo pipelineBuilderInfo = {};
+		pipelineBuilderInfo.dynamicState = Create::PipelineDynamicStateCreateInfo(dynamicStates);
+		pipelineBuilderInfo.renderPass = (variant.renderPass == PipelineVariant::RenderPass::Default) ? this->defaultRenderPass : this->shadowMapRenderPass;
+		pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pipelineData.vertexShader));
+		pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pipelineData.fragmentShader));
+		pipelineBuilderInfo.vertexInputInfo = Create::PipelineVertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
+		pipelineBuilderInfo.inputAssemblyInfo = Create::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
 		pipelineBuilderInfo.rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(
-			nullptr, VK_FALSE, VK_FALSE, FILL_MODE_MAP[static_cast<size_t>(variant.fillMode)], CULL_MODE_MAP[static_cast<size_t>(variant.cullMode)],
+			VK_FALSE, VK_FALSE, FILL_MODE_MAP[static_cast<size_t>(variant.fillMode)], CULL_MODE_MAP[static_cast<size_t>(variant.cullMode)],
 			VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
 		);
 		pipelineBuilderInfo.multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(
-			nullptr, this->state.msaaSamples, VK_TRUE, 1.0f, nullptr, VK_FALSE, VK_FALSE
+			this->state.msaaSamples, VK_TRUE, 1.0f, nullptr, VK_FALSE, VK_FALSE
 		);
 		pipelineBuilderInfo.colorBlendAttachment = Create::PipelineColorBlendAttachmentState(
 			VK_TRUE, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
@@ -205,24 +173,23 @@ namespace Crescendo
 			VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
 		);
 		pipelineBuilderInfo.depthStencilInfo = Create::PipelineDepthStencilStateCreateInfo(
-			0,
-			(variant.depthTestEnable) ? VK_TRUE : VK_FALSE,
-			(variant.depthWriteEnable) ? VK_TRUE : VK_FALSE,
-			DEPTH_COMPARE_MAP[static_cast<size_t>(variant.depthFunc)], VK_FALSE, VK_FALSE,
-			{}, {}, 0.0f, 1.0f
+			0, variant.depthTestEnable, variant.depthWriteEnable,
+			DEPTH_COMPARE_MAP[static_cast<size_t>(variant.depthFunc)],
+			VK_FALSE, VK_FALSE, {}, {}
 		);
 		pipelineBuilderInfo.pipelineLayout = pipelineLayout;
 
-		// Assign the relevant descriptor handles
-		std::vector<uint32_t> descriptorHandles(datalayoutCount);
-		for (uint32_t i = 0; i < datalayoutCount; i++) descriptorHandles[i] = currentLayoutIndex + i;
+		// Assign the relevant data descriptor handles
+		std::vector<uint32_t> dataDescriptorHandles(datalayoutCount);
+		for (uint32_t i = 0; i < datalayoutCount; i++) dataDescriptorHandles[i] = currentLayoutIndex + i;
+		// Assign the relevant sampler descriptor handles
+		std::vector<uint32_t> samplerDescriptorHandles(samplerSets.size());
+		for (uint32_t i = 0; i < samplerSets.size(); i++) samplerDescriptorHandles[i] = currentLayoutIndex + datalayoutCount + i;
 
 		// Create the pipeline
-		this->pipelines.emplace_back(pipelineLayout, this->CreatePipeline(pipelineBuilderInfo), descriptorHandles, datalayoutCount);
+		this->pipelines.emplace_back(pipelineLayout, this->device.CreatePipeline(pipelineBuilderInfo), dataDescriptorHandles, samplerDescriptorHandles);
 
-		// Destroy shader modules, reflection will delete itself
-		vkDestroyShaderModule(this->device, fragModule, nullptr);
-		vkDestroyShaderModule(this->device, vertModule, nullptr);
+		pipelineData.Destroy(this->device);
 	}
 	void Renderer::RendererImpl::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<float>& tangents, const std::vector<uint32_t>& indices)
 	{
@@ -287,19 +254,17 @@ namespace Crescendo
 		constexpr VkFormat DEFAULT_FORMAT = VK_FORMAT_R8G8B8A8_SRGB;
 
 		const size_t imageSize = width * height * channels;
-		const uint32_t mipLevels = generateMipmaps ? static_cast<uint32_t>(std::log2(std::max(width, height))) + 1 : 1;
+		const uint32_t mipLevels = 1 + generateMipmaps ? static_cast<uint32_t>(std::log2(std::max(width, height))) : 0;
 		
 		// Create samplers dynamically as required for mip levels
+		VkSamplerCreateInfo samplerInfo = Create::SamplerCreateInfo(
+			VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			this->rendererInfo.anistropicFiltering, 1.0f
+		);
 		for (uint32_t i = static_cast<uint32_t>(samplers.size()); i < mipLevels; i++)
 		{
-			VkSampler sampler;
-			VkSamplerCreateInfo samplerInfo = Create::SamplerCreateInfo(
-				0, VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
-				0.0f, VK_TRUE, this->physicalDeviceProperties.limits.maxSamplerAnisotropy, VK_FALSE, VK_COMPARE_OP_ALWAYS,
-				0.0f, static_cast<float>(i), VK_BORDER_COLOR_INT_OPAQUE_BLACK
-			);
-			vkCreateSampler(this->device, &samplerInfo, nullptr, &sampler);
-			this->samplers.push_back(sampler);
+			samplerInfo.maxLod = static_cast<float>(i);
+			this->samplers.push_back(this->device.CreateSampler(samplerInfo));
 		}
 
 		// Stage the image data
@@ -308,17 +273,12 @@ namespace Crescendo
 
 		// Create the image
 		VkExtent3D extent = { width, height, 1 };
-		VkImageViewCreateInfo imageViewInfo = Create::ImageViewCreateInfo(
-			0, nullptr, VK_IMAGE_VIEW_TYPE_2D, DEFAULT_FORMAT,
-			{ VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY },
-			Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
-		);
 		internal::Allocator::Image image = this->allocator.CreateImage(Create::ImageCreateInfo(
-			nullptr, 0, VK_IMAGE_TYPE_2D, DEFAULT_FORMAT, extent,
+			VK_IMAGE_TYPE_2D, DEFAULT_FORMAT, extent,
 			mipLevels, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
-		), imageViewInfo, VMA_MEMORY_USAGE_GPU_ONLY);
+		), VMA_MEMORY_USAGE_GPU_ONLY);
 
 		// Check if format is blit compatible, if not then we cannot generate mipmaps
 		VkFormatProperties formatProperties;

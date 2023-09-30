@@ -121,7 +121,7 @@ namespace Crescendo::IO
 
 				mesh.transform = transform;
 
-				std::unordered_map <std::string, std::vector<float>*> attributes = {
+				std::unordered_map<std::string, std::vector<float>*> attributes = {
 					{ "POSITION", &mesh.vertices },
 					{ "NORMAL", &mesh.normals },
 					{ "TEXCOORD_0", &mesh.textureUVs },
