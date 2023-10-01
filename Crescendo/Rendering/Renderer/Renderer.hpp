@@ -16,6 +16,23 @@ namespace Crescendo
 	public:
 		const static uint32_t SHADOW_MAP_ID = UINT32_MAX;
 		enum class ShaderStage { Vertex, Fragment };
+		enum class ShaderAttributeFlag : uint32_t
+		{
+			Position = 0,
+			Normal,
+			Tangent,
+			TexCoord_0,
+			TexCoord_1,
+			Color_0,
+			Joints_0,
+			Weights_0,
+			SHADER_ATTRIBUTE_FLAG_COUNT,
+		};
+		struct ShaderAttribute
+		{
+			std::vector<float> data;
+			ShaderAttributeFlag attribute;
+		};
 		/// <summary>
 		/// Outlines instructions for how the renderer should be built
 		/// </summary>
@@ -185,17 +202,23 @@ namespace Crescendo
 		void CmdBindTexture(uint32_t set, uint32_t texture);
 		void CmdUpdatePushConstant(ShaderStage stage, const void* data, uint32_t size);
 		template<typename T>
-		void CmdUpdatePushConstant(ShaderStage stage, const T& data) { this->CmdUpdatePushConstant(stage, &data, sizeof(data)); }
+		void CmdUpdatePushConstant(ShaderStage stage, const T& data)
+		{
+			this->CmdUpdatePushConstant(stage, &data, sizeof(data));
+		}
 		void CmdDraw(uint32_t mesh);
 		void CmdPresentFrame();
 
 		void UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const void* data, uint32_t size);
 		template<typename T>
-		void UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const T& data) { this->UpdateDescriptorSetData(descriptorSetIndex, binding, &data, sizeof(data)); }
+		void UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const T& data)
+		{
+			this->UpdateDescriptorSetData(descriptorSetIndex, binding, &data, sizeof(data));
+		}
 
 		void Resize();
 
-		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<float>& tangents, const std::vector<uint32_t>& indices);
+		void UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices);
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant = {});
 		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 

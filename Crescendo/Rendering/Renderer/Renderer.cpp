@@ -47,7 +47,7 @@ namespace Crescendo
 
 	void Renderer::Resize() { this->impl->Resize(); }
 	
-	void Renderer::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<float>& tangents, const std::vector<uint32_t>& indices) { this->impl->UploadMesh(vertices, normals, textureUVs, tangents, indices); }
+	void Renderer::UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices) { this->impl->UploadMesh(attributes, indices); }
 	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant) { this->impl->UploadPipeline(vertexShader, fragmentShader, variant); }
 	void Renderer::UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps) { this->impl->UploadTexture(textureData, width, height, channels, generateMipmaps); }
 	

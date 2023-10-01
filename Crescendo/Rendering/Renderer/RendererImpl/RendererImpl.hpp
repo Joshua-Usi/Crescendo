@@ -77,20 +77,6 @@ namespace Crescendo
 			vkDestroyShaderModule(device, this->fragmentShader, nullptr);
 		}
 	};
-
-	// Perfectly fits in 8 bits
-	// Minimum required support by the GLTF format
-	//enum class PipelineVertexAttribute : uint8_t
-	//{
-	//	Position = 0,
-	//	Normal,
-	//	Tangents,
-	//	TexCoord0,
-	//	TexCoord1,
-	//	Color0,
-	//	Joints0,
-	//	Weights0,
-	//};
 		
 	struct Pipeline
 	{
@@ -100,8 +86,17 @@ namespace Crescendo
 		std::vector<uint32_t> dataDescriptorHandles;
 		// Set number of the sampler descriptor set
 		std::vector<uint32_t> samplerDescriptorHandles;
+		std::vector<Renderer::ShaderAttributeFlag> vertexAttributeFlags;
 
-		inline Pipeline(VkPipelineLayout layout, VkPipeline pipeline, const std::vector<uint32_t>& dataDescriptorHandles, const std::vector<uint32_t>& samplerDescriptorHandles) : layout(layout), pipeline(pipeline), dataDescriptorHandles(dataDescriptorHandles), samplerDescriptorHandles(samplerDescriptorHandles) {}
+		inline Pipeline(
+			VkPipelineLayout layout, VkPipeline pipeline,
+			const std::vector<uint32_t>& dataDescriptorHandles,
+			const std::vector<uint32_t>& samplerDescriptorHandles,
+			const std::vector<Renderer::ShaderAttributeFlag>& vertexAttributeFlags
+		) : layout(layout), pipeline(pipeline),
+			dataDescriptorHandles(dataDescriptorHandles),
+			samplerDescriptorHandles(samplerDescriptorHandles),
+			vertexAttributeFlags(vertexAttributeFlags) {}
 	};
 
 	struct Framebuffer
@@ -134,13 +129,10 @@ namespace Crescendo
 		std::vector<VkFramebuffer> framebuffers;
 		VkFramebuffer shadowMapFramebuffer;
 
-		// universal buffers that contain all the data for the respective vertex attribute
-		// By default holds 4 buffers, one for each vertex attribute: position, normal, textureUV, indices
+		// universal buffers that contain all the data for the respective vertex attribute, including indices which is stored at attribute 0
 		std::vector<internal::Allocator::Buffer> vertexBuffers;
-		// Offsets for the start of each meshes vertex data
-		std::vector<uint32_t> offsets;
-		// Offsets for each meshes indices
-		std::vector<uint32_t> indiceOffsets;
+		// Offsets for the start of each vertex attributes data
+		std::vector<std::vector<uint32_t>> offsets;
 
 		std::vector<VkPipelineLayout> pipelineLayouts;
 		std::vector<Pipeline> pipelines;
@@ -201,7 +193,7 @@ namespace Crescendo
 
 		// Upload commands
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant);
-		void UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<float>& tangents, const std::vector<uint32_t>& indices);
+		void UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices);
 		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 	};
 }

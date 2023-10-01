@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <string>
 
 struct VkDescriptorSetLayoutBinding;
 struct VkDescriptorSetLayoutCreateInfo;
@@ -14,7 +15,7 @@ namespace Crescendo
 	{
 		// We only ever use block and sampler descriptors
 		enum class DescriptorType : uint32_t { Unknown = 0, Block = 1, Sampler = 2, All = 3 };
-		struct InterfaceVariable { uint32_t location, size; };
+		struct InterfaceVariable { std::string name;  uint32_t location, size; };
 		struct BlockMember { uint32_t offset, size; };
 		struct DescriptorSetBinding
 		{

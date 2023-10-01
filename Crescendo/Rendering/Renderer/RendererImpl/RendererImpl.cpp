@@ -58,19 +58,47 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant)
 	{
-		/* -------------------------------- 0. Initialisation -------------------------------- */
-
 		constexpr VkPolygonMode FILL_MODE_MAP[3] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
 		constexpr VkCompareOp DEPTH_COMPARE_MAP[8] = { VK_COMPARE_OP_NEVER, VK_COMPARE_OP_LESS, VK_COMPARE_OP_EQUAL, VK_COMPARE_OP_LESS_OR_EQUAL, VK_COMPARE_OP_GREATER, VK_COMPARE_OP_NOT_EQUAL, VK_COMPARE_OP_GREATER_OR_EQUAL, VK_COMPARE_OP_ALWAYS };
 		constexpr VkCullModeFlags CULL_MODE_MAP[3] = { VK_CULL_MODE_NONE, VK_CULL_MODE_FRONT_BIT, VK_CULL_MODE_BACK_BIT };
+		constexpr std::array<std::pair<const char*, ShaderAttributeFlag>, 12> ATTRIBUTE_MAP = {
+			std::make_pair("iPosition", ShaderAttributeFlag::Position),
+			std::make_pair("iNormal", ShaderAttributeFlag::Normal),
+			std::make_pair("iTangent", ShaderAttributeFlag::Tangent),
+			std::make_pair("iTexCoord", ShaderAttributeFlag::TexCoord_0), // Alternative name
+			std::make_pair("iTexCoord0", ShaderAttributeFlag::TexCoord_0),
+			std::make_pair("iTexCoord1", ShaderAttributeFlag::TexCoord_1),
+			std::make_pair("iColor", ShaderAttributeFlag::Color_0), // Alternative name
+			std::make_pair("iColor0", ShaderAttributeFlag::Color_0),
+			std::make_pair("iJoints", ShaderAttributeFlag::Color_0), // Alternative name
+			std::make_pair("iJoints0", ShaderAttributeFlag::Joints_0),
+			std::make_pair("iWeights", ShaderAttributeFlag::Color_0), // Alternative name
+			std::make_pair("iWeights0", ShaderAttributeFlag::Weights_0)
+		};
 
 		// We we always use dynamic states, there is really no performance penalty for just viewports and scissors and it means we don't need to recreate pipelines when resizing
 		constexpr std::array<VkDynamicState, 2> dynamicStates { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-		
+
 		const VkDeviceSize UNIFORM_ALIGNMENT = this->physicalDeviceProperties.limits.minUniformBufferOffsetAlignment;
 		const uint32_t currentLayoutIndex = this->dataDescriptorSetLayouts.size();
 
+		/* -------------------------------- 0. Initialisation -------------------------------- */
+
 		PipelineData pipelineData(ReflectSpirv(vertexShader), ReflectSpirv(fragmentShader), this->device.CreateShaderModule(vertexShader), this->device.CreateShaderModule(fragmentShader));
+
+		std::vector<ShaderAttributeFlag> attributeFlags;
+		// O(n^2) algo, not the fastest, but not the end of the world, since n is small
+		for (const auto& inputVariable : pipelineData.vertexReflection.inputVariables)
+		{
+			for (const auto& attribute : ATTRIBUTE_MAP)
+			{
+				if (inputVariable.name == attribute.first)
+				{
+					attributeFlags.push_back(attribute.second);
+					break;
+				}
+			}
+		}
 
 		/* -------------------------------- 1. Data Descriptors -------------------------------- */
 		
@@ -187,65 +215,89 @@ namespace Crescendo
 		for (uint32_t i = 0; i < samplerSets.size(); i++) samplerDescriptorHandles[i] = currentLayoutIndex + datalayoutCount + i;
 
 		// Create the pipeline
-		this->pipelines.emplace_back(pipelineLayout, this->device.CreatePipeline(pipelineBuilderInfo), dataDescriptorHandles, samplerDescriptorHandles);
+		this->pipelines.emplace_back(pipelineLayout, this->device.CreatePipeline(pipelineBuilderInfo), dataDescriptorHandles, samplerDescriptorHandles, attributeFlags);
 
 		pipelineData.Destroy(this->device);
 	}
-	void Renderer::RendererImpl::UploadMesh(const std::vector<float>& vertices, const std::vector<float>& normals, const std::vector<float>& textureUVs, const std::vector<float>& tangents, const std::vector<uint32_t>& indices)
+	void Renderer::RendererImpl::UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices)
 	{
-		constexpr size_t VERTICES_PER_INDEX = 3;
-		constexpr size_t NORMALS_PER_INDEX = 3;
-		constexpr size_t TANGENTS_PER_INDEX = 4;
-		constexpr size_t UVS_PER_INDEX = 2;
-
-		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TANGENTS = 3, TEXTURE_UVS = 4;
+		// Elements per attribute
+		constexpr size_t ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(ShaderAttributeFlag::SHADER_ATTRIBUTE_FLAG_COUNT)]{
+			3, // POSITION
+			3, // NORMAL
+			4, // TANGENT
+			2, // TEXCOORD0
+			2, // TEXCOORD1
+			4, // COLOR0
+			4, // JOINTS0
+			4  // WEIGHTS0
+		};
 		
 		// It should not be possible, but just in case
 		CS_ASSERT(sizeof(uint32_t) == sizeof(float), "Somehow sizeof uint32_t and sizeof float don't match!");
 
-		CS_ASSERT(indices.size()    % 3 == 0, "Invalid mesh indices! mesh has " + std::to_string(indices.size()) + " indices!");
-		CS_ASSERT(vertices.size()   % 3 == 0, "Invalid mesh vertices! mesh has " + std::to_string(vertices.size()) + " vertices!");
-		CS_ASSERT(normals.size()    % 3 == 0, "Invalid mesh normals! mesh has " + std::to_string(normals.size()) + " normals!");
-		CS_ASSERT(tangents.size()   % 4 == 0, "Invalid mesh tangents! mesh has " + std::to_string(tangents.size()) + " tangents!");
-		CS_ASSERT(textureUVs.size() % 2 == 0, "Invalid mesh texture UVs! mesh has " + std::to_string(textureUVs.size()) + " texture UVs!");
+		for (const auto& attribute : attributes)
+		{
+			CS_ASSERT(attribute.data.size() % ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(attribute.attribute)] == 0, "Invalid mesh data! mesh has " + std::to_string(attribute.data.size()) + " elements! but expected a multiple of " + std::to_string(ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(attribute.attribute)]) + "!");
+		}
+		CS_ASSERT(indices.size() % 3 == 0, "Invalid mesh data! mesh has " + std::to_string(indices.size()) + " indices! but expected a multiple of 3!");
 		// TODO assert for potential buffer overflow
-
-		std::array<uint32_t, 6> offsets = {};
-		offsets[0] = 0;
-		offsets[1] = indices.size()					* sizeof(uint32_t);
-		offsets[2] = offsets[1] + vertices.size()	* sizeof(uint32_t);
-		offsets[3] = offsets[2] + normals.size()	* sizeof(uint32_t);
-		offsets[4] = offsets[3] + tangents.size()	* sizeof(uint32_t);
-		offsets[5] = offsets[4] + textureUVs.size() * sizeof(uint32_t);
+		
+		// Determine the buffer offsets
+		std::vector<uint32_t> bufferOffsets(1, 0);
+		bufferOffsets.push_back(bufferOffsets.back() + indices.size() * sizeof(uint32_t));
+		for (const auto& attribute : attributes)
+		{
+			bufferOffsets.push_back(bufferOffsets.back() + attribute.data.size() * sizeof(float));
+		}
 
 		// Stage all data into one buffer, reduces allocations
-		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(sizeof(uint32_t) * offsets.back(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-		staging.Fill(offsets[0], indices.data(),    indices.size()    * sizeof(uint32_t));
-		staging.Fill(offsets[1], vertices.data(),   vertices.size()   * sizeof(uint32_t));
-		staging.Fill(offsets[2], normals.data(),    normals.size()    * sizeof(uint32_t));
-		staging.Fill(offsets[3], tangents.data(),   tangents.size()   * sizeof(uint32_t));
-		staging.Fill(offsets[4], textureUVs.data(), textureUVs.size() * sizeof(uint32_t));
+		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(bufferOffsets.back(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		staging.Fill(0, indices.data(), indices.size() * sizeof(uint32_t));
+		for (size_t i = 0; i < attributes.size(); i++)
+		{
+			staging.Fill(bufferOffsets[i + 1], attributes[i].data.data(), attributes[i].data.size() * sizeof(float));
+		}
 
-
-		this->uploadQueue.InstantSubmit([=](const internal::CommandQueue& cmd) {
-			VkBufferCopy copyIndices    = Create::BufferCopy(offsets[0], this->indiceOffsets.back() * sizeof(uint32_t), indices.size() * sizeof(uint32_t));
-			VkBufferCopy copyVertices   = Create::BufferCopy(offsets[1], this->offsets.back() * sizeof(float) * VERTICES_PER_INDEX, vertices.size() * sizeof(float));
-			VkBufferCopy copyNormals    = Create::BufferCopy(offsets[2], this->offsets.back() * sizeof(float) * NORMALS_PER_INDEX, normals.size() * sizeof(float));
-			VkBufferCopy copyTangents   = Create::BufferCopy(offsets[3], this->offsets.back() * sizeof(float) * TANGENTS_PER_INDEX, tangents.size() * sizeof(float));
-			VkBufferCopy copyTextureUVs = Create::BufferCopy(offsets[4], this->offsets.back() * sizeof(float) * UVS_PER_INDEX, textureUVs.size() * sizeof(float));
-		
-			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[INDICES].buffer,     { copyIndices });
-			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[POSITION].buffer,    { copyVertices });
-			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[NORMALS].buffer,     { copyNormals });
-			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[TANGENTS].buffer,    { copyTangents });
-			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[TEXTURE_UVS].buffer, { copyTextureUVs });
+		// Upload data to the GPU
+		this->uploadQueue.InstantSubmit([&](const internal::CommandQueue& cmd) {
+			// Copy index data
+			VkBufferCopy copy = Create::BufferCopy(0, this->offsets[0].back() * sizeof(uint32_t) * 3, indices.size() * sizeof(uint32_t));
+			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[0].buffer, { copy });
+			
+			// Copy other vertex attributes
+			for (size_t i = 0; i < attributes.size(); i++)
+			{
+				const size_t attributeIndex = static_cast<size_t>(attributes[i].attribute) + 1;
+				VkBufferCopy copy = Create::BufferCopy(bufferOffsets[i + 1], this->offsets[attributeIndex].back() * sizeof(float) * ELEMENTS_PER_ATTRIBUTE[attributeIndex - 1], attributes[i].data.size() * sizeof(float));
+				cmd.CopyBuffer(staging.buffer, this->vertexBuffers[attributeIndex].buffer, { copy });
+			}
 		});
 
-		uint32_t uniqueVerticeCount = static_cast<uint32_t>(vertices.size()) / VERTICES_PER_INDEX;
-		uint32_t indicesOffset = static_cast<uint32_t>(indices.size());
+		// Indice offsets
+		this->offsets[0].push_back(this->offsets[0].back() + indices.size() / 3);
 
-		this->offsets.push_back(this->offsets.back() + uniqueVerticeCount);
-		this->indiceOffsets.push_back(this->indiceOffsets.back() + indicesOffset);
+		// Other vertex attribute offsets
+		for (size_t i = 0; i < attributes.size(); i++)
+		{
+			const uint32_t attributeIndex = static_cast<uint32_t>(attributes[i].attribute) + 1;
+			this->offsets[attributeIndex].push_back(this->offsets[attributeIndex].back() + static_cast<uint32_t>(attributes[i].data.size()) / ELEMENTS_PER_ATTRIBUTE[attributeIndex - 1]);
+		}
+		// Even though some attributes may not be present, we still need to add the offsets, but it'll be 0, only need to add to attributes that haven't been pushed to
+		for (size_t i = 1; i < this->offsets.size(); i++)
+		{
+			bool found = false;
+			for (const auto& attribute : attributes)
+			{
+				if (static_cast<size_t>(attribute.attribute) + 1 == i)
+				{
+					found = true;
+					break;
+				}
+			}
+			if (!found) this->offsets[i].push_back(this->offsets[i].back());
+		}
+
 
 		this->allocator.DestroyBuffer(staging);
 	}

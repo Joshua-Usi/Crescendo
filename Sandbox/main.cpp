@@ -40,7 +40,7 @@ public:
 	{
 		this->GetWindow()->SetCursorLock(true);
 
-		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 10000.0f });
+		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.01f, 10000.0f });
 		this->UICamera = Graphics::OrthographicCamera(
 			glm::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f),
 			glm::vec2(-1.0f, 1.0f)
@@ -60,8 +60,8 @@ public:
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, opaque meshes
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back) }, // Single sided, transparent meshes
 			{"./shaders/compiled/mesh", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // Double sided, transparent meshes
+			{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) }, // Skybox
 			//{"./shaders/compiled/shadow_map", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back, Renderer::PipelineVariant::RenderPass::Shadow) }, // Shadow map
-			//{"./shaders/compiled/skybox", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) }, // Skybox
 			//{"./shaders/compiled/ui", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // UI
 		};
 		for (const auto& shader : shaderList)
@@ -73,11 +73,8 @@ public:
 			);
 		}
 
-		//Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
-		//IO::Model skyboxModel = { {{ skybox.vertices, skybox.normals, skybox.textureUVs, {}, skybox.indices, "./assets/skybox-night.png"}} };
-
-		//Construct::Mesh quad = Construct::Quad();
-		//IO::Model quadModel = { {{ quad.vertices, quad.normals, quad.textureUVs, {}, quad.indices, "./assets/water.png"}} };
+		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
+		IO::Model skyboxModel = { {{ skybox.vertices, {}, skybox.textureUVs, {}, skybox.indices, "./assets/skybox.png"}} };
 
 		std::vector<IO::Model> models =
 		{
@@ -85,9 +82,9 @@ public:
 			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
 			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
-			IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
+			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
 			//IO::LoadGLTF("./assets/tree/tree.gltf"),
-			//skyboxModel,
+			skyboxModel,
 			//quadModel,
 		};
 
@@ -102,7 +99,13 @@ public:
 			for (const auto& mesh : model.meshes)
 			{
 				// Mesh upload
-				this->renderer.renderer.UploadMesh(mesh.vertices, mesh.normals, mesh.textureUVs, mesh.tangents, mesh.indices);
+				std::vector<Renderer::ShaderAttribute> attributes;
+				attributes.push_back({ mesh.vertices, Renderer::ShaderAttributeFlag::Position });
+				if (mesh.normals.size() > 0) attributes.push_back({ mesh.normals, Renderer::ShaderAttributeFlag::Normal });
+				if (mesh.tangents.size() > 0) attributes.push_back({ mesh.tangents, Renderer::ShaderAttributeFlag::Tangent });
+				attributes.push_back({ mesh.textureUVs, Renderer::ShaderAttributeFlag::TexCoord_0 });
+
+				this->renderer.renderer.UploadMesh(attributes, mesh.indices);
 
 				meshTransforms.push_back(mesh.transform);
 				meshBounds.push_back(Crescendo::Algorithms::CalculateMeshBoundingAABB(mesh.vertices).Transform(mesh.transform));
@@ -157,20 +160,18 @@ public:
 			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 0, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 			this->renderer.renderer.UpdateDescriptorSetData(i * 2 + 1, 1, lightIntensities);
 		}
-		//this->renderer.renderer.UpdateDescriptorSetData(8, 0, viewProj);
-		//this->renderer.renderer.UpdateDescriptorSetData(9, 0, this->UICamera.GetProjectionMatrix());
-		//this->renderer.renderer.UpdateDescriptorSetData(10, 0, this->GetTime<float>());
+		this->renderer.renderer.UpdateDescriptorSetData(8, 0, viewProj);
 
 		uint32_t actualDrawCount = 0;
 
 		// Render commands
 		this->renderer.renderer.CmdBeginFrame(0.0f, 0.0f, 0.0f, 1.0f);
 
-		/*this->renderer.renderer.CmdBindPipeline(4);
+		this->renderer.renderer.CmdBindPipeline(4);
 		this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), this->camera.camera->GetPosition()));
-		this->renderer.renderer.CmdBindTexture(textureIDs[this->meshCount - 2]);
-		this->renderer.renderer.CmdDraw(this->meshCount - 2);
-		actualDrawCount++;*/
+		this->renderer.renderer.CmdBindTexture(1, textureIDs[this->meshCount - 1].diffuse);
+		this->renderer.renderer.CmdDraw(this->meshCount - 1);
+		actualDrawCount++;
 
 		Crescendo::Algorithms::Frustum frustum = Crescendo::Algorithms::GetFrustum(viewProj);
 

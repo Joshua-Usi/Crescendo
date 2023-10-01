@@ -8,6 +8,7 @@
 #include "Rendering/Renderer/RendererImpl/internal/Create.hpp"
 
 #include <unordered_set>
+#include <algorithm>
 
 namespace Crescendo
 {
@@ -52,8 +53,10 @@ namespace Crescendo
 			for (uint32_t i = 0; i < inputCount; i++)
 			{
 				if (inputVariables[i]->location == std::numeric_limits<uint32_t>::max()) continue;
-				reflection.inputVariables.emplace_back(inputVariables[i]->location, GetTypeSize(inputVariables[i]->numeric));
+				reflection.inputVariables.emplace_back(inputVariables[i]->name, inputVariables[i]->location, GetTypeSize(inputVariables[i]->numeric));
 			}
+			// Sort in location ascending
+			std::sort(reflection.inputVariables.begin(), reflection.inputVariables.end(), [](const SpirvReflection::InterfaceVariable& a, const SpirvReflection::InterfaceVariable& b) { return a.location < b.location; });
 		}
 		// Reflect output variables
 		{
@@ -64,8 +67,10 @@ namespace Crescendo
 			for (uint32_t i = 0; i < outputCount; i++)
 			{
 				if (outputVariables[i]->location == std::numeric_limits<uint32_t>::max()) continue;
-				reflection.outputVariables.emplace_back(outputVariables[i]->location, GetTypeSize(outputVariables[i]->numeric));
+				reflection.outputVariables.emplace_back(outputVariables[i]->name, outputVariables[i]->location, GetTypeSize(outputVariables[i]->numeric));
 			}
+			// Sort in location ascending
+			std::sort(reflection.outputVariables.begin(), reflection.outputVariables.end(), [](const SpirvReflection::InterfaceVariable& a, const SpirvReflection::InterfaceVariable& b) { return a.location < b.location; });
 		}
 		// Reflect descriptor sets
 		{

@@ -75,14 +75,15 @@ namespace Crescendo
 		cmd.BindPipeline(currentPipeline.pipeline);
 
 		// Bind the vertex buffers
-		constexpr size_t INDICES = 0, POSITION = 1, NORMALS = 2, TANGENTS = 3, TEXTURE_UVS = 4;
-		cmd.BindVertexBuffers({
-			this->vertexBuffers[POSITION].buffer,
-			this->vertexBuffers[NORMALS].buffer,
-			this->vertexBuffers[TANGENTS].buffer,
-			this->vertexBuffers[TEXTURE_UVS].buffer
-			}, { 0, 0, 0, 0 });
-		cmd.BindIndexBuffer(this->vertexBuffers[INDICES].buffer);
+		std::vector<VkBuffer> buffers;
+		for (uint32_t i = 0; i < currentPipeline.vertexAttributeFlags.size(); i++)
+		{
+			buffers.push_back(this->vertexBuffers[static_cast<size_t>(currentPipeline.vertexAttributeFlags[i]) + 1].buffer);
+		}
+		const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
+
+		cmd.BindVertexBuffers(buffers, bufferOffsets);
+		cmd.BindIndexBuffer(this->vertexBuffers[0].buffer);
 	}
 	void Renderer::RendererImpl::BindTexture(uint32_t set, uint32_t textureIndex)
 	{
@@ -119,8 +120,10 @@ namespace Crescendo
 		const FrameData& currentFrame = this->GetCurrentFrameData();
 		const internal::CommandQueue cmd = currentFrame.commandQueue;
 
-		uint32_t vertexCount = (this->indiceOffsets[mesh + 1] - this->indiceOffsets[mesh]);
-		cmd.DrawIndexed(vertexCount, 1, this->indiceOffsets[mesh], this->offsets[mesh], 0);
+		uint32_t vertexCount = (this->offsets[0][mesh + 1] - this->offsets[0][mesh]) * 3;
+
+		// It's pretty safe to assume that every draw will have a vertex position
+		cmd.DrawIndexed(vertexCount, 1, this->offsets[0][mesh] * 3, this->offsets[1][mesh], 0);
 	}
 	void Renderer::RendererImpl::PresentFrame()
 	{
