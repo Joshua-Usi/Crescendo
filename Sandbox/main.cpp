@@ -151,7 +151,7 @@ public:
 		this->camera.Update();
 
 		float currentTime = this->GetTime<float>();
-		this->shadowMapCamera.SetPosition(glm::vec3(std::cosf(currentTime) * 20.0f, 30.0f, std::sinf(currentTime) * 20.0f));
+		this->shadowMapCamera.SetPosition(glm::vec3(std::cosf(currentTime) * 5.0f, 30.0f, std::sinf(currentTime) * 5.0f));
 
 		// Render prep
 		struct data { glm::mat4 viewProj, lightSpace; } vertex {
