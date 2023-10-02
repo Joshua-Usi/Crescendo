@@ -18,7 +18,7 @@ public:
 	inline CameraController(float fov, float aspectRatio, const glm::vec2& clipPlane)
 	{
 		this->camera.reset(new Graphics::PerspectiveCamera(fov, aspectRatio, clipPlane));
-		//this->camera.reset(new Graphics::OrthographicCamera(glm::vec4(-6.4f, 6.4f, -3.6f, 3.6f), glm::vec2(-100.0f, 100.0f)));
+		//this->camera.reset(new Graphics::OrthographicCamera(glm::vec4(-6.4f, 6.4f, -3.6f, 3.6f), clipPlane));
 	}
 	inline void Update()
 	{

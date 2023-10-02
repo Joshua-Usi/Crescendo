@@ -196,8 +196,11 @@ namespace Crescendo
 
 		void Init(const BuilderInfo& info);
 
-		void CmdBeginFrame(float r, float g, float b, float a);
+		void CmdBeginFrame();
 		void CmdEndFrame();
+		void CmdBeginRenderPass(uint32_t renderPassIndex, float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 0.0f);
+		void CmdEndRenderPass();
+
 		void CmdBindPipeline(uint32_t pipelineIndex);
 		void CmdBindTexture(uint32_t set, uint32_t texture);
 		void CmdUpdatePushConstant(ShaderStage stage, const void* data, uint32_t size);
@@ -219,7 +222,7 @@ namespace Crescendo
 		void Resize();
 
 		void UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices);
-		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant = {});
+		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variants = { {} });
 		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 
 		static Renderer Create(const BuilderInfo& info);

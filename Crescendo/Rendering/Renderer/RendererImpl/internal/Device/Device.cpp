@@ -109,9 +109,10 @@ namespace Crescendo::internal
 			0, depthFormat, VK_SAMPLE_COUNT_1_BIT,
 			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
 			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
 		);
 		VkAttachmentReference shadowMapAttachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
 		VkSubpassDescription shadowMapSubpass = Create::SubpassDescription(
 			0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 0, nullptr, nullptr, &shadowMapAttachmentRef, 0, nullptr
 		);
@@ -119,9 +120,20 @@ namespace Crescendo::internal
 			VK_SUBPASS_EXTERNAL, 0,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-			0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+			VK_DEPENDENCY_BY_REGION_BIT
 		);
-		return this->CreateRenderPass({ shadowMapAttachment }, { shadowMapSubpass }, { shadowMapDependency });
+		VkSubpassDependency shadowMapDependency2 = Create::SubpassDependency(
+			0, VK_SUBPASS_EXTERNAL,
+			VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_DEPENDENCY_BY_REGION_BIT
+		);
+
+		return this->CreateRenderPass({ shadowMapAttachment }, { shadowMapSubpass }, { shadowMapDependency, shadowMapDependency2 });
 	}
 	VkPipeline Device::CreatePipeline(PipelineBuilderInfo& info)
 	{

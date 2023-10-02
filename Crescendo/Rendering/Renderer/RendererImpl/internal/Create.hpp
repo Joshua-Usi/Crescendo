@@ -202,18 +202,22 @@ namespace Crescendo::internal::Create
 
 		return createInfo;
 	}
-	template <std::size_t size>
+	inline constexpr VkPipelineDynamicStateCreateInfo PipelineDynamicStateCreateInfo(const std::vector<VkDynamicState>& dynamicStates)
+	{
+		return PipelineDynamicStateCreateInfo(dynamicStates.size(), dynamicStates.data());
+	}
+	template<size_t size>
 	inline constexpr VkPipelineDynamicStateCreateInfo PipelineDynamicStateCreateInfo(const std::array<VkDynamicState, size>& dynamicStates)
 	{
 		return PipelineDynamicStateCreateInfo(dynamicStates.size(), dynamicStates.data());
 	}
-	inline constexpr VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo(VkPipelineLayoutCreateFlags flags, uint32_t setLayoutCount, const VkDescriptorSetLayout* pSetLayouts, uint32_t pushConstantRangeCount, const VkPushConstantRange* pPushConstantRanges)
+	inline constexpr VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo(uint32_t setLayoutCount, const VkDescriptorSetLayout* pSetLayouts, uint32_t pushConstantRangeCount, const VkPushConstantRange* pPushConstantRanges)
 	{
 		VkPipelineLayoutCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		createInfo.pNext = nullptr;
-		createInfo.flags = flags;
+		createInfo.flags = 0;
 		createInfo.setLayoutCount = setLayoutCount;
 		createInfo.pSetLayouts = pSetLayouts;
 		createInfo.pushConstantRangeCount = pushConstantRangeCount;
@@ -221,9 +225,9 @@ namespace Crescendo::internal::Create
 
 		return createInfo;
 	}
-	inline constexpr VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo(VkPipelineLayoutCreateFlags flags, const std::vector<VkDescriptorSetLayout>& setLayouts, const std::vector<VkPushConstantRange>& pushConstantRange)
+	inline constexpr VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo(const std::vector<VkDescriptorSetLayout>& setLayouts, const std::vector<VkPushConstantRange>& pushConstantRange)
 	{
-		return PipelineLayoutCreateInfo(flags, static_cast<uint32_t>(setLayouts.size()), setLayouts.data(), static_cast<uint32_t>(pushConstantRange.size()), pushConstantRange.data());
+		return PipelineLayoutCreateInfo(static_cast<uint32_t>(setLayouts.size()), setLayouts.data(), static_cast<uint32_t>(pushConstantRange.size()), pushConstantRange.data());
 	}
 	inline constexpr VkGraphicsPipelineCreateInfo GraphicsPipelineCreateInfo(uint32_t stageCount, const VkPipelineShaderStageCreateInfo* pStages, const VkPipelineVertexInputStateCreateInfo* pVertexInputState, const VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState, const VkPipelineTessellationStateCreateInfo* pTessellationState, const VkPipelineViewportStateCreateInfo* pViewportState, const VkPipelineRasterizationStateCreateInfo* pRasterizationState, const VkPipelineMultisampleStateCreateInfo* pMultisampleState, const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState, const VkPipelineColorBlendStateCreateInfo* pColorBlendState, const VkPipelineDynamicStateCreateInfo* pDynamicState, VkPipelineLayout layout, VkRenderPass renderPass, uint32_t subpass, VkPipeline basePipelineHandle, int32_t basePipelineIndex)
 	{
@@ -512,12 +516,12 @@ namespace Crescendo::internal::Create
 
 		return createInfo;
 	}
-	inline constexpr VkRenderPassBeginInfo RenderPassBeginInfo(const void* pNext, VkRenderPass renderPass, VkFramebuffer framebuffer, VkRect2D renderArea, uint32_t clearValueCount, const VkClearValue* pClearValues)
+	inline constexpr VkRenderPassBeginInfo RenderPassBeginInfo(VkRenderPass renderPass, VkFramebuffer framebuffer, VkRect2D renderArea, uint32_t clearValueCount, const VkClearValue* pClearValues)
 	{
 		VkRenderPassBeginInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		createInfo.pNext = pNext;
+		createInfo.pNext = nullptr;
 		createInfo.renderPass = renderPass;
 		createInfo.framebuffer = framebuffer;
 		createInfo.renderArea = renderArea;
@@ -759,5 +763,13 @@ namespace Crescendo::internal::Create
 		subresourceLayers.layerCount = layerCount;
 
 		return subresourceLayers;
+	}
+	inline constexpr VkClearValue DefaultDepthClear()
+	{
+		VkClearValue depthClear = {};
+
+		depthClear.depthStencil.depth = 1.0f;
+
+		return depthClear;
 	}
 }

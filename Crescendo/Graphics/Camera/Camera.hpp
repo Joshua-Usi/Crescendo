@@ -1,7 +1,7 @@
 #pragma once
 
 #include "glm/glm.hpp"
-#include "glm/gtc/quaternion.hpp"
+#include "glm/gtx/quaternion.hpp"
 
 namespace Crescendo::Graphics
 {
@@ -75,7 +75,7 @@ namespace Crescendo::Graphics
 		inline void Rotate(const glm::quat& quaternion) { this->rotation *= quaternion; };
 		inline void SetRotation(const glm::vec3& euler) { this->rotation = glm::quat(euler); };
 		inline void Rotate(const glm::vec3& euler) { this->rotation *= glm::quat(euler); };
-		inline void LookAt(const glm::vec3& target) { this->rotation = glm::quatLookAt(glm::normalize(target - this->position), glm::vec3(0.0f, 1.0f, 0.0f)); };
+		inline void LookAt(const glm::vec3& target) { this->rotation = glm::quatLookAt(glm::normalize(this->position - target), glm::vec3(0.0f, 1.0f, 0.0f)); };
 
 		inline glm::quat GetQuaternionRotation() const { return this->rotation; };
 		inline glm::vec3 GetRotation() const { return internal::QuaternionToEuler(this->rotation); };

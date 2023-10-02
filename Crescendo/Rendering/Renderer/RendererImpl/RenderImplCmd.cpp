@@ -2,7 +2,7 @@
 
 namespace Crescendo
 {
-	void Renderer::RendererImpl::BeginFrame(const VkClearValue& clearColor)
+	void Renderer::RendererImpl::BeginFrame()
 	{
 		// One second in nanoseconds
 		constexpr uint64_t ONE_SECOND = 1000000000;
@@ -23,30 +23,59 @@ namespace Crescendo
 		// Reset the command buffer for use again
 		cmd.Reset();
 		cmd.Begin();
-
-		// Set dynamic viewport and scissor, negative height to flip the viewport
-		VkViewport viewport = Create::Viewport(0.0f, static_cast<float>(this->swapchain.extent.height), static_cast<float>(this->swapchain.extent.width), -static_cast<float>(this->swapchain.extent.height), 0.0f, 1.0f);
-		VkRect2D scissor = Create::Rect2D({ 0, 0 }, this->swapchain.extent);
-		cmd.SetViewport(viewport);
-		cmd.SetScissor(scissor);
-
-		// Begin render pass
-		VkClearValue depthClear = {};
-		depthClear.depthStencil.depth = 1.0f;
-		std::array<VkClearValue, 2> clearValues = { clearColor, depthClear };
-		VkRenderPassBeginInfo renderPassInfo = Create::RenderPassBeginInfo(
-			nullptr, this->defaultRenderPass, this->framebuffers[this->state.swapchainImageIndex], { {0, 0}, this->swapchain.extent }, clearValues.size(), clearValues.data()
-		);
-		cmd.BeginRenderPass(renderPassInfo);
 	}
 	void Renderer::RendererImpl::EndFrame()
 	{
 		const FrameData& currentFrame = this->GetCurrentFrameData();
 		const internal::CommandQueue& cmd = currentFrame.commandQueue;
 
-		cmd.EndRenderPass();
 		cmd.End();
 		cmd.Submit({ currentFrame.presentSemaphore }, { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }, { currentFrame.renderSemaphore });
+	}
+	void Renderer::RendererImpl::BeginRenderPass(uint32_t renderPassIndex, const VkClearValue& clearColor)
+	{
+		const FrameData& currentFrame = this->GetCurrentFrameData();
+		const internal::CommandQueue& cmd = currentFrame.commandQueue;
+
+		const RenderPass& renderPass = this->renderPasses[renderPassIndex];
+
+		VkViewport viewport;
+		VkRect2D scissor;
+
+		// If using the default render pass
+		if (renderPassIndex == 0)
+		{
+			// Set dynamic viewport and scissor, negative height to flip the viewport
+			viewport = Create::Viewport(0.0f, static_cast<float>(this->swapchain.extent.height), static_cast<float>(this->swapchain.extent.width), -static_cast<float>(this->swapchain.extent.height), 0.0f, 1.0f);
+			scissor = Create::Rect2D({ 0, 0 }, this->swapchain.extent);
+		}
+		else
+		{
+			viewport = Create::Viewport(0.0f, 0.0, static_cast<float>(this->rendererInfo.shadowMapResolution), static_cast<float>(this->rendererInfo.shadowMapResolution), 0.0f, 1.0f);
+			scissor = Create::Rect2D({ 0, 0 }, { this->rendererInfo.shadowMapResolution, this->rendererInfo.shadowMapResolution });
+		}
+
+		// Begin render pass
+		std::vector<VkClearValue> clearValues;
+		if (renderPass.hasColorAttachment) clearValues.push_back(clearColor);
+		if (renderPass.hasDepthAttachment) clearValues.push_back(Create::DefaultDepthClear());
+
+		if (renderPassIndex == 1) clearValues[1].depthStencil.depth = 0.0f;
+
+		VkRenderPassBeginInfo renderPassInfo = Create::RenderPassBeginInfo(
+			this->renderPasses[renderPassIndex], (renderPassIndex == 0) ? this->framebuffers[this->state.swapchainImageIndex] : this->shadowMapFramebuffer, scissor, clearValues.size(), clearValues.data()
+		);
+		cmd.BeginRenderPass(renderPassInfo);
+
+		cmd.SetViewport(viewport);
+		cmd.SetScissor(scissor);
+	}
+	void Renderer::RendererImpl::EndRenderPass()
+	{
+		const FrameData& currentFrame = this->GetCurrentFrameData();
+		const internal::CommandQueue& cmd = currentFrame.commandQueue;
+
+		cmd.EndRenderPass();
 	}
 	void Renderer::RendererImpl::BindPipeline(uint32_t pipelineIndex)
 	{
@@ -94,7 +123,7 @@ namespace Crescendo
 
 		if (textureIndex == SHADOW_MAP_ID)
 		{
-
+			cmd.BindDescriptorSets(currentPipeline.layout, { this->shadowMapDescriptorSet }, {}, set);
 		}
 		else
 		{

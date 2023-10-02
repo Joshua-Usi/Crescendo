@@ -21,6 +21,8 @@
 
 namespace Crescendo
 {
+	constexpr size_t DEFAULT_RENDER_PASS = 0, SHADOW_RENDER_PASS = 1;
+
 	namespace Create = internal::Create;
 	struct Swapchain
 	{
@@ -76,6 +78,17 @@ namespace Crescendo
 			vkDestroyShaderModule(device, this->vertexShader, nullptr);
 			vkDestroyShaderModule(device, this->fragmentShader, nullptr);
 		}
+	};	
+
+	struct RenderPass
+	{
+		VkRenderPass renderPass;
+		bool hasColorAttachment, hasDepthAttachment;
+
+		inline RenderPass(VkRenderPass renderPass, bool hasColorAttachment, bool hasDepthAttachment) :
+			renderPass(renderPass), hasColorAttachment(hasColorAttachment), hasDepthAttachment(hasDepthAttachment) {}
+
+		inline operator VkRenderPass() const { return renderPass; }
 	};
 		
 	struct Pipeline
@@ -125,9 +138,11 @@ namespace Crescendo
 
 		Swapchain swapchain;
 		internal::Allocator::Image depthBuffer,	multisamplingBuffer, shadowMapBuffer;
-		VkRenderPass defaultRenderPass, shadowMapRenderPass;
+		std::vector<RenderPass> renderPasses;
 		std::vector<VkFramebuffer> framebuffers;
 		VkFramebuffer shadowMapFramebuffer;
+		VkDescriptorSet shadowMapDescriptorSet;
+		VkSampler shadowMapSampler;
 
 		// universal buffers that contain all the data for the respective vertex attribute, including indices which is stored at attribute 0
 		std::vector<internal::Allocator::Buffer> vertexBuffers;
@@ -175,15 +190,17 @@ namespace Crescendo
 
 		void InitialiseFlightFrames(const BuilderInfo& info);
 		void InitialiseSwapchain(const BuilderInfo& info);
-		void InitialiseRenderpasses(const BuilderInfo& info);
 		void InitialiseFramebuffers(const BuilderInfo& info);
 
 		void RecreateSwapchain();
 		inline void Resize() { this->state.didFramebufferResize = true; }
 
 		// Commands
-		void BeginFrame(const VkClearValue& clearColor);
+		void BeginFrame();
 		void EndFrame();
+		void BeginRenderPass(uint32_t renderPassIndex, const VkClearValue& clearColor);
+		void EndRenderPass();
+
 		void BindPipeline(uint32_t pipelineIndex);
 		void BindTexture(uint32_t set, uint32_t textureIndex);
 		void UpdatePushConstant(ShaderStage stage, const void* data, uint32_t size);
@@ -192,7 +209,7 @@ namespace Crescendo
 		void UpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size);
 
 		// Upload commands
-		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariant& variant);
+		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variants);
 		void UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices);
 		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 	};

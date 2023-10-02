@@ -115,6 +115,8 @@ namespace Crescendo
 			0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr
 		));
 
+		this->shadowMapDescriptorSet = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->textureDescriptorSetLayout);
+
 		this->mainDeletionQueue.push([&]() {
 			for (auto& sampler : this->samplers) vkDestroySampler(this->device, sampler, nullptr);
 			this->samplers.clear();
@@ -222,22 +224,15 @@ namespace Crescendo
 			this->state.frameData.clear();
 		});
 	}
-	void Renderer::RendererImpl::InitialiseRenderpasses(const BuilderInfo& info)
-	{
-		this->defaultRenderPass = this->device.CreateDefaultRenderPass(this->swapchain.imageFormat, DEFAULT_DEPTH_FORMAT, this->state.msaaSamples);
-		
-		if (info.shadowMapResolution > 0)
-		{
-			this->shadowMapRenderPass = this->device.CreateDefaultShadowRenderPass(DEFAULT_DEPTH_FORMAT);
-		}
-
-		this->swapChainDeletionQueue.push([&]() {
-			vkDestroyRenderPass(this->device, this->defaultRenderPass, nullptr);
-			vkDestroyRenderPass(this->device, this->shadowMapRenderPass, nullptr); // Should be null handle
-		});
-	}
 	void Renderer::RendererImpl::InitialiseFramebuffers(const BuilderInfo& info)
 	{
+		/* -------------------------------- 0. RenderPass creation -------------------------------- */
+
+		this->renderPasses.push_back({ this->device.CreateDefaultRenderPass(this->swapchain.imageFormat, DEFAULT_DEPTH_FORMAT, this->state.msaaSamples), true, true });
+		if (info.shadowMapResolution > 0)
+		{
+			this->renderPasses.push_back({ this->device.CreateDefaultShadowRenderPass(DEFAULT_DEPTH_FORMAT), false, true });
+		}
 
 		/* -------------------------------- 1. Image buffer creation -------------------------------- */
 
@@ -285,17 +280,32 @@ namespace Crescendo
 		for (const auto& swapChainImage : this->swapchain.images)
 		{
 			attachments[swapChainViewIndex] = swapChainImage.imageView;
-			this->framebuffers.push_back(this->device.CreateFramebuffer(this->defaultRenderPass, attachments, info.windowExtent.width, info.windowExtent.height));
+			this->framebuffers.push_back(this->device.CreateFramebuffer(this->renderPasses[DEFAULT_RENDER_PASS], attachments, info.windowExtent.width, info.windowExtent.height));
 		}
 
 		// Create shadowmap framebuffer
 		if (info.shadowMapResolution > 0)
 		{
-			this->shadowMapFramebuffer = this->device.CreateFramebuffer(this->shadowMapRenderPass, this->shadowMapBuffer.imageView, info.shadowMapResolution, info.shadowMapResolution);
+			this->shadowMapFramebuffer = this->device.CreateFramebuffer(this->renderPasses[SHADOW_RENDER_PASS], this->shadowMapBuffer.imageView, info.shadowMapResolution, info.shadowMapResolution);
 		}
+
+		/* -------------------------------- 3. Shadow map descriptor set -------------------------------- */
+
+		this->shadowMapSampler = this->device.CreateSampler(Create::SamplerCreateInfo(
+			VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+			1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
+		));
+		VkDescriptorImageInfo imageInfo = Create::DescriptorImageInfo(
+			shadowMapSampler, this->shadowMapBuffer.imageView, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+		);
+		VkWriteDescriptorSet write = Create::WriteDescriptorSet(
+			this->shadowMapDescriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo, nullptr, nullptr
+		);
+		vkUpdateDescriptorSets(this->device, 1, &write, 0, nullptr);
 
 		// Add to swapchain deletion queue because it can be destroyed by window resizes
 		this->swapChainDeletionQueue.push([&]() {
+
 			for (auto& framebuffer : this->framebuffers) vkDestroyFramebuffer(this->device, framebuffer, nullptr);
 			this->framebuffers.clear();
 			vkDestroyFramebuffer(this->device, this->shadowMapFramebuffer, nullptr);
@@ -303,6 +313,11 @@ namespace Crescendo
 			this->allocator.DestroyImage(this->depthBuffer);
 			this->allocator.DestroyImage(this->multisamplingBuffer);
 			this->allocator.DestroyImage(this->shadowMapBuffer);
+
+			for (auto& renderPass : this->renderPasses) vkDestroyRenderPass(this->device, renderPass, nullptr);
+			this->renderPasses.clear();
+
+			vkDestroySampler(this->device, this->shadowMapSampler, nullptr);
 		});
 	}
 }
