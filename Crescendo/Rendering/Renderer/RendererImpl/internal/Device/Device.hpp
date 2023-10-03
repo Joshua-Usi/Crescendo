@@ -55,6 +55,7 @@ namespace Crescendo::internal
 		VkRenderPass CreateDefaultShadowRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
 
 		VkPipeline CreatePipeline(PipelineBuilderInfo& info);
+		VkPipelineLayout CreatePipelineLayout(const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts, const std::vector<VkPushConstantRange>& pushConstantRanges);
 		VkDescriptorSetLayout CreateDescriptorSetLayout(const VkDescriptorSetLayoutBinding& binding);
 		VkDescriptorSetLayout CreateDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding>& bindings);
 
@@ -62,6 +63,9 @@ namespace Crescendo::internal
 		VkFramebuffer CreateFramebuffer(VkRenderPass renderPass, const std::vector<VkImageView>& attachments, uint32_t width, uint32_t height);
 
 		VkSampler CreateSampler(const VkSamplerCreateInfo& info);
+
+		void WriteDescriptorSet(const VkWriteDescriptorSet& descriptorWrite);
+		void WriteDescriptorSets(const std::vector<VkWriteDescriptorSet>& descriptorWrites);
 
 		inline void DestroyCommandPool(VkCommandPool commandPool) { vkDestroyCommandPool(this->device, commandPool, nullptr); }
 		inline void DestroyFence(VkFence fence) { vkDestroyFence(this->device, fence, nullptr); }

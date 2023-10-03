@@ -144,7 +144,7 @@ namespace Crescendo
 					VkWriteDescriptorSet setWrite = Create::WriteDescriptorSet(
 						descriptorSet, binding.binding, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, nullptr, &bufferInfo, nullptr
 					);
-					vkUpdateDescriptorSets(this->device, 1, &setWrite, 0, nullptr);
+					this->device.WriteDescriptorSet(setWrite);
 				}
 			};
 		}
@@ -172,11 +172,7 @@ namespace Crescendo
 		std::vector<VkPushConstantRange> pushConstantRanges = pipelineData.vertexReflection.GetPushConstantRanges(VK_SHADER_STAGE_VERTEX_BIT);
 
 		// Create the pipeline layout
-		VkPipelineLayout pipelineLayout;
-		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(
-			setLayouts, pushConstantRanges
-		);
-		CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &pipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout!");
+		VkPipelineLayout pipelineLayout = this->device.CreatePipelineLayout(setLayouts, pushConstantRanges);
 		this->pipelineLayouts.push_back(pipelineLayout);
 
 		for (const auto& variant : variants)
@@ -300,7 +296,6 @@ namespace Crescendo
 			if (!found) this->offsets[i].push_back(this->offsets[i].back());
 		}
 
-
 		this->allocator.DestroyBuffer(staging);
 	}
 	void Renderer::RendererImpl::UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps)
@@ -352,7 +347,7 @@ namespace Crescendo
 			VkBufferImageCopy region = Create::BufferImageCopy(
 				0, 0, 0, Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1), { 0, 0, 0 }, extent
 			);
-			vkCmdCopyBufferToImage(cmd.commandBuffer, staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+			cmd.CopyBufferToImage(staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region);
 
 			// Transition the image to a transfer destination
 			barrier = Create::ImageMemoryBarrier(
@@ -415,7 +410,7 @@ namespace Crescendo
 		VkWriteDescriptorSet write = Create::WriteDescriptorSet(
 			descriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo, nullptr, nullptr
 		);
-		vkUpdateDescriptorSets(this->device, 1, &write, 0, nullptr);
+		this->device.WriteDescriptorSet(write);
 
 		this->images.push_back(image);
 		this->imageDescriptorSets.push_back(descriptorSet);

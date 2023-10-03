@@ -22,16 +22,17 @@ layout(set = 2, binding = 0) uniform sampler2D albedoTex;
 layout(set = 3, binding = 0) uniform sampler2D normalTex;
 layout(set = 4, binding = 0) uniform sampler2D shadowTex;
 
-float textureProj(vec4 shadowCoord, vec2 off)
+float textureProj(vec4 shadowCoord)
 {
-	float shadow = 1.0f;
-	if (shadowCoord.z > -1.0f && shadowCoord.z < 1.0f)
-	{
-		float dist = texture(shadowTex, shadowCoord.xy + off).r;
-		if (shadowCoord.w > 0.0f && dist < shadowCoord.z - 0.005f) shadow = bpli.ambient;
-	}
-	return shadow;
+    float shadow = 1.0;
+    float dist = texture(shadowTex, shadowCoord.xy).r;
+
+    float condition = step(0.0, shadowCoord.w) * step(shadowCoord.z - 0.001f, dist);
+    shadow = mix(bpli.ambient, shadow, condition);
+
+    return shadow;
 }
+
 
 void main()
 {
@@ -61,7 +62,7 @@ void main()
 
 	/* ---------------- Shadows ---------------- */
 	
-	float shadow = textureProj(iFragPosLightSpace / iFragPosLightSpace.w, vec2(0.0f, 0.0f));
+	float shadow = textureProj(iFragPosLightSpace / iFragPosLightSpace.w);
 	result *= shadow;
 	
 	/* ---------------- Output ---------------- */

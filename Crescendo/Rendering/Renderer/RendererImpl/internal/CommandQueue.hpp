@@ -95,8 +95,11 @@ namespace Crescendo::internal
 		/// <summary>
 		/// Begin the renderpass
 		/// </summary>
-		inline void BeginRenderPass(const VkRenderPassBeginInfo& info) const
+		inline void BeginRenderPass(VkRenderPass renderPass, VkFramebuffer framebuffer, const VkRect2D& area, const std::vector<VkClearValue>& clearValues) const
 		{
+			const VkRenderPassBeginInfo info = Create::RenderPassBeginInfo(
+				renderPass, framebuffer, area, clearValues.size(), clearValues.data()
+			);
 			vkCmdBeginRenderPass(this->commandBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
 		}
 		/// <summary>
@@ -139,6 +142,10 @@ namespace Crescendo::internal
 			const std::vector<VkCommandBuffer> cmd = { this->commandBuffer };
 			VkSubmitInfo submit = Create::SubmitInfo(waitSemaphores, waitStages, cmd, signalSemaphores);
 			CS_ASSERT(vkQueueSubmit(this->queue, 1, &submit, this->completionFence) == VK_SUCCESS, "Failed to submit command buffer!");
+		}
+		inline void CopyBufferToImage(VkBuffer buffer, VkImage image, VkImageLayout dstImageLayout, const VkBufferImageCopy& region) const
+		{
+			vkCmdCopyBufferToImage(this->commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 		}
 	public:
 		/// <summary>

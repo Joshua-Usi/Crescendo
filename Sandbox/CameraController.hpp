@@ -2,10 +2,11 @@
 
 #include "Crescendo.hpp"
 
+#include <numbers>
+
 using namespace Crescendo::Engine;
 typedef Crescendo::Renderer Renderer;
 namespace Graphics = Crescendo::Graphics;
-namespace Math = Crescendo::Math;
 namespace IO = Crescendo::IO;
 
 class CameraController
@@ -18,7 +19,6 @@ public:
 	inline CameraController(float fov, float aspectRatio, const glm::vec2& clipPlane)
 	{
 		this->camera.reset(new Graphics::PerspectiveCamera(fov, aspectRatio, clipPlane));
-		//this->camera.reset(new Graphics::OrthographicCamera(glm::vec4(-6.4f, 6.4f, -3.6f, 3.6f), clipPlane));
 	}
 	inline void Update()
 	{
@@ -27,7 +27,7 @@ public:
 		this->pMouseX = Input::GetMouseX(), this->pMouseY = Input::GetMouseY();
 		glm::vec3 rotation = camera->GetRotation();
 		rotation.y += dx * this->sens;
-		rotation.x = std::clamp<float>(rotation.x + dy * this->sens, -Math::PI_2 + 0.01f, Math::PI_2 - 0.01f);
+		rotation.x = std::clamp<float>(rotation.x + dy * this->sens, -std::numbers::pi / 2 + 0.01f, std::numbers::pi / 2 - 0.01f);
 		this->camera->SetRotation(rotation);
 
 		// Camera movement

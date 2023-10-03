@@ -271,11 +271,11 @@ namespace Crescendo::internal::Create
 
 		return createInfo;
 	}
-	inline constexpr VkAttachmentDescription AttachmentDescription(VkAttachmentDescriptionFlags flags, VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp, VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout)
+	inline constexpr VkAttachmentDescription AttachmentDescription(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp, VkAttachmentLoadOp stencilLoadOp, VkAttachmentStoreOp stencilStoreOp, VkImageLayout initialLayout, VkImageLayout finalLayout)
 	{
 		VkAttachmentDescription description = {};
 
-		description.flags = flags;
+		description.flags = 0;
 		description.format = format;
 		description.samples = samples;
 		description.loadOp = loadOp;
@@ -296,11 +296,11 @@ namespace Crescendo::internal::Create
 
 		return reference;
 	}
-	inline constexpr VkSubpassDescription SubpassDescription(VkSubpassDescriptionFlags flags, VkPipelineBindPoint pipelineBindPoint, uint32_t inputAttachmentCount, const VkAttachmentReference* pInputAttachments, uint32_t colorAttachmentCount, const VkAttachmentReference* pColorAttachments, const VkAttachmentReference* pResolveAttachments, const VkAttachmentReference* pDepthStencilAttachment, uint32_t preserveAttachmentCount, const uint32_t* pPreserveAttachments)
+	inline constexpr VkSubpassDescription SubpassDescription(VkPipelineBindPoint pipelineBindPoint, uint32_t inputAttachmentCount, const VkAttachmentReference* pInputAttachments, uint32_t colorAttachmentCount, const VkAttachmentReference* pColorAttachments, const VkAttachmentReference* pResolveAttachments, const VkAttachmentReference* pDepthStencilAttachment, uint32_t preserveAttachmentCount, const uint32_t* pPreserveAttachments)
 	{
 		VkSubpassDescription description = {};
 
-		description.flags = flags;
+		description.flags = 0;
 		description.pipelineBindPoint = pipelineBindPoint;
 		description.inputAttachmentCount = inputAttachmentCount;
 		description.pInputAttachments = pInputAttachments;

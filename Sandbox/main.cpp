@@ -3,8 +3,9 @@
 using namespace Crescendo::Engine;
 typedef Crescendo::Renderer Renderer;
 namespace Graphics = Crescendo::Graphics;
-namespace Math = Crescendo::Math;
 namespace IO = Crescendo::IO;
+
+#include "cs_std/random.hpp"
 
 #include "Libraries/Algorithms/Algorithms.hpp"
 
@@ -29,7 +30,7 @@ private:
 	struct TextureIDs { uint32_t diffuse, normal; };
 
 	std::vector<TextureIDs> textureIDs;
-	std::vector<bool> isTransparent, isDoubleSided;
+	std::vector<bool> isTransparent, isDoubleSided, isShadowCasting;
 
 	int frame = 0;
 	double lastTime = 0.0;
@@ -48,7 +49,7 @@ public:
 		this->UICamera.SetPosition(glm::vec3(0.0f, 0.0f, 1.0f));
 		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
 
-		this->shadowMapCamera = Graphics::PerspectiveCamera(90.0f, 1.0f, { 1.0f, 200.0f });
+		this->shadowMapCamera = Graphics::PerspectiveCamera(80.0f, 1.0f, { 1.0f, 100.0f });
 		this->shadowMapCamera.SetRotation(glm::vec3(-std::numbers::pi / 2, std::numbers::pi / 2, 0));
 			
 		// Upload shaders (creates pipelines and descriptor sets)
@@ -115,6 +116,7 @@ public:
 				meshBounds.push_back(Crescendo::Algorithms::CalculateMeshBoundingAABB(mesh.vertices).Transform(mesh.transform));
 				isTransparent.push_back(mesh.isTransparent);
 				isDoubleSided.push_back(mesh.isDoubleSided);
+				isShadowCasting.push_back(true);
 
 				// Texture upload
 				if (!mesh.diffuse.empty() && seenTexturesDiffuse.find(mesh.diffuse) == seenTexturesDiffuse.end())
@@ -150,8 +152,8 @@ public:
 	{
 		this->camera.Update();
 
-		float currentTime = this->GetTime<float>();
-		this->shadowMapCamera.SetPosition(glm::vec3(std::cosf(currentTime) * 5.0f, 30.0f, std::sinf(currentTime) * 5.0f));
+		float currentTime = this->GetTime<float>() / 5.0f;
+		this->shadowMapCamera.SetPosition(glm::vec3(std::cosf(currentTime) * 6.0f, 30.0f, std::sinf(currentTime) * 6.0f));
 
 		// Render prep
 		struct data { glm::mat4 viewProj, lightSpace; } vertex {
@@ -163,7 +165,7 @@ public:
 			glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f),
 			glm::vec4(this->camera.camera->GetPosition(), 1.0f)
 		};
-		const glm::vec3 lightIntensities = glm::vec3(0.1f, 0.6f, 0.3f);
+		const glm::vec3 lightIntensities = glm::vec3(0.2f, 0.5f, 0.3f);
 		
 		this->renderer.renderer.UpdateDescriptorSetData(0, 0, vertex);
 		this->renderer.renderer.UpdateDescriptorSetData(0, 1, vsLighting);
@@ -186,6 +188,7 @@ public:
 			for (uint32_t i = 0; i < this->meshCount - 1; i++)
 			{
 				if (!Crescendo::Algorithms::IsInFrustum(frustum, this->meshBounds[i])) continue;
+				if (!this->isShadowCasting[i]) continue;
 
 				actualDrawCount++;
 				this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->meshTransforms[i]);

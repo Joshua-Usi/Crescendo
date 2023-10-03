@@ -62,10 +62,11 @@ namespace Crescendo
 
 		if (renderPassIndex == 1) clearValues[1].depthStencil.depth = 0.0f;
 
-		VkRenderPassBeginInfo renderPassInfo = Create::RenderPassBeginInfo(
-			this->renderPasses[renderPassIndex], (renderPassIndex == 0) ? this->framebuffers[this->state.swapchainImageIndex] : this->shadowMapFramebuffer, scissor, clearValues.size(), clearValues.data()
+		cmd.BeginRenderPass(
+			this->renderPasses[renderPassIndex],
+			(renderPassIndex == 0) ? this->framebuffers[this->state.swapchainImageIndex] : this->shadowMapFramebuffer,
+			scissor, clearValues
 		);
-		cmd.BeginRenderPass(renderPassInfo);
 
 		cmd.SetViewport(viewport);
 		cmd.SetScissor(scissor);
