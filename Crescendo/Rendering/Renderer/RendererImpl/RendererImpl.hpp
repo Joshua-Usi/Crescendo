@@ -74,9 +74,9 @@ namespace Crescendo
 		inline PipelineData(const SpirvReflection& vertexReflection, const SpirvReflection& fragmentReflection, VkShaderModule vertexShader, VkShaderModule fragmentShader) :
 			vertexReflection(vertexReflection), fragmentReflection(fragmentReflection), vertexShader(vertexShader), fragmentShader(fragmentShader) {}
 
-		inline void Destroy(VkDevice device) {
-			vkDestroyShaderModule(device, this->vertexShader, nullptr);
-			vkDestroyShaderModule(device, this->fragmentShader, nullptr);
+		inline void Destroy(internal::Device device) {
+			device.DestroyShaderModule(vertexShader);
+			device.DestroyShaderModule(fragmentShader);
 		}
 	};	
 

@@ -89,7 +89,7 @@ namespace Crescendo
 		this->mainDeletionQueue.push([&]() {
 			this->swapChainDeletionQueue.flush();
 			this->allocator.Destroy();
-			vkDestroyDevice(this->device, nullptr);
+			this->device.Destroy();
 			vkDestroySurfaceKHR(this->instance, this->surface, nullptr);
 			vkb::destroy_debug_utils_messenger(this->instance, this->debugMessenger);
 			vkDestroyInstance(this->instance, nullptr);
@@ -118,13 +118,13 @@ namespace Crescendo
 		this->shadowMapDescriptorSet = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->textureDescriptorSetLayout);
 
 		this->mainDeletionQueue.push([&]() {
-			for (auto& sampler : this->samplers) vkDestroySampler(this->device, sampler, nullptr);
+			this->device.DestroySamplers(this->samplers);
 			this->samplers.clear();
 
-			for (auto& descriptorSetLayout : this->dataDescriptorSetLayouts) vkDestroyDescriptorSetLayout(this->device, descriptorSetLayout, nullptr);
+			this->device.DestroyDescriptorSetLayouts(this->dataDescriptorSetLayouts);
 			this->dataDescriptorSetLayouts.clear();
 
-			vkDestroyDescriptorSetLayout(this->device, this->textureDescriptorSetLayout, nullptr);
+			this->device.DestroyDescriptorSetLayout(this->textureDescriptorSetLayout);
 
 			this->descriptorManager.Destroy();
 		});
@@ -132,10 +132,10 @@ namespace Crescendo
 	void Renderer::RendererImpl::InitialisePipelines(const BuilderInfo& info)
 	{
 		this->mainDeletionQueue.push([&]() {
-			for (auto& pipeline : this->pipelines) vkDestroyPipeline(this->device, pipeline.pipeline, nullptr);
+			for (auto& pipeline : this->pipelines) this->device.DestroyPipeline(pipeline.pipeline);
 			this->pipelines.clear();
 
-			for (auto& pipelineLayout : this->pipelineLayouts) vkDestroyPipelineLayout(this->device, pipelineLayout, nullptr);
+			this->device.DestroyPipelineLayouts(this->pipelineLayouts);
 			this->pipelineLayouts.clear();
 		});
 	}
@@ -166,13 +166,13 @@ namespace Crescendo
 
 		this->mainDeletionQueue.push([&]() {
 			// Delete vertex buffers
-			for (auto& vertexBuffer : this->vertexBuffers) this->allocator.DestroyBuffer(vertexBuffer);
+			this->allocator.DestroyBuffers(this->vertexBuffers);
 			this->vertexBuffers.clear();
 			// Delete descriptor buffer
-			for (auto& buffer : this->dataDescriptorSetBuffers) this->allocator.DestroyBuffer(buffer);
+			this->allocator.DestroyBuffers(this->dataDescriptorSetBuffers);
 			this->dataDescriptorSetBuffers.clear();
 			// Delete texture buffers
-			for (auto& image : this->images) this->allocator.DestroyImage(image);
+			this->allocator.DestroyImages(images);
 			this->images.clear();
 		});
 	}
@@ -197,10 +197,10 @@ namespace Crescendo
 
 		// Add to swapchain deletion queue
 		this->swapChainDeletionQueue.push([&]() {
-			for (auto& image : this->swapchain.images) this->allocator.DestroyImage(image);
+			this->allocator.DestroyImages(this->swapchain.images);
 			this->swapchain.images.clear();
 
-			vkDestroySwapchainKHR(this->device, this->swapchain.swapchain, nullptr);
+			this->device.DestroySwapchain(this->swapchain.swapchain);
 		});
 	}
 	void Renderer::RendererImpl::InitialiseFlightFrames(const BuilderInfo& info)
@@ -218,20 +218,21 @@ namespace Crescendo
 			for (auto& frame : this->state.frameData)
 			{
 				frame.commandQueue.Destroy();
-				vkDestroySemaphore(this->device, frame.presentSemaphore, nullptr);
-				vkDestroySemaphore(this->device, frame.renderSemaphore, nullptr);
+				this->device.DestroySemaphore(frame.presentSemaphore);
+				this->device.DestroySemaphore(frame.renderSemaphore);
 			}
 			this->state.frameData.clear();
 		});
 	}
 	void Renderer::RendererImpl::InitialiseFramebuffers(const BuilderInfo& info)
 	{
+		const bool isMultiSampling = this->state.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
 		/* -------------------------------- 0. RenderPass creation -------------------------------- */
 
 		this->renderPasses.push_back({ this->device.CreateDefaultRenderPass(this->swapchain.imageFormat, DEFAULT_DEPTH_FORMAT, this->state.msaaSamples), true, true });
 		if (info.shadowMapResolution > 0)
 		{
-			this->renderPasses.push_back({ this->device.CreateDefaultShadowRenderPass(DEFAULT_DEPTH_FORMAT), false, true });
+			this->renderPasses.push_back({ this->device.CreateDefaultShadowRenderPass(DEFAULT_DEPTH_FORMAT, this->state.msaaSamples), false, true });
 		}
 
 		/* -------------------------------- 1. Image buffer creation -------------------------------- */
@@ -244,7 +245,7 @@ namespace Crescendo
 		this->depthBuffer = this->allocator.CreateImage(depthImageInfo, VMA_MEMORY_USAGE_GPU_ONLY);
 
 		// Create msaa buffer
-		if (info.msaaSamples > 1)
+		if (isMultiSampling)
 		{
 			VkImageCreateInfo multisamplingImageInfo = Create::ImageCreateInfo(
 				VK_IMAGE_TYPE_2D, this->swapchain.imageFormat, this->swapchain.GetExtent3D(), 1, 1, this->state.msaaSamples, VK_IMAGE_TILING_OPTIMAL,
@@ -257,13 +258,11 @@ namespace Crescendo
 		if (info.shadowMapResolution > 0)
 		{
 			VkImageCreateInfo shadowMapImageInfo = Create::ImageCreateInfo(
-				VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, { info.shadowMapResolution, info.shadowMapResolution, 1 }, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
+				VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, { info.shadowMapResolution, info.shadowMapResolution, 1 }, 1, 1, this->state.msaaSamples, VK_IMAGE_TILING_OPTIMAL,
 				VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
 			);
 			this->shadowMapBuffer = this->allocator.CreateImage(shadowMapImageInfo, VMA_MEMORY_USAGE_GPU_ONLY);
 		}
-
-		bool isMultiSampling = this->state.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
 
 		/* -------------------------------- 2. Framebuffer creation -------------------------------- */
 		
@@ -292,8 +291,8 @@ namespace Crescendo
 		/* -------------------------------- 3. Shadow map descriptor set -------------------------------- */
 
 		this->shadowMapSampler = this->device.CreateSampler(Create::SamplerCreateInfo(
-			VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-			1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
+			VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+			info.anistropicFiltering, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
 		));
 		VkDescriptorImageInfo imageInfo = Create::DescriptorImageInfo(
 			shadowMapSampler, this->shadowMapBuffer.imageView, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
@@ -306,18 +305,19 @@ namespace Crescendo
 		// Add to swapchain deletion queue because it can be destroyed by window resizes
 		this->swapChainDeletionQueue.push([&]() {
 
-			for (auto& framebuffer : this->framebuffers) vkDestroyFramebuffer(this->device, framebuffer, nullptr);
+			this->device.DestroyFramebuffers(this->framebuffers);
 			this->framebuffers.clear();
-			vkDestroyFramebuffer(this->device, this->shadowMapFramebuffer, nullptr);
+
+			this->device.DestroyFramebuffer(this->shadowMapFramebuffer);
 
 			this->allocator.DestroyImage(this->depthBuffer);
 			this->allocator.DestroyImage(this->multisamplingBuffer);
 			this->allocator.DestroyImage(this->shadowMapBuffer);
 
-			for (auto& renderPass : this->renderPasses) vkDestroyRenderPass(this->device, renderPass, nullptr);
+			for (auto& renderPass : this->renderPasses) this->device.DestroyRenderPass(renderPass);
 			this->renderPasses.clear();
 
-			vkDestroySampler(this->device, this->shadowMapSampler, nullptr);
+			this->device.DestroySampler(this->shadowMapSampler);
 		});
 	}
 }

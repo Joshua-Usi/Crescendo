@@ -43,6 +43,10 @@ namespace Crescendo::internal
 		if (buffer.memoryLocation != nullptr) vmaUnmapMemory(this->allocator, buffer.allocation);
 		vmaDestroyBuffer(this->allocator, buffer.buffer, buffer.allocation);
 	}
+	void Allocator::DestroyBuffers(std::vector<Buffer>& buffers)
+	{
+		for (Buffer& buffer : buffers) this->DestroyBuffer(buffer);
+	}
 	// Create image with image view, allocator will fill viewInfo.image attribute;
 	Allocator::Image Allocator::CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage)
 	{
@@ -80,5 +84,9 @@ namespace Crescendo::internal
 		if (image.imageView != nullptr) vkDestroyImageView(this->device, image.imageView, nullptr);
 		// Some images can be from the swap chain, as such they have no allocation
 		if (image.allocation != nullptr) vmaDestroyImage(this->allocator, image.image, image.allocation);
+	}
+	void Allocator::DestroyImages(std::vector<Image>& images)
+	{
+		for (Image& image : images) this->DestroyImage(image);
 	}
 }

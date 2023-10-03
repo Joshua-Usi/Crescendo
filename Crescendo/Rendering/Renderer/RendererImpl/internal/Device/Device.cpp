@@ -106,16 +106,13 @@ namespace Crescendo::internal
 	VkRenderPass Device::CreateDefaultShadowRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples)
 	{
 		VkAttachmentDescription shadowMapAttachment = Create::AttachmentDescription(
-			0, depthFormat, VK_SAMPLE_COUNT_1_BIT,
+			0, depthFormat, samples,
 			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
 			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
 		);
 		VkAttachmentReference shadowMapAttachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-		VkSubpassDescription shadowMapSubpass = Create::SubpassDescription(
-			0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 0, nullptr, nullptr, &shadowMapAttachmentRef, 0, nullptr
-		);
 		VkSubpassDependency shadowMapDependency = Create::SubpassDependency(
 			VK_SUBPASS_EXTERNAL, 0,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
@@ -131,6 +128,10 @@ namespace Crescendo::internal
 			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 			VK_ACCESS_SHADER_READ_BIT,
 			VK_DEPENDENCY_BY_REGION_BIT
+		);
+
+		VkSubpassDescription shadowMapSubpass = Create::SubpassDescription(
+			0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 0, nullptr, nullptr, &shadowMapAttachmentRef, 0, nullptr
 		);
 
 		return this->CreateRenderPass({ shadowMapAttachment }, { shadowMapSubpass }, { shadowMapDependency, shadowMapDependency2 });

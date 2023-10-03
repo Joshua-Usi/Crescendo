@@ -3,6 +3,8 @@
 #include "vulkan/vulkan.h"
 #include "VMA/vk_mem_alloc.h"
 
+#include <vector>
+
 namespace Crescendo::internal
 {
 	class Allocator
@@ -52,7 +54,9 @@ namespace Crescendo::internal
 	public:
 		Buffer CreateBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 		void DestroyBuffer(Buffer& buffer);
+		void DestroyBuffers(std::vector<Buffer>& buffers);
 		Image CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage);
 		void DestroyImage(Allocator::Image& image);
+		void DestroyImages(std::vector<Image>& images);
 	};
 };
