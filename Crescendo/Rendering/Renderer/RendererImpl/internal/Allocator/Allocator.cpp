@@ -11,7 +11,7 @@ namespace Crescendo::internal
 {
 	Allocator& Allocator::Initialise(VkInstance instance, VkPhysicalDevice physicalDevice)
 	{
-		VmaVulkanFunctions vma_vulkan_func{};
+		VmaVulkanFunctions vma_vulkan_func {};
 		vma_vulkan_func.vkAllocateMemory = vkAllocateMemory;
 		vma_vulkan_func.vkBindBufferMemory = vkBindBufferMemory;
 		vma_vulkan_func.vkBindImageMemory = vkBindImageMemory;
@@ -73,17 +73,31 @@ namespace Crescendo::internal
 	Allocator::Image Allocator::CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage)
 	{
 		// Maps VmaMemoryUsage to VkMemoryPropertyFlags
-		constexpr VkMemoryPropertyFlags FLAG_MAP[5]{
+		constexpr VkMemoryPropertyFlags FLAG_MAP[3]{
 			0,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 		};
 		// Maps VkImageType to VkImageViewType
-		constexpr VkImageViewType FORMAT_MAP[7] {
+		constexpr VkImageViewType FORMAT_MAP[3] {
 			VK_IMAGE_VIEW_TYPE_1D,
 			VK_IMAGE_VIEW_TYPE_2D,
 			VK_IMAGE_VIEW_TYPE_3D,
 		};
+
+		VkImageCreateFlags imageFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+		// Check if the image is a depth image, if so set the image flags
+		switch (imageInfo.format)
+		{
+			// Fallthrough intentional
+			case VK_FORMAT_D16_UNORM:
+			case VK_FORMAT_D32_SFLOAT:
+			case VK_FORMAT_D16_UNORM_S8_UINT:
+			case VK_FORMAT_D24_UNORM_S8_UINT:
+			case VK_FORMAT_D32_SFLOAT_S8_UINT:
+				imageFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
+				break;
+		}
 
 		Image image{};
 		VmaAllocationCreateInfo allocInfo{};
@@ -94,7 +108,7 @@ namespace Crescendo::internal
 		// Automatically create image view
 		const VkImageViewCreateInfo viewInfo = Create::ImageViewCreateInfo(
 			image.image, FORMAT_MAP[imageInfo.imageType], imageInfo.format, {},
-			Create::ImageSubresourceRange((imageInfo.format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT, 0, imageInfo.mipLevels, 0, 1)
+			Create::ImageSubresourceRange(imageFlags, 0, imageInfo.mipLevels, 0, 1)
 		);
 		CS_ASSERT(vkCreateImageView(this->device, &viewInfo, nullptr, &image.imageView) == VK_SUCCESS, "Failed to create image view!");
 	

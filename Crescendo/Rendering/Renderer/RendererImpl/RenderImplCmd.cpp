@@ -60,8 +60,6 @@ namespace Crescendo
 		if (renderPass.hasColorAttachment) clearValues.push_back(clearColor);
 		if (renderPass.hasDepthAttachment) clearValues.push_back(Create::DefaultDepthClear());
 
-		if (renderPassIndex == 1) clearValues[1].depthStencil.depth = 0.0f;
-
 		cmd.BeginRenderPass(
 			this->renderPasses[renderPassIndex],
 			(renderPassIndex == 0) ? this->framebuffers[this->state.swapchainImageIndex] : this->shadowMapFramebuffer,

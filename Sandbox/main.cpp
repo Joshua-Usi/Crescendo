@@ -40,16 +40,16 @@ public:
 		this->GetWindow()->SetCursorLock(true);
 
 		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
-		this->camera.camera->SetPosition(glm::vec3(0.0f, 1.0f, 0.0f));
+		this->camera.camera.SetPosition(glm::vec3(0.0f, 1.0f, 0.0f));
 
 		this->UICamera = Graphics::OrthographicCamera(
 			glm::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f),
 			glm::vec2(-1.0f, 1.0f)
 		);
-		this->UICamera.SetPosition(glm::vec3(0.0f, 0.0f, 1.0f));
+		this->UICamera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
 		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
 
-		this->shadowMapCamera = Graphics::PerspectiveCamera(80.0f, 1.0f, { 1.0f, 100.0f });
+		this->shadowMapCamera = Graphics::PerspectiveCamera(17.5f, 1.0f, { 1.0f, 50.0f });
 		this->shadowMapCamera.SetRotation(glm::vec3(-std::numbers::pi / 2, std::numbers::pi / 2, 0));
 			
 		// Upload shaders (creates pipelines and descriptor sets)
@@ -66,8 +66,8 @@ public:
 				}
 			},
 			{"./shaders/compiled/skybox", { Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) } }, // Skybox
-			{"./shaders/compiled/shadow_map", { Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::LessEqual, Renderer::PipelineVariant::CullMode::None, Renderer::PipelineVariant::RenderPass::Shadow) } }, // Shadow map
-			//{"./shaders/compiled/ui", Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) }, // UI
+			{"./shaders/compiled/shadow_map", { Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::LessEqual, Renderer::PipelineVariant::CullMode::Front, Renderer::PipelineVariant::RenderPass::Shadow) } }, // Shadow map
+			{"./shaders/compiled/ui", { Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) } }, // UI
 		};
 		for (const auto& shader : shaderList)
 		{
@@ -81,6 +81,9 @@ public:
 		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
 		IO::Model skyboxModel = { {{ skybox.vertices, {}, skybox.textureUVs, {}, skybox.indices, "./assets/skybox.png"}} };
 
+		Construct::Mesh quad = Construct::Quad();
+		IO::Model quadModel = { {{ quad.vertices, {}, quad.textureUVs, {}, quad.indices}} };
+
 		std::vector<IO::Model> models =
 		{
 			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
@@ -90,7 +93,7 @@ public:
 			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
 			IO::LoadGLTF("./assets/tree/tree.gltf"),
 			skyboxModel,
-			//quadModel,
+			quadModel
 		};
 
 		std::map<std::filesystem::path, uint32_t> seenTexturesDiffuse;
@@ -157,13 +160,12 @@ public:
 
 		// Render prep
 		struct data { glm::mat4 viewProj, lightSpace; } vertex {
-			this->camera.camera->GetViewProjectionMatrix(),
-			//this->camera.camera->GetViewProjectionMatrix()
+			this->camera.camera.GetViewProjectionMatrix(),
 			this->shadowMapCamera.GetViewProjectionMatrix()
 		};
 		struct VSLighting {glm::vec4 lightPosition, viewPosition; } vsLighting {
 			glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f),
-			glm::vec4(this->camera.camera->GetPosition(), 1.0f)
+			glm::vec4(this->camera.camera.GetPosition(), 1.0f)
 		};
 		const glm::vec3 lightIntensities = glm::vec3(0.2f, 0.5f, 0.3f);
 		
@@ -171,9 +173,9 @@ public:
 		this->renderer.renderer.UpdateDescriptorSetData(0, 1, vsLighting);
 		this->renderer.renderer.UpdateDescriptorSetData(1, 0, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 		this->renderer.renderer.UpdateDescriptorSetData(1, 1, lightIntensities);
-		this->renderer.renderer.UpdateDescriptorSetData(2, 0, this->camera.camera->GetViewProjectionMatrix());
+		this->renderer.renderer.UpdateDescriptorSetData(2, 0, this->camera.camera.GetViewProjectionMatrix());
 		this->renderer.renderer.UpdateDescriptorSetData(3, 0, this->shadowMapCamera.GetViewProjectionMatrix());
-		//this->renderer.renderer.UpdateDescriptorSetData(3, 0, this->camera.camera->GetViewProjectionMatrix());
+		this->renderer.renderer.UpdateDescriptorSetData(4, 0, this->UICamera.GetViewProjectionMatrix());
 
 		uint32_t actualDrawCount = 0;
 
@@ -185,7 +187,7 @@ public:
 			Crescendo::Algorithms::Frustum frustum = Crescendo::Algorithms::GetFrustum(this->shadowMapCamera.GetViewProjectionMatrix());
 			this->renderer.renderer.CmdBindPipeline(5);
 
-			for (uint32_t i = 0; i < this->meshCount - 1; i++)
+			for (uint32_t i = 0; i < this->meshCount - 2; i++)
 			{
 				if (!Crescendo::Algorithms::IsInFrustum(frustum, this->meshBounds[i])) continue;
 				if (!this->isShadowCasting[i]) continue;
@@ -201,14 +203,14 @@ public:
 			this->renderer.renderer.CmdBeginRenderPass(0, 0.0f, 0.0f, 0.0f, 1.0f);
 
 			this->renderer.renderer.CmdBindPipeline(4);
-			this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), this->camera.camera->GetPosition()));
-			this->renderer.renderer.CmdBindTexture(1, textureIDs[this->meshCount - 1].diffuse);
-			this->renderer.renderer.CmdDraw(this->meshCount - 1);
+			this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), this->camera.camera.GetPosition()));
+			this->renderer.renderer.CmdBindTexture(1, textureIDs[this->meshCount - 2].diffuse);
+			this->renderer.renderer.CmdDraw(this->meshCount - 2);
 			actualDrawCount++;
 
-			Crescendo::Algorithms::Frustum frustum = Crescendo::Algorithms::GetFrustum(this->camera.camera->GetViewProjectionMatrix());
+			Crescendo::Algorithms::Frustum frustum = Crescendo::Algorithms::GetFrustum(this->camera.camera.GetViewProjectionMatrix());
 
-			for (uint32_t i = 0; i < this->meshCount - 1; i++)
+			for (uint32_t i = 0; i < this->meshCount - 2; i++)
 			{
 				if (!Crescendo::Algorithms::IsInFrustum(frustum, this->meshBounds[i])) continue;
 
@@ -226,24 +228,17 @@ public:
 				this->renderer.renderer.CmdDraw(i);
 			}
 
-			/*this->renderer.renderer.CmdBindPipeline(5);
+			this->renderer.renderer.CmdBindPipeline(6);
 
 			glm::mat4 model = glm::mat4(1.0f);
-			model = glm::translate(model, glm::vec3(100.0f, 100.0f, 0.0f));
-			model = glm::scale(model, glm::vec3(200.0f, 200.0f, 1.0f));
+			model = glm::translate(model, glm::vec3(200.0f, -200.0f, 0.0f));
+			model = glm::scale(model, glm::vec3(400.0f, 400.0f, 1.0f));
 
-			for (uint32_t i = 0; i < 2; i++)
-			{
-				for (uint32_t j = 0; j < 2; j++)
-				{
-					this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, model);
-					this->renderer.renderer.CmdBindTexture(textureIDs[this->meshCount - 1]);
-					this->renderer.renderer.CmdDraw(this->meshCount - 1);
-					actualDrawCount++;
-					model = glm::translate(model, glm::vec3(1.0f, 0.0f, 0.0f));
-				}
-				model = glm::translate(model, glm::vec3(-2.0f, 1.0f, 0.0f));
-			}*/
+			this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, model);
+			this->renderer.renderer.CmdBindTexture(1, Renderer::SHADOW_MAP_ID);
+
+			this->renderer.renderer.CmdDraw(this->meshCount - 1);
+			actualDrawCount++;
 
 			this->renderer.renderer.CmdEndRenderPass();
 		}

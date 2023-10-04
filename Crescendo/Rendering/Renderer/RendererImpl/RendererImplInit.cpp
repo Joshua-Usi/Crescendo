@@ -5,6 +5,7 @@ namespace Crescendo
 	constexpr vkb::PreferredDeviceType DEVICE_TYPE_MAPPING[2] = { vkb::PreferredDeviceType::discrete, vkb::PreferredDeviceType::integrated };
 	constexpr VkPresentModeKHR PRESENT_MODE_MAPPING[2] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR };
 	constexpr VkFormat DEFAULT_DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
+	constexpr VkFormat DEFAULT_SHADOW_FORMAT = VK_FORMAT_D16_UNORM;
 
 	/* ---------------------------------------------------------------- Helper functions ---------------------------------------------------------------- */
 
@@ -243,7 +244,7 @@ namespace Crescendo
 		this->renderPasses.push_back({ this->device.CreateDefaultRenderPass(this->swapchain.imageFormat, DEFAULT_DEPTH_FORMAT, this->state.msaaSamples), true, true });
 		if (info.shadowMapResolution > 0)
 		{
-			this->renderPasses.push_back({ this->device.CreateDefaultShadowRenderPass(DEFAULT_DEPTH_FORMAT, this->state.msaaSamples), false, true });
+			this->renderPasses.push_back({ this->device.CreateDefaultShadowRenderPass(DEFAULT_SHADOW_FORMAT, this->state.msaaSamples), false, true });
 		}
 
 		/* -------------------------------- 1. Image buffer creation -------------------------------- */
@@ -269,7 +270,7 @@ namespace Crescendo
 		if (info.shadowMapResolution > 0)
 		{
 			VkImageCreateInfo shadowMapImageInfo = Create::ImageCreateInfo(
-				VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, { info.shadowMapResolution, info.shadowMapResolution, 1 }, 1, 1, this->state.msaaSamples, VK_IMAGE_TILING_OPTIMAL,
+				VK_IMAGE_TYPE_2D, DEFAULT_SHADOW_FORMAT, { info.shadowMapResolution, info.shadowMapResolution, 1 }, 1, 1, this->state.msaaSamples, VK_IMAGE_TILING_OPTIMAL,
 				VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
 			);
 			this->shadowMapBuffer = this->allocator.CreateImage(shadowMapImageInfo, VMA_MEMORY_USAGE_GPU_ONLY);
@@ -302,7 +303,7 @@ namespace Crescendo
 		/* -------------------------------- 3. Shadow map descriptor set -------------------------------- */
 
 		this->shadowMapSampler = this->device.CreateSampler(Create::SamplerCreateInfo(
-			VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+			VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
 			info.anistropicFiltering, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
 		));
 		VkDescriptorImageInfo imageInfo = Create::DescriptorImageInfo(

@@ -18,7 +18,7 @@ layout(set = 1, binding = 1) uniform blinnPhongLightingIntensities {
 	float specular;
 } bpli;
 
-layout(set = 2, binding = 0) uniform sampler2D albedoTex;
+layout(set = 2, binding = 0) uniform sampler2D diffuseTex;
 layout(set = 3, binding = 0) uniform sampler2D normalTex;
 layout(set = 4, binding = 0) uniform sampler2D shadowTex;
 
@@ -36,7 +36,7 @@ float textureProj(vec4 shadowCoord)
 
 void main()
 {
-	vec4 texelColor = texture(albedoTex, iTexCoord);
+	vec4 texelColor = texture(diffuseTex, iTexCoord);
 
 	/* ---------------- Normals ---------------- */
 
