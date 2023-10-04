@@ -1,7 +1,7 @@
 #pragma once
 
-#include "vulkan/vulkan.h"
-#include "VMA/vk_mem_alloc.h"
+#include "volk/volk.h"
+#include "vma/vk_mem_alloc.h"
 
 #include <vector>
 

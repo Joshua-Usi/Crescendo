@@ -35,13 +35,20 @@ namespace Crescendo
 		return VK_SAMPLE_COUNT_1_BIT;
 	}
 	/* ---------------------------------------------------------------- Fixed initialisations ---------------------------------------------------------------- */
+	bool Renderer::RendererImpl::isVolkInitialised = false;
 
 	void Renderer::RendererImpl::InitialiseInstance(const BuilderInfo& info)
 	{
+		if (!isVolkInitialised)
+		{
+			VkResult result = volkInitialize();
+			CS_ASSERT(result == VK_SUCCESS, "Failed to initialise volk!");
+			isVolkInitialised = result == VK_SUCCESS;
+		}
 		this->rendererInfo = info;
 
 		// Create instance and debug messenger
-		vkb::Instance instance = vkb::InstanceBuilder()
+		vkb::Instance instance = vkb::InstanceBuilder(vkGetInstanceProcAddr)
 			.set_app_name(info.appName.c_str())
 			.set_engine_name(info.engineName.c_str())
 			.request_validation_layers(info.useValidationLayers)
@@ -50,6 +57,8 @@ namespace Crescendo
 			.build().value();
 		this->instance = instance.instance;
 		this->debugMessenger = instance.debug_messenger;
+
+		volkLoadInstance(this->instance);
 
 		// Create surface
 		CS_ASSERT(glfwCreateWindowSurface(this->instance, static_cast<GLFWwindow*>(info.window), nullptr, &this->surface) == VK_SUCCESS, "Failed to create window surface!");
@@ -73,6 +82,8 @@ namespace Crescendo
 		// Create logical device
 		const vkb::Device deviceResult = vkb::DeviceBuilder(physicalDeviceResult).build().value();
 		this->device = internal::Device(deviceResult.device);
+
+		volkLoadDevice(this->device);
 
 		// Find queues
 		this->queues.GetQueues(deviceResult);

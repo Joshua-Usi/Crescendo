@@ -2,7 +2,7 @@
 
 #include "Core/common.hpp"
 
-#include "Vulkan/Vulkan.hpp"
+#include "Volk/volk.h"
 #include "VkBootstrap/VkBootstrap.h"
 #include "GLFW/glfw3.h"
 
@@ -121,6 +121,8 @@ namespace Crescendo
 
 	class Renderer::RendererImpl
 	{
+	private:
+		static bool isVolkInitialised;
 	public:
 		BuilderInfo rendererInfo;
 		VkPhysicalDeviceProperties physicalDeviceProperties;

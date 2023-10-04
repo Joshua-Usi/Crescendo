@@ -1,5 +1,6 @@
 @echo off
-echo Note! you will need to download or have downloaded the VulkanSDK
+echo Note! you will need to download or have downloaded the VulkanSDK, 1.3.250.1 is preferred
+echo Note! Also consider installing volk and Vma with your SDK
 echo Generating Project Files...
 :: Create folder if not exists
 if not exist "vendor\bins\premake" mkdir "vendor\bins\premake"

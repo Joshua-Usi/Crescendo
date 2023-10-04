@@ -5,14 +5,15 @@ include_files = {
 	-- C backward compatibility
 	"%{prj.name}/**.h",
 	"%{prj.name}/**.c",
+	-- Volk
+	"C:/VulkanSDK/1.3.250.1/Include/Volk/volk.c",
 }
 exclude_files = {}
 library_dirs = {
-	"C:/VulkanSDK/1.3.243.0/Lib",
 	"%{wks.location}/Crescendo/Libraries/ThirdParty/glfw/libs",
 }
 engine_dirs = {
-	"C:/VulkanSDK/1.3.243.0/Include",
+	"C:/VulkanSDK/1.3.250.1/Include",
 	"%{wks.location}/Crescendo",
 	"%{wks.location}/Crescendo/Libraries/ThirdParty",
 	"%{wks.location}/Crescendo/Libraries/ThirdParty/ImGui",
@@ -57,6 +58,7 @@ project "Crescendo"
 			"CS_PLATFORM_WINDOWS",
 			"_CRT_SECURE_NO_WARNINGS",
 			"GLFW_INCLUDE_NONE",
+			"VK_NO_PROTOTYPES",
 		}
 	filter "configurations:Debug"
 		defines "CS_DEBUG"
@@ -83,7 +85,6 @@ project(sandbox_project_name)
 		"Crescendo",
 		--
 		"glfw3_mt.lib",
-		"vulkan-1.lib",
 		--
 		"user32.lib",
 		"gdi32.lib",
@@ -95,6 +96,7 @@ project(sandbox_project_name)
 		systemversion "latest"
 		defines {
 			"CS_PLATFORM_WINDOWS",
+			"VK_NO_PROTOTYPES",
 		}
 	filter "configurations:Debug"
 		defines "CS_DEBUG"
