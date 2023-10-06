@@ -75,7 +75,23 @@ namespace Crescendo::Graphics
 		inline void Rotate(const glm::quat& quaternion) { this->rotation *= quaternion; };
 		inline void SetRotation(const glm::vec3& euler) { this->rotation = glm::quat(euler); };
 		inline void Rotate(const glm::vec3& euler) { this->rotation *= glm::quat(euler); };
-		inline void LookAt(const glm::vec3& target) { this->rotation = glm::quatLookAt(glm::normalize(this->position - target), glm::vec3(0.0f, 1.0f, 0.0f)); };
+		inline void LookAt(const glm::vec3& target)
+		{
+			glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+			glm::vec3 forward = glm::normalize(target - position);
+			if (glm::dot(forward, up) > 0.99f)
+			{
+				up = glm::vec3(1.0f, 0.0f, 0.0f);
+			}
+			else if (glm::dot(forward, up) < -0.99f)
+			{
+				up = glm::vec3(-1.0f, 0.0f, 0.0f);
+			}
+			glm::mat4 viewMatrix = glm::lookAt(position, target, up);
+			glm::mat3 rotationMatrix = glm::mat3(viewMatrix);
+			rotationMatrix = glm::transpose(rotationMatrix);
+			rotation = glm::quat_cast(rotationMatrix);
+		}
 
 		inline glm::quat GetQuaternionRotation() const { return this->rotation; };
 		inline glm::vec3 GetRotation() const { return internal::QuaternionToEuler(this->rotation); };
