@@ -55,7 +55,7 @@ namespace Crescendo
 		this->rendererInfo.shadowMapResolution = info.shadowMapResolution;
 		this->rendererInfo.framesInFlight = info.framesInFlight;
 	}
-	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variants)
+	void Renderer::RendererImpl::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariants& variants)
 	{
 		constexpr VkPolygonMode FILL_MODE_MAP[3] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
 		constexpr VkCompareOp DEPTH_COMPARE_MAP[8] = { VK_COMPARE_OP_NEVER, VK_COMPARE_OP_LESS, VK_COMPARE_OP_EQUAL, VK_COMPARE_OP_LESS_OR_EQUAL, VK_COMPARE_OP_GREATER, VK_COMPARE_OP_NOT_EQUAL, VK_COMPARE_OP_GREATER_OR_EQUAL, VK_COMPARE_OP_ALWAYS };
@@ -175,45 +175,67 @@ namespace Crescendo
 		VkPipelineLayout pipelineLayout = this->device.CreatePipelineLayout(setLayouts, pushConstantRanges);
 		this->pipelineLayouts.push_back(pipelineLayout);
 
-		for (const auto& variant : variants)
+		uint32_t pipelinesGenerated = 0;
+
+		// Nested loops go brrrr
+		for (auto fillMode : variants.fillModes)
 		{
-			// Create the information required to build the pipeline
-			internal::Device::PipelineBuilderInfo pipelineBuilderInfo = {};
-			pipelineBuilderInfo.dynamicState = Create::PipelineDynamicStateCreateInfo(dynamicStates);
-			pipelineBuilderInfo.renderPass = (variant.renderPass == PipelineVariant::RenderPass::Default) ? this->renderPasses[DEFAULT_RENDER_PASS] : this->renderPasses[SHADOW_RENDER_PASS];
-			pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pipelineData.vertexShader));
-			pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pipelineData.fragmentShader));
-			pipelineBuilderInfo.vertexInputInfo = Create::PipelineVertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
-			pipelineBuilderInfo.inputAssemblyInfo = Create::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
-			pipelineBuilderInfo.rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(
-				VK_FALSE, VK_FALSE, FILL_MODE_MAP[static_cast<size_t>(variant.fillMode)], CULL_MODE_MAP[static_cast<size_t>(variant.cullMode)],
-				VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
-			);
-			pipelineBuilderInfo.multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(
-				this->state.msaaSamples, VK_TRUE, 1.0f, nullptr, VK_FALSE, VK_FALSE
-			);
-			pipelineBuilderInfo.colorBlendAttachment = Create::PipelineColorBlendAttachmentState(
-				VK_TRUE, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
-				VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
-				VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
-			);
-			pipelineBuilderInfo.depthStencilInfo = Create::PipelineDepthStencilStateCreateInfo(
-				0, variant.depthTestEnable, variant.depthWriteEnable,
-				DEPTH_COMPARE_MAP[static_cast<size_t>(variant.depthFunc)],
-				VK_FALSE, VK_FALSE, {}, {}
-			);
-			pipelineBuilderInfo.pipelineLayout = pipelineLayout;
+			for (auto depthTestEnable : variants.depthTestEnables)
+			{
+				for (auto depthWriteEnable : variants.depthWriteEnables)
+				{
+					for (auto depthFunc : variants.depthFuncs)
+					{
+						for (auto cullMode: variants.cullModes)
+						{
+							for (auto renderPass: variants.renderPasses)
+							{
+								// Create the information required to build the pipeline
+								internal::Device::PipelineBuilderInfo pipelineBuilderInfo = {};
+								pipelineBuilderInfo.dynamicState = Create::PipelineDynamicStateCreateInfo(dynamicStates);
+								pipelineBuilderInfo.renderPass = (renderPass == PipelineVariants::RenderPass::Default) ? this->renderPasses[DEFAULT_RENDER_PASS] : this->renderPasses[SHADOW_RENDER_PASS];
+								pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pipelineData.vertexShader));
+								pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pipelineData.fragmentShader));
+								pipelineBuilderInfo.vertexInputInfo = Create::PipelineVertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
+								pipelineBuilderInfo.inputAssemblyInfo = Create::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
+								pipelineBuilderInfo.rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(
+									VK_FALSE, VK_FALSE, FILL_MODE_MAP[static_cast<size_t>(fillMode)], CULL_MODE_MAP[static_cast<size_t>(cullMode)],
+									VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
+								);
+								pipelineBuilderInfo.multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(
+									this->state.msaaSamples, VK_TRUE, 1.0f, nullptr, VK_FALSE, VK_FALSE
+								);
+								pipelineBuilderInfo.colorBlendAttachment = Create::PipelineColorBlendAttachmentState(
+									VK_TRUE, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD,
+									VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+									VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+								);
+								pipelineBuilderInfo.depthStencilInfo = Create::PipelineDepthStencilStateCreateInfo(
+									0, depthTestEnable, depthWriteEnable,
+									DEPTH_COMPARE_MAP[static_cast<size_t>(depthFunc)],
+									VK_FALSE, VK_FALSE, {}, {}
+								);
+								pipelineBuilderInfo.pipelineLayout = pipelineLayout;
 
-			// Assign the relevant data descriptor handles
-			std::vector<uint32_t> dataDescriptorHandles(datalayoutCount);
-			for (uint32_t i = 0; i < datalayoutCount; i++) dataDescriptorHandles[i] = currentLayoutIndex + i;
-			// Assign the relevant sampler descriptor handles
-			std::vector<uint32_t> samplerDescriptorHandles(samplerSets.size());
-			for (uint32_t i = 0; i < samplerSets.size(); i++) samplerDescriptorHandles[i] = currentLayoutIndex + datalayoutCount + i;
+								// Assign the relevant data descriptor handles
+								std::vector<uint32_t> dataDescriptorHandles(datalayoutCount);
+								for (uint32_t i = 0; i < datalayoutCount; i++) dataDescriptorHandles[i] = currentLayoutIndex + i;
+								// Assign the relevant sampler descriptor handles
+								std::vector<uint32_t> samplerDescriptorHandles(samplerSets.size());
+								for (uint32_t i = 0; i < samplerSets.size(); i++) samplerDescriptorHandles[i] = currentLayoutIndex + datalayoutCount + i;
 
-			// Create the pipeline
-			this->pipelines.emplace_back(pipelineLayout, this->device.CreatePipeline(pipelineBuilderInfo), dataDescriptorHandles, samplerDescriptorHandles, attributeFlags);
+								// Create the pipeline
+								this->pipelines.emplace_back(pipelineLayout, this->device.CreatePipeline(pipelineBuilderInfo), dataDescriptorHandles, samplerDescriptorHandles, attributeFlags);
+
+								pipelinesGenerated++;
+							}
+						}
+					}
+				}
+			}
 		}
+
+		cs_std::console::log("Generated", pipelinesGenerated);
 
 		pipelineData.Destroy(this->device);
 	}

@@ -154,33 +154,27 @@ namespace Crescendo
 
 			BuilderInfo() = default;
 		};
-		// Generates variations of a pipeline based on the given information
-		struct PipelineVariant
+		// Generates variants of the pipeline based on the cartesian product of the variants
+		// Note that the pipeline will be generated in the order of the variants
+		// Also note that cartesian products can generate a lot of variants (exponentially)
+		struct PipelineVariants
 		{
 			enum class FillMode : uint8_t { Solid = 0, Wireframe = 1, Point = 2 };
 			enum class DepthFunc : uint8_t { Never = 0, Less = 1, Equal = 2, LessEqual = 3, Greater = 4, NotEqual = 5, GreaterEqual = 6, Always = 7 };
 			enum class CullMode : uint8_t { None = 0, Front = 1, Back = 2 };
 			enum class RenderPass : uint8_t { Default = 0, Shadow = 1 };
-			FillMode fillMode;
-			bool depthTestEnable;
-			bool depthWriteEnable;
-			DepthFunc depthFunc;
-			CullMode cullMode;
-			RenderPass renderPass;
-			inline PipelineVariant(
-				FillMode fillMode = FillMode::Solid,
-				bool depthTestEnable = true,
-				bool depthWriteEnable = true,
-				DepthFunc depthFunc = DepthFunc::Less,
-				CullMode cullMode = CullMode::Back,
-				RenderPass renderPass = RenderPass::Default
-			) : fillMode(fillMode),
-				depthTestEnable(depthTestEnable),
-				depthWriteEnable(depthWriteEnable),
-				depthFunc(depthFunc),
-				cullMode(cullMode),
-				renderPass(renderPass)
-				{}
+			std::vector<FillMode> fillModes;
+			std::vector<bool> depthTestEnables;
+			std::vector<bool> depthWriteEnables;
+			std::vector<DepthFunc> depthFuncs;
+			std::vector<CullMode> cullModes;
+			std::vector<RenderPass> renderPasses;
+
+			PipelineVariants() = default;
+			PipelineVariants(const std::vector<FillMode>& fillModes, const std::vector<bool>& depthTestEnables, const std::vector<bool>& depthWriteEnables, const std::vector<DepthFunc>& depthFuncs, const std::vector<CullMode>& cullModes, const std::vector<RenderPass>& renderPasses) :
+				fillModes(fillModes), depthTestEnables(depthTestEnables), depthWriteEnables(depthWriteEnables), depthFuncs(depthFuncs), cullModes(cullModes), renderPasses(renderPasses) {}
+			PipelineVariants(FillMode fillMode, bool depthTestEnable, bool depthWriteEnable, DepthFunc depthFunc, CullMode cullMode, RenderPass renderPass) :
+				fillModes({ fillMode }), depthTestEnables({ depthTestEnable }), depthWriteEnables({ depthWriteEnable }), depthFuncs({ depthFunc }), cullModes({ cullMode }), renderPasses({ renderPass }) {}
 		};
 	public:
 		Renderer();
@@ -222,7 +216,7 @@ namespace Crescendo
 		void Resize();
 
 		void UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices);
-		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variants = { {} });
+		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariants& variants);
 		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 
 		static Renderer Create(const BuilderInfo& info);

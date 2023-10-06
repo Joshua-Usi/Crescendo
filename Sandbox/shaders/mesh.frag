@@ -23,7 +23,7 @@ float textureProj(vec4 shadowCoord)
     float shadow = 1.0;
     float dist = texture(shadowTex, shadowCoord.xy).r;
 
-    float condition = step(0.0, shadowCoord.w) * step(shadowCoord.z - 0.001f, dist);
+    float condition = step(0.0, shadowCoord.w) * step(shadowCoord.z - 0.002f, dist);
     shadow = mix(bpli.ambient, shadow, condition);
 
     return shadow;

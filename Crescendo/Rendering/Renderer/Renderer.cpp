@@ -89,7 +89,7 @@ namespace Crescendo
 	{
 		this->impl->UploadMesh(attributes, indices);
 	}
-	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variants)
+	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariants& variants)
 	{
 		this->impl->UploadPipeline(vertexShader, fragmentShader, variants);
 	}

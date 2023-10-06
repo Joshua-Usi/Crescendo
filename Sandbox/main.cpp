@@ -19,7 +19,7 @@ class Sandbox : public Application
 private:
 	CameraController camera;
 	Graphics::OrthographicCamera UICamera;
-	Graphics::PerspectiveCamera shadowMapCamera;
+	Graphics::OrthographicCamera shadowMapCamera;
 
 	uint32_t meshCount = 0;
 
@@ -49,27 +49,31 @@ public:
 		this->UICamera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
 		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
 
-		this->shadowMapCamera = Graphics::PerspectiveCamera(17.5f, 1.0f, { 1.0f, 50.0f });
-		this->shadowMapCamera.SetRotation(glm::vec3(-std::numbers::pi / 2, std::numbers::pi / 2, 0));
+		this->shadowMapCamera = Graphics::OrthographicCamera(
+			glm::vec4(-20.0f, 20.0f, -20.0f, 20.0f),
+			glm::vec2(-21.0f, 61.0f)
+		);
 			
 		// Upload shaders (creates pipelines and descriptor sets)
 
 		double now = this->GetTime(), now2 = now;
 
-		struct Shader { std::string name; std::vector<Renderer::PipelineVariant> variants; };
+		struct Shader { std::string name; Renderer::PipelineVariants variants; };
 		std::vector<Shader> shaderList = {
 			{
 				"./shaders/compiled/mesh",
-				{
-					Renderer::PipelineVariant(), // Single sided, opaque meshes
-					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None), // Double sided, opaque meshes
-					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back), // Single sided, transparent meshes
-					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) // Double sided, transparent meshes
-				}
+				Renderer::PipelineVariants(
+					{ Renderer::PipelineVariants::FillMode::Solid },
+					{ true },
+					{ true, false },
+					{ Renderer::PipelineVariants::DepthFunc::Less },
+					{ Renderer::PipelineVariants::CullMode::Back, Renderer::PipelineVariants::CullMode::None },
+					{ Renderer::PipelineVariants::RenderPass::Default }
+				)
 			},
-			{"./shaders/compiled/skybox", { Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false) } }, // Skybox
-			{"./shaders/compiled/shadow_map", { Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::LessEqual, Renderer::PipelineVariant::CullMode::Front, Renderer::PipelineVariant::RenderPass::Shadow) } }, // Shadow map
-			{"./shaders/compiled/ui", { Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, false, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) } }, // UI
+			{"./shaders/compiled/skybox", Renderer::PipelineVariants(Renderer::PipelineVariants::FillMode::Solid, true, false, Renderer::PipelineVariants::DepthFunc::Less, Renderer::PipelineVariants::CullMode::Back, Renderer::PipelineVariants::RenderPass::Default) }, // Skybox
+			{"./shaders/compiled/shadow_map", Renderer::PipelineVariants(Renderer::PipelineVariants::FillMode::Solid, true, true, Renderer::PipelineVariants::DepthFunc::Less, Renderer::PipelineVariants::CullMode::Front, Renderer::PipelineVariants::RenderPass::Shadow) }, // Shadow map
+			{"./shaders/compiled/ui", Renderer::PipelineVariants(Renderer::PipelineVariants::FillMode::Solid, false, false, Renderer::PipelineVariants::DepthFunc::Less, Renderer::PipelineVariants::CullMode::None, Renderer::PipelineVariants::RenderPass::Default) }, // UI
 		};
 		for (const auto& shader : shaderList)
 		{
@@ -185,16 +189,17 @@ public:
 	{
 		this->camera.Update();
 
-		float currentTime = this->GetTime<float>() / 5.0f;
-		this->shadowMapCamera.SetPosition(glm::vec3(std::cosf(currentTime) * 6.0f, 30.0f, std::sinf(currentTime) * 6.0f));
+		float currentTime = this->GetTime<float>() / 2.5f;
+		this->shadowMapCamera.SetPosition(glm::vec3(0.0f, std::cosf(currentTime) * 40.0f, std::sinf(currentTime) * 40.0f));
+		this->shadowMapCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f));
 
 		// Render prep
 		const glm::mat4 projections[2] = { this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
 		const glm::vec4 lightingPositions[2] = { glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f), glm::vec4(this->camera.camera.GetPosition(), 1.0f) };
 		const glm::vec3 lightIntensities = glm::vec3(0.2f, 0.5f, 0.3f);
 		
-		this->renderer.renderer.UpdateDescriptorSetData(0, 0, projections, 2 * sizeof(glm::mat4));
-		this->renderer.renderer.UpdateDescriptorSetData(0, 1, lightingPositions, 2 * sizeof(glm::vec4));
+		this->renderer.renderer.UpdateDescriptorSetData(0, 0, projections);
+		this->renderer.renderer.UpdateDescriptorSetData(0, 1, lightingPositions);
 		this->renderer.renderer.UpdateDescriptorSetData(1, 0, lightIntensities);
 		this->renderer.renderer.UpdateDescriptorSetData(2, 0, this->camera.camera.GetViewProjectionMatrix());
 		this->renderer.renderer.UpdateDescriptorSetData(3, 0, this->shadowMapCamera.GetViewProjectionMatrix());
