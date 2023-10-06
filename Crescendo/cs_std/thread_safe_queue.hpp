@@ -71,6 +71,15 @@ namespace cs_std
 			this->queue.pop();
 			return value;
 		}
+		inline std::optional<T> try_pop()
+		{
+			std::lock_guard<std::mutex> lock(this->mutex);
+			if (this->queue.empty()) return std::nullopt;
+
+			T value = std::move(this->queue.front());
+			this->queue.pop();
+			return value;
+		}
 		/// <summary>
 		/// Determine if the queue is empty
 		/// The value from this function can get immediately invalidated
@@ -83,6 +92,16 @@ namespace cs_std
 			return this->queue.empty();
 		}
 		/// <summary>
+		/// Non-mutexed version of empty
+		/// Can cause potential race conditions
+		/// Use with caution
+		/// </summary>
+		/// <returns>If the queue is empty</returns>
+		inline bool empty_unsafe() const
+		{
+			return this->queue.empty();
+		}
+		/// <summary>
 		/// Return the size of the queue
 		/// The value from this function can get immediately invalidated
 		/// At any moment
@@ -91,6 +110,16 @@ namespace cs_std
 		inline size_t size() const
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
+			return this->queue.size();
+		}
+		/// <summary>
+		/// Non-mutexed version of size
+		/// Can cause potential race conditions
+		/// Use with caution
+		/// </summary>
+		/// <returns></returns>
+		inline size_t size_unsafe() const
+		{
 			return this->queue.size();
 		}
 		/// <summary>

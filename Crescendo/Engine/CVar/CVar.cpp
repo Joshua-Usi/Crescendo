@@ -1,5 +1,5 @@
 #include "Cvar.hpp"
-#include "Libraries/XML/XML.hpp"
+#include "cs_std/xml/xml.hpp"
 #include <algorithm>
 
 namespace Crescendo::Engine
@@ -49,11 +49,11 @@ namespace Crescendo::Engine
 	}
 	void CVar::LoadConfigXML(const std::string& path)
 	{
-		Tools::XML::Document document = Tools::XML::ParseFromFile(path);
+		cs_std::xml::document document = cs_std::xml::parse_file(path);
 
 		for (uint32_t i = 0, childCount = document.root->GetChildCount(); i < childCount; i++)
 		{
-			Tools::XML::Node* child = document.root->GetChild(i);
+			cs_std::xml::node* child = document.root->GetChild(i);
 			Register(child->GetTagName(), child->GetTextContent());
 		}
 	}

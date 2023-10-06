@@ -7,7 +7,10 @@ namespace Crescendo
 	Renderer::Renderer() : impl(std::make_unique<RendererImpl>()) {}
 	Renderer::~Renderer() = default;
 	Renderer::Renderer(Renderer&& other) noexcept : impl(std::move(other.impl)) {}
-	Renderer& Renderer::operator=(Renderer&& other) noexcept { this->impl = std::move(other.impl); return *this; }
+	Renderer& Renderer::operator=(Renderer&& other) noexcept
+	{
+		this->impl = std::move(other.impl); return *this;
+	}
 
 	void Renderer::Init(const BuilderInfo& info)
 	{
@@ -34,24 +37,66 @@ namespace Crescendo
 		CS_TIME(this->impl->InitialiseFramebuffers(info), "Framebuffers Initialisation");
 	}
 
-	void Renderer::CmdBindTexture(uint32_t set, uint32_t texture) { this->impl->BindTexture(set, texture); }
-	void Renderer::CmdUpdatePushConstant(ShaderStage stage, const void* data, uint32_t size) { this->impl->UpdatePushConstant(stage, data, size); }
-	void Renderer::UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const void* data, uint32_t size) { this->impl->UpdateDescriptorSet(descriptorSetIndex, binding, data, size); }
+	void Renderer::CmdBindTexture(uint32_t set, uint32_t texture)
+	{
+		this->impl->BindTexture(set, texture);
+	}
+	void Renderer::CmdUpdatePushConstant(ShaderStage stage, const void* data, uint32_t size)
+	{
+		this->impl->UpdatePushConstant(stage, data, size);
+	}
+	void Renderer::UpdateDescriptorSetData(uint32_t descriptorSetIndex, uint32_t binding, const void* data, uint32_t size)
+	{
+		this->impl->UpdateDescriptorSet(descriptorSetIndex, binding, data, size);
+	}
 
-	void Renderer::CmdBeginFrame() { this->impl->BeginFrame(); }
-	void Renderer::CmdEndFrame() { this->impl->EndFrame(); }
-	void Renderer::CmdBeginRenderPass(uint32_t renderPassIndex, float r, float g, float b, float a) { this->impl->BeginRenderPass(renderPassIndex, { r, g, b, a }); }
-	void Renderer::CmdEndRenderPass() { this->impl->EndRenderPass(); }
+	void Renderer::CmdBeginFrame()
+	{
+		this->impl->BeginFrame();
+	}
+	void Renderer::CmdEndFrame()
+	{
+		this->impl->EndFrame();
+	}
+	void Renderer::CmdBeginRenderPass(uint32_t renderPassIndex, float r, float g, float b, float a)
+	{
+		this->impl->BeginRenderPass(renderPassIndex, { r, g, b, a });
+	}
+	void Renderer::CmdEndRenderPass()
+	{
+		this->impl->EndRenderPass();
+	}
 
-	void Renderer::CmdBindPipeline(uint32_t pipelineIndex) { this->impl->BindPipeline(pipelineIndex); }
-	void Renderer::CmdDraw(uint32_t mesh) { this->impl->Draw(mesh); }
-	void Renderer::CmdPresentFrame() { this->impl->PresentFrame(); }
+	void Renderer::CmdBindPipeline(uint32_t pipelineIndex)
+	{
+		this->impl->BindPipeline(pipelineIndex);
+	}
+	void Renderer::CmdDraw(uint32_t mesh)
+	{
+		this->impl->Draw(mesh);
+	}
+	void Renderer::CmdPresentFrame()
+	{
+		this->impl->PresentFrame();
+	}
 
-	void Renderer::Resize() { this->impl->Resize(); }
+	void Renderer::Resize()
+	{
+		this->impl->Resize();
+	}
 	
-	void Renderer::UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices) { this->impl->UploadMesh(attributes, indices); }
-	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variants) { this->impl->UploadPipeline(vertexShader, fragmentShader, variants); }
-	void Renderer::UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps) { this->impl->UploadTexture(textureData, width, height, channels, generateMipmaps); }
+	void Renderer::UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices)
+	{
+		this->impl->UploadMesh(attributes, indices);
+	}
+	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const std::vector<PipelineVariant>& variants)
+	{
+		this->impl->UploadPipeline(vertexShader, fragmentShader, variants);
+	}
+	void Renderer::UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps)
+	{
+		this->impl->UploadTexture(textureData, width, height, channels, generateMipmaps);
+	}
 	
 	Renderer Renderer::Create(const Renderer::BuilderInfo& info)
 	{

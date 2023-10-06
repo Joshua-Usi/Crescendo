@@ -1,17 +1,16 @@
 #pragma once
 
-#include "../XML.hpp"
+#include "xml.hpp"
 
 #include "rapidxml/rapidxml.hpp"
 #include "rapidxml/rapidxml_ext.hpp"
 #include "rapidxml/rapidxml_print.hpp"
 
-namespace Crescendo::Tools::XML::internal
+namespace cs_std::xml::internal
 {
-	// Convert a RapidXML document to a CrescendoXML document
-	void RapidToCrescendo(Document& crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
+	void rapid_to_cs_std(document& crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
 	{
-		Node* csWorkingNode = crescendoDoc.root.get();
+		node* csWorkingNode = crescendoDoc.root.get();
 		rapidxml::xml_node<>* workingNode = rapidDoc->first_node();
 
 		// Move declaration node, if declarations exist
@@ -52,14 +51,14 @@ namespace Crescendo::Tools::XML::internal
 				wasLastOperationUp = false;
 
 				workingNode = workingNode->first_node();
-				csWorkingNode = new Node(csWorkingNode);
+				csWorkingNode = new node(csWorkingNode);
 			}
 			else if (workingNode->next_sibling())
 			{
 				wasLastOperationUp = false;
 
 				workingNode = workingNode->next_sibling();
-				csWorkingNode = new Node(csWorkingNode->GetParent());
+				csWorkingNode = new node(csWorkingNode->GetParent());
 			}
 			else
 			{

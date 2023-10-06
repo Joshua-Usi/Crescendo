@@ -8,7 +8,7 @@ int main(int argc, char** argv)
 {
 	// TODO Handle command line arguments
 
-	shared<Crescendo::Engine::Application> app = Crescendo::Engine::CreateApplication();
+	unique<Crescendo::Engine::Application> app = Crescendo::Engine::CreateApplication();
 	app->Run();
 	return 0;
 }

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace cs_std
+namespace cs_std::math
 {
 	class random_engine
 	{

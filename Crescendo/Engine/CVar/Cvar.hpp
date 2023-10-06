@@ -8,7 +8,7 @@ namespace Crescendo::Engine
 {
 	/// <summary>
 	/// Stores global variables in CVar like system, all data is stored as strings
-	/// Numbers are capable of 64-bit integers
+	/// Numbers are capable of 64-bit integers, 64-bit floats
 	/// </summary>
 	class CVar
 	{

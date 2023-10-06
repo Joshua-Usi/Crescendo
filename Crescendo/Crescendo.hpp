@@ -10,13 +10,15 @@
  */
 
 // I have no idea why, but it will only compile if it is in this header, not in the Core.hpp header
-#include "Core/entrypoint.hpp"
+#include "entrypoint.hpp"
 
-#include "Core/Core.hpp"
 #include "Engine/Engine.hpp"
 #include "Graphics/Graphics.hpp"
 #include "IO/IO.hpp"
 #include "Libraries/Libraries.hpp"
 #include "Rendering/Rendering.hpp"
 
-#define CrescendoRegisterApp(app) shared<Crescendo::Engine::Application> Crescendo::Engine::CreateApplication() { return std::make_shared<app>(); }
+#include "cs_std/file.hpp"
+#include "cs_std/console.hpp"
+
+#define CrescendoRegisterApp(app) unique<Crescendo::Engine::Application> Crescendo::Engine::CreateApplication() { return std::make_unique<app>(); }

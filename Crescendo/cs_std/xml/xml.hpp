@@ -9,28 +9,26 @@
  *  But it was at this point I had decided reinventing *
  *          the wheel is such a waste of time!         *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#include "internal/XMLDocument.hpp"
+#include "document.hpp"
 
-#include <string>
-
-namespace Crescendo::Tools::XML
+namespace cs_std::xml
 {
 	/// <summary>
 	/// Takes an XML string and creates a XML Node tree
 	/// </summary>
 	/// <param name="xmlString">A reference to the string to be parsed</param>
 	/// <returns>XML node document</returns>
-	Document Parse(const std::string& xmlString);
+	document parse(const std::string& xmlString);
 	/// <summary>
 	/// Parses an XML document directly from a file. Requires no explicit string declarations
 	/// </summary>
 	/// <param name="filePath">A file path to the file that is to be parsed</param>
 	/// <returns>XML node document</returns>
-	Document ParseFromFile(const std::string& filePath);
+	document parse_file(const std::string& filePath);
 	/// <summary>
 	/// Takes an XML document and converts it into a serialised and saveable string
 	/// </summary>
 	/// <param name="xmlDoc">A reference of the XML document to build the serialised document</param>
 	/// <returns>serialised XML document string</returns>
-	std::string Stringify(const Document& xmlDoc);
+	std::string stringify(const document& xmlDoc);
 }

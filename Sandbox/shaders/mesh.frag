@@ -8,11 +8,7 @@ layout (location = 5) in vec4 iFragPosLightSpace;
 
 layout (location = 0) out vec4 oColor;
 
-layout(set = 1, binding = 0) uniform blinnPhongLightingData {
-	vec4 lightColor;
-};
-
-layout(set = 1, binding = 1) uniform blinnPhongLightingIntensities {
+layout(set = 1, binding = 0) uniform blinnPhongLightingIntensities {
 	float ambient;
 	float diffuse;
 	float specular;
@@ -48,14 +44,14 @@ void main()
 	// Diffuse
 	vec3 lightDir = normalize(iTanLightPos - iTanFragPos);
 	float diff = max(dot(normal, lightDir), 0.0f);
-	vec3 diffuse = bpli.diffuse * diff * lightColor.rgb;
+	float diffuse = bpli.diffuse * diff;
 
 	// Specular
 	vec3 viewDir = normalize(iTanViewPos - iTanFragPos);
 	vec3 reflectDir = reflect(-lightDir, normal);
 	vec3 halfwayDir = normalize(lightDir + viewDir);
 	float spec = pow(max(dot(normal, halfwayDir), 0.0f), 32.0f);
-	vec3 specular = bpli.specular * spec * lightColor.rgb;
+	float specular = bpli.specular * spec;
 
 	// Lighting mixing
 	vec3 result = (bpli.ambient + diffuse + specular) * texelColor.rgb;

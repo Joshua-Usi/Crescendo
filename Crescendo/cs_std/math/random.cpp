@@ -1,6 +1,6 @@
 #include "random.hpp"
 
-namespace cs_std
+namespace cs_std::math
 {
 	constexpr double RANDOM_MAX = 9223372036854775808.0;
 

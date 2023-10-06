@@ -1,120 +1,119 @@
 #pragma once
 
-#include "Core/common.hpp"
-
 #include <vector>
+#include <string>
 #include <fstream>
-#include <fileSystem>
+#include <filesystem>
 
-namespace Crescendo
+namespace cs_std
 {
 	typedef uint8_t byte;
 	/// <summary>
 	/// Provides a class wrapper around the File stream
 	/// </summary>
-	class File
+	class file
 	{
 	protected:
-		std::filesystem::path path;
-		std::fstream file;
-		inline File(const std::filesystem::path& filePath) { this->path = filePath; }
+		std::filesystem::path file_path;
+		std::fstream stream;
+		inline file(const std::filesystem::path& filePath) { this->file_path = filePath; }
 	public:
-		File() = delete;
-		inline virtual ~File() { this->Close(); }
+		file() = delete;
+		inline virtual ~file() { this->close(); }
 		/// <summary>
 		/// Close the file stream
 		/// </summary>
-		inline void Close() { if (this->IsOpen()) this->file.close(); }
+		inline void close() { if (this->is_open()) this->stream.close(); }
 
 		/// <summary>
 		/// Determines if a given file exists
 		/// </summary>
 		/// <returns>True if it exists</returns>
-		inline bool Exists() const { return std::filesystem::exists(this->path); }
+		inline bool exists() const { return std::filesystem::exists(this->file_path); }
 		/// <summary>
 		/// Determines if the file stream is open
 		/// </summary>
 		/// <returns>True if open</returns>
-		inline bool IsOpen() const { return this->file.is_open(); }
+		inline bool is_open() const { return this->stream.is_open(); }
 
 		/// <summary>
 		/// Creates a file
 		/// </summary>
-		inline void Create() const
+		inline void create() const
 		{
-			std::fstream file;
-			file.open(this->path, std::ios_base::out);
-			file.close();
+			std::fstream stream;
+			stream.open(this->file_path, std::ios_base::out);
+			stream.close();
 		}
 		/// <summary>
 		/// Removes / Deletes the file
 		/// </summary>
-		inline void Remove()
+		inline void remove()
 		{
 			// Close file stream first
-			this->Close();
-			std::filesystem::remove(this->path);
+			this->close();
+			std::filesystem::remove(this->file_path);
 		}
 		/// <summary>
 		/// Renamed a file to a new name
 		/// </summary>
 		/// <param name="name">The new name of the file</param>
-		inline void Rename(const std::string& name)
+		inline void rename(const std::string& name)
 		{
 			// Get path
-			std::filesystem::path parentDir = path.parent_path();
+			std::filesystem::path parentDir = file_path.parent_path();
 			// Create new path with new name
 			std::filesystem::path newPath = parentDir / name;
-			std::filesystem::rename(path, newPath);
-			path = newPath;
+			std::filesystem::rename(file_path, newPath);
+			this->file_path = newPath;
 		}
 		/// <summary>
 		/// Deletes all content from a file, THIS CANNOT BE UNDONE
 		/// </summary>
-		inline void Clear() const
+		inline void clear() const
 		{
-			std::fstream file(path, std::ios::out | std::ios::trunc);
+			std::fstream file(this->file_path, std::ios::out | std::ios::trunc);
 			file.close();
 		}
-		
+
 		/// <summary>
 		/// Get the size of the file in bytes
 		/// </summary>
 		/// <returns>Size of file in bytes</returns>
-		inline size_t GetSize() const { return std::filesystem::file_size(this->path); }
+		inline size_t size() const { return std::filesystem::file_size(this->file_path); }
 		/// <summary>
 		/// Returns the name of the file
 		/// </summary>
 		/// <returns>Name of file</returns>
-		inline std::string GetName() const { return this->path.filename().string(); }
+		inline std::string name() const { return this->file_path.filename().string(); }
 		/// <summary>
 		/// Returns the extension of the file, includes the .
 		/// </summary>
 		/// <returns>File extension (including .)</returns>
-		inline std::string GetExtension() const { return this->path.extension().string(); }
+		inline std::string extension() const { return this->file_path.extension().string(); }
 		/// <summary>
 		/// Return the path of the file
 		/// </summary>
 		/// <returns></returns>
-		inline std::filesystem::path GetPath() const { return this->path; }
+		inline std::filesystem::path path() const { return this->file_path; }
 	};
 	/// <summary>
 	/// Opens files in binary mode
 	/// </summary>
-	class BinaryFile : public File
+	class binary_file : public file
 	{
 	public:
 		/// <summary>
 		/// Creates a file stream associated with a file
 		/// </summary>
 		/// <param name="filePath">File path</param>
-		inline BinaryFile(const std::filesystem::path& filePath) : File(filePath) {}
+		inline binary_file(const std::filesystem::path& filePath) : file(filePath) {}
 		/// <summary>
 		/// Opens the file stream, In this class, opens in Binary mode
 		/// </summary>
-		inline BinaryFile& Open()
+		inline binary_file& open()
 		{
-			this->file = std::fstream(this->path, std::ios::in | std::ios::out | std::ios::binary);
+			this->stream = std::fstream(this->file_path, std::ios::in | std::ios::out | std::ios::binary);
 			return *this;
 		}
 		/// <summary>
@@ -123,49 +122,49 @@ namespace Crescendo
 		/// <param name="start">Start position of data to read</param>
 		/// <param name="count">Number of bytes to read</param>
 		/// <returns>Vector array of bytes</returns>
-		inline std::vector<byte> Read(size_t start, size_t count = 1)
+		inline std::vector<byte> read(size_t start, size_t count = 1)
 		{
-			this->file.seekg(start, std::ios::beg);
+			this->stream.seekg(start, std::ios::beg);
 			// Generate buffer to store data
-			std::vector<byte> buffer(count, 0);
+			std::vector<byte> buffer(count);
 			// Read file data to buffer
-			file.read(reinterpret_cast<char*>(buffer.data()), count);
+			this->stream.read(reinterpret_cast<char*>(buffer.data()), count);
 			return buffer;
 		}
 		/// <summary>
 		/// Reads the entire file
 		/// </summary>
 		/// <returns>Vector array of bytes</returns>
-		inline std::vector<byte> Read() { return this->Read(0, this->GetSize()); }
+		inline std::vector<byte> read() { return this->read(0, this->size()); }
 		/// <summary>
 		/// Appends binary data to the end of the file
 		/// </summary>
 		/// <param name="data">Binary data in the form of a Vector array of bytes</param>
-		inline BinaryFile& Append(const std::vector<byte>& data)
+		inline binary_file& append(const std::vector<byte>& data)
 		{
 			// Seek to end and append
-			this->file.seekp(0, std::ios::end);
-			this->file.write(reinterpret_cast<const char*>(data.data()), data.size());
+			this->stream.seekp(0, std::ios::end);
+			this->stream.write(reinterpret_cast<const char*>(data.data()), data.size());
 			return *this;
 		}
 	};
 	/// <summary>
 	/// Opens files in text mode
 	/// </summary>
-	class TextFile : public File
+	class text_file : public file
 	{
 	public:
 		/// <summary>
 		/// Creates a file stream associated with a file
 		/// </summary>
 		/// <param name="filePath">File path</param>
-		inline TextFile(const std::filesystem::path& filePath) : File(filePath) {}
+		inline text_file(const std::filesystem::path& filePath) : file(filePath) {}
 		/// <summary>
 		/// Opens the file stream, In this class, opens in Text mode
 		/// </summary>
-		inline TextFile& Open()
+		inline text_file& open()
 		{
-			this->file = std::fstream(this->path, std::ios::in | std::ios::out);
+			this->stream = std::fstream(this->file_path, std::ios::in | std::ios::out);
 			return *this;
 		}
 		/// <summary>
@@ -174,38 +173,38 @@ namespace Crescendo
 		/// <param name="start">Start position of data to read</param>
 		/// <param name="count">Number of characters to read</param>
 		/// <returns>String of characters</returns>
-		inline std::string Read(size_t start, size_t count = 1)
+		inline std::string read(size_t start, size_t count = 1)
 		{
-			this->file.seekg(start, std::ios::beg);
+			this->stream.seekg(start, std::ios::beg);
 			std::string buffer;
 			buffer.resize(count);
-			file.read(&buffer[0], count);
+			this->stream.read(buffer.data(), count);
 			return buffer;
 		}
 		/// <summary>
 		/// Reads the entire file
 		/// </summary>
 		/// <returns>String of characters</returns>
-		inline std::string Read() { return this->Read(0, this->GetSize()); }
+		inline std::string read() { return this->read(0, this->size()); }
 		/// <summary>
 		/// Appends a string to the end of a file
 		/// </summary>
 		/// <param name="data">String to append</param>
-		inline TextFile& Append(const std::string& data)
+		inline text_file& append(const std::string& data)
 		{
 			// Seek to end and append
-			this->file.seekp(0, std::ios::end);
-			this->file.write(reinterpret_cast<const char*>(data.data()), data.size());
+			this->stream.seekp(0, std::ios::end);
+			this->stream.write(reinterpret_cast<const char*>(data.data()), data.size());
 			return *this;
 		}
 		/// <summary>
 		/// Appends a string to the end of a file and adds a new line
 		/// </summary>
 		/// <param name="data">String to append</param>
-		inline TextFile& AppendLine(const std::string& data)
+		inline text_file& append_line(const std::string& data)
 		{
-			this->Append(data);
-			this->Append("\n");
+			this->append(data);
+			this->append("\n");
 			return *this;
 		}
 	};

@@ -1,28 +1,51 @@
 #pragma once
 
 #include <vector>
+#include <map>
+#include <string>
+#include <cstdint>
+#include <memory>
 
-#include "Core/common.hpp"
-#include "XMLAttributeContainer.hpp"
-
-namespace Crescendo::Tools::XML
+namespace cs_std::xml
 {
-	// Provides a javascript-like interface to nodes
-	class Node : public AttributeContainer
+	class attribute_container
 	{
 	public:
-		std::vector<unique<Node>> children;
-		Node* parent;
-		std::string tag;
-		std::string innerText;
+		std::map<const char*, const char*> attributes;
+	public:
+		attribute_container() = default;
+		inline std::string GetAttribute(const char* attributeName)
+		{
+			return attributes[attributeName];
+		}
+		inline void SetAttribute(const char* attributeName, const char* attributeValue)
+		{
+			attributes[attributeName] = attributeValue;
+		}
+		inline void RemoveAttribute(const char* attributeName)
+		{
+			attributes.erase(attributeName);
+		}
+		inline uint64_t AttributeCount() const
+		{
+			return attributes.size();
+		}
+	};
+	// Provides a javascript-like interface to nodes
+	class node : public attribute_container
+	{
+	public:
+		std::vector<std::unique_ptr<node>> children;
+		node* parent;
+		std::string tag, innerText;
 	public:
 		// RapidXML like syntax
-		inline Node* _first_node() const
+		inline node* _first_node() const
 		{
 			if (this->GetChildCount() > 0) return this->GetChild(0);
 			return nullptr;
 		}
-		inline Node* _next_sibling()
+		inline node* _next_sibling()
 		{
 			if (!this->GetParent()) return nullptr;
 			uint32_t i = 0;
@@ -36,11 +59,12 @@ namespace Crescendo::Tools::XML
 			}
 			return nullptr;
 		}
-		inline Node* _parent()
+		inline node* _parent()
 		{
 			return (this->GetParent()) ? this->GetParent() : nullptr;
 		}
-		inline Node(Node* par = nullptr)
+	public:
+		inline node(node* par = nullptr)
 		{
 			parent = par;
 			if (parent != nullptr) parent->children.emplace_back(this);
@@ -49,7 +73,7 @@ namespace Crescendo::Tools::XML
 		/// Returns a pointer to the parent nodes of the current node
 		/// </summary>
 		/// <returns>Pointer to parent node</returns>
-		inline Node* GetParent() const
+		inline node* GetParent() const
 		{
 			return parent;
 		}
@@ -57,21 +81,18 @@ namespace Crescendo::Tools::XML
 		/// Returns a pointer that points to the beginning of the children array
 		/// </summary>
 		/// <returns>Pointer to beginning of children array</returns>
-		inline Node** GetChildren() const
+		inline node** GetChildren() const
 		{
-			return (Node**)children.data()->get();
+			return (node**)children.data()->get();
 		}
 		/// <summary>
 		/// Gets a specific child by its index, if the index is out of range, it returns a null pointer
 		/// </summary>
 		/// <param name="n">Index of the child</param>
 		/// <returns>Pointer to child</returns>
-		inline Node* GetChild(unsigned int n) const
+		inline node* GetChild(unsigned int n) const
 		{
-			if (n < children.size())
-			{
-				return children[n].get();
-			}
+			if (n < children.size()) return children[n].get();
 			return nullptr;
 		}
 		/// <summary>
@@ -87,7 +108,7 @@ namespace Crescendo::Tools::XML
 		/// </summary>
 		/// <param name="nodes">A set of nodes to append</param>
 		template <typename...>
-		inline void Append(Node* nodes, ...)
+		inline void Append(node* nodes, ...)
 		{
 			for (const auto node : { nodes... }) {
 				node->parent = this;
@@ -98,7 +119,7 @@ namespace Crescendo::Tools::XML
 		/// Appends a singular node to the current node
 		/// </summary>
 		/// <param name="node">Pointer to node</param>
-		inline void AppendChild(Node* node)
+		inline void AppendChild(node* node)
 		{
 			node->parent = this;
 			children.emplace_back(node);
@@ -133,6 +154,20 @@ namespace Crescendo::Tools::XML
 		inline std::string GetTextContent() const
 		{
 			return innerText;
+		}
+	};
+	class document : public attribute_container
+	{
+	public:
+		std::unique_ptr<node> root;
+	public:
+		document()
+		{
+			root.reset(new node);
+		}
+		node* GetRootNode() const
+		{
+			return root.get();
 		}
 	};
 }

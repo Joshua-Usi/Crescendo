@@ -8,7 +8,7 @@ namespace Crescendo::Engine
 	// Assign self and null as no instance exists yet
 	Application* Application::self = nullptr;
 	Application::Application()
-		: taskQueue(TaskQueue()), timeManager(TimeManager()), layerManager(LayerStack()), window(Window::Create())
+		: taskQueue(cs_std::task_queue()), timeManager(cs_std::time_manager()), layerManager(LayerStack()), window(Window::Create())
 	{
 		CS_ASSERT(self == nullptr, "Application instance already exists!");
 		self = this;
@@ -19,7 +19,7 @@ namespace Crescendo::Engine
 		uint32_t refreshRate = this->window->GetRefreshRate();
 		double secondsPerFrame = (refreshRate == 0 || !CVar::Get<bool>("ec_vsync")) ? 0.0 : 1.0 / double(refreshRate);
 		this->layerManager.Attach(new LayerUpdate(secondsPerFrame, 0));
-		this->layerManager.Init(this->timeManager.GetTimeSinceStart<double>());
+		this->layerManager.Init(this->timeManager.now<double>());
 
 		this->window->SetSize(CVar::Get<int64_t>("ec_windowwidth"), CVar::Get<int64_t>("ec_windowheight"));
 
@@ -44,10 +44,10 @@ namespace Crescendo::Engine
 	}
 	void Application::Run()
 	{
-		CS_TIME(this->OnStartup(), "Startup");
+		this->OnStartup();
 		while (this->IsRunning())
 		{
-			double time = this->timeManager.GetTimeSinceStart<double>();
+			double time = this->timeManager.now<double>();
 			/*
 			 *	I'm going to make a safe presumption that the time for query is a very minute amount of time
 			 *	So we don't need to the time again, tests have shown it is in the 100's of nanoseconds

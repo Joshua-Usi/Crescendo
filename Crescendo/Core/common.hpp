@@ -1,22 +1,22 @@
-#pragma once
+	#pragma once
+
+#include "cs_std/console.hpp"
 
 #include <cstdint>
-#include <string>
 #include <memory>
-#include <iostream>
 #include <chrono>
 
-template<typename type>
-using unique = std::unique_ptr<type>;
-template<typename type>
-using shared = std::shared_ptr<type>;
+template<typename T>
+using unique = std::unique_ptr<T>;
+template<typename T>
+using shared = std::shared_ptr<T>;
 
 #ifndef CS_ASSERT
 	#ifdef CS_DEBUG
 		#define CS_ASSERT(x, message)\
 			if (!(x))\
 			{\
-				std::cout << "[" << __FILE__ << ":" << __LINE__ << "] " << message << std::endl;\
+				cs_std::console::fatal(__FILE__, ":", __LINE__, message);\
 				abort();\
 			}
 	#else
@@ -26,8 +26,6 @@ using shared = std::shared_ptr<type>;
 	#endif
 #endif
 
-#define CS_SHOW_TIMINGS
-
 #ifndef CS_TIME
 	// Shows time taken to execute a block of code in milliseconds with 3 decimal places
 	#ifdef CS_SHOW_TIMINGS
@@ -36,7 +34,7 @@ using shared = std::shared_ptr<type>;
 			auto start = std::chrono::high_resolution_clock::now();\
 			code;\
 			std::chrono::duration<double, std::milli> duration = std::chrono::high_resolution_clock::now() - start;\
-			std::cout << identifier << " took " << duration.count() << "ms" << std::endl;\
+			cs_std::console::log(identifier, "took", duration.count(), "ms");\
 		}
 	#else
 		#define CS_TIME(code, identifier) code

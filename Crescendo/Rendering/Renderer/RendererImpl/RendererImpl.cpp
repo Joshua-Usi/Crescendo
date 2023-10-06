@@ -230,32 +230,20 @@ namespace Crescendo
 			4, // JOINTS0
 			4  // WEIGHTS0
 		};
-		
-		// It should not be possible, but just in case
-		CS_ASSERT(sizeof(uint32_t) == sizeof(float), "Somehow sizeof uint32_t and sizeof float don't match!");
 
-		for (const auto& attribute : attributes)
-		{
-			CS_ASSERT(attribute.data.size() % ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(attribute.attribute)] == 0, "Invalid mesh data! mesh has " + std::to_string(attribute.data.size()) + " elements! but expected a multiple of " + std::to_string(ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(attribute.attribute)]) + "!");
-		}
+		for (const auto& attribute : attributes) CS_ASSERT(attribute.data.size() % ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(attribute.attribute)] == 0, "Invalid mesh data! mesh has " + std::to_string(attribute.data.size()) + " elements! but expected a multiple of " + std::to_string(ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(attribute.attribute)]) + "!");
 		CS_ASSERT(indices.size() % 3 == 0, "Invalid mesh data! mesh has " + std::to_string(indices.size()) + " indices! but expected a multiple of 3!");
-		// TODO assert for potential buffer overflow
+		// TODO assert for potential buffer overflows
 		
 		// Determine the buffer offsets
 		std::vector<uint32_t> bufferOffsets(1, 0);
 		bufferOffsets.push_back(bufferOffsets.back() + indices.size() * sizeof(uint32_t));
-		for (const auto& attribute : attributes)
-		{
-			bufferOffsets.push_back(bufferOffsets.back() + attribute.data.size() * sizeof(float));
-		}
+		for (const auto& attribute : attributes) bufferOffsets.push_back(bufferOffsets.back() + attribute.data.size() * sizeof(float));
 
 		// Stage all data into one buffer, reduces allocations
 		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(bufferOffsets.back(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 		staging.Fill(0, indices.data(), indices.size() * sizeof(uint32_t));
-		for (size_t i = 0; i < attributes.size(); i++)
-		{
-			staging.Fill(bufferOffsets[i + 1], attributes[i].data.data(), attributes[i].data.size() * sizeof(float));
-		}
+		for (size_t i = 0; i < attributes.size(); i++) staging.Fill(bufferOffsets[i + 1], attributes[i].data.data(), attributes[i].data.size() * sizeof(float));
 
 		// Upload data to the GPU
 		this->uploadQueue.InstantSubmit([&](const internal::CommandQueue& cmd) {
@@ -266,34 +254,27 @@ namespace Crescendo
 			// Copy other vertex attributes
 			for (size_t i = 0; i < attributes.size(); i++)
 			{
-				const size_t attributeIndex = static_cast<size_t>(attributes[i].attribute) + 1;
+				const uint8_t attributeIndex = static_cast<uint8_t>(attributes[i].attribute) + 1;
 				VkBufferCopy copy = Create::BufferCopy(bufferOffsets[i + 1], this->offsets[attributeIndex].back() * sizeof(float) * ELEMENTS_PER_ATTRIBUTE[attributeIndex - 1], attributes[i].data.size() * sizeof(float));
 				cmd.CopyBuffer(staging.buffer, this->vertexBuffers[attributeIndex].buffer, { copy });
 			}
 		});
 
-		// Indice offsets
+		// Buffer offsets
 		this->offsets[0].push_back(this->offsets[0].back() + indices.size() / 3);
-
-		// Other vertex attribute offsets
-		for (size_t i = 0; i < attributes.size(); i++)
+		// Only O(n) cause it presumes that the attributes are in sorted order
+		// Otherwise it'd be O(n log n) which honestly isn't that bad
+		for (uint32_t i = 1, attrIdx = 0; i < offsets.size(); i++)
 		{
-			const uint32_t attributeIndex = static_cast<uint32_t>(attributes[i].attribute) + 1;
-			this->offsets[attributeIndex].push_back(this->offsets[attributeIndex].back() + static_cast<uint32_t>(attributes[i].data.size()) / ELEMENTS_PER_ATTRIBUTE[attributeIndex - 1]);
-		}
-		// Even though some attributes may not be present, we still need to add the offsets, but it'll be 0, only need to add to attributes that haven't been pushed to
-		for (size_t i = 1; i < this->offsets.size(); i++)
-		{
-			bool found = false;
-			for (const auto& attribute : attributes)
+			if (attrIdx < attributes.size() && i == static_cast<uint32_t>(attributes[attrIdx].attribute) + 1)
 			{
-				if (static_cast<size_t>(attribute.attribute) + 1 == i)
-				{
-					found = true;
-					break;
-				}
+				this->offsets[i].push_back(this->offsets[i].back() + static_cast<uint32_t>(attributes[attrIdx].data.size()) / ELEMENTS_PER_ATTRIBUTE[i - 1]);
+				attrIdx++;
 			}
-			if (!found) this->offsets[i].push_back(this->offsets[i].back());
+			else
+			{
+				this->offsets[i].push_back(this->offsets[i].back());
+			}
 		}
 
 		this->allocator.DestroyBuffer(staging);

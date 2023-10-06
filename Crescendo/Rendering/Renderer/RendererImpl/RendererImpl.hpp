@@ -32,8 +32,14 @@ namespace Crescendo
 		std::vector<internal::Allocator::Image> images;
 		inline Swapchain(VkSwapchainKHR swapchain = nullptr, VkFormat imageFormat = {}, VkExtent2D extent = {}, const std::vector<internal::Allocator::Image>& images = {})
 			: swapchain(swapchain), imageFormat(imageFormat), extent(extent), images(images) {}
-		inline const VkExtent2D& GetExtent() const { return extent; }
-		inline VkExtent3D GetExtent3D() const { return { extent.width, extent.height, 1 }; }
+		inline const VkExtent2D& GetExtent() const
+		{
+			return extent;
+		}
+		inline VkExtent3D GetExtent3D() const
+		{
+			return { extent.width, extent.height, 1 };
+		}
 	};
 
 	struct FrameData
@@ -88,7 +94,10 @@ namespace Crescendo
 		inline RenderPass(VkRenderPass renderPass, bool hasColorAttachment, bool hasDepthAttachment) :
 			renderPass(renderPass), hasColorAttachment(hasColorAttachment), hasDepthAttachment(hasDepthAttachment) {}
 
-		inline operator VkRenderPass() const { return renderPass; }
+		inline operator VkRenderPass() const
+		{
+			return renderPass;
+		}
 	};
 		
 	struct Pipeline
@@ -181,7 +190,10 @@ namespace Crescendo
 		RendererImpl() = default;
 		~RendererImpl() = default;
 
-		inline uint32_t GetFrameIndex() const { return this->state.frameIndex; };
+		inline uint32_t GetFrameIndex() const
+		{
+			return this->state.frameIndex;
+		};
 		FrameData& GetCurrentFrameData();
 
 		void InitialiseInstance(const BuilderInfo& info);
@@ -195,7 +207,10 @@ namespace Crescendo
 		void InitialiseFramebuffers(const BuilderInfo& info);
 
 		void RecreateSwapchain();
-		inline void Resize() { this->state.didFramebufferResize = true; }
+		inline void Resize()
+		{
+			this->state.didFramebufferResize = true;
+		}
 
 		// Commands
 		void BeginFrame();

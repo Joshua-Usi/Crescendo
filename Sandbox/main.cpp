@@ -5,14 +5,14 @@ typedef Crescendo::Renderer Renderer;
 namespace Graphics = Crescendo::Graphics;
 namespace IO = Crescendo::IO;
 
-#include "cs_std/random.hpp"
-
-#include "Libraries/Algorithms/Algorithms.hpp"
+#include <cs_std/graphics/algorithms.hpp>
 
 #include "glm/gtx/common.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
 #include "CameraController.hpp"
+
+#include <map>
 
 class Sandbox : public Application
 {
@@ -22,9 +22,8 @@ private:
 	Graphics::PerspectiveCamera shadowMapCamera;
 
 	uint32_t meshCount = 0;
-	bool uReleased = true;
 
-	std::vector<Crescendo::Algorithms::BoundingAABB> meshBounds;
+	std::vector<cs_std::graphics::bounding_aabb> meshBounds;
 	std::vector<glm::mat4> meshTransforms;
 
 	struct TextureIDs { uint32_t diffuse, normal; };
@@ -37,6 +36,7 @@ private:
 public:
 	void OnStartup()
 	{
+
 		this->GetWindow()->SetCursorLock(true);
 
 		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
@@ -53,13 +53,15 @@ public:
 		this->shadowMapCamera.SetRotation(glm::vec3(-std::numbers::pi / 2, std::numbers::pi / 2, 0));
 			
 		// Upload shaders (creates pipelines and descriptor sets)
-		// Shader loading
+
+		double now = this->GetTime(), now2 = now;
+
 		struct Shader { std::string name; std::vector<Renderer::PipelineVariant> variants; };
 		std::vector<Shader> shaderList = {
 			{
 				"./shaders/compiled/mesh",
 				{
-					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back), // Single sided, opaque meshes
+					Renderer::PipelineVariant(), // Single sided, opaque meshes
 					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, true, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None), // Double sided, opaque meshes
 					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::Back), // Single sided, transparent meshes
 					Renderer::PipelineVariant(Renderer::PipelineVariant::FillMode::Solid, true, false, Renderer::PipelineVariant::DepthFunc::Less, Renderer::PipelineVariant::CullMode::None) // Double sided, transparent meshes
@@ -72,11 +74,14 @@ public:
 		for (const auto& shader : shaderList)
 		{
 			this->renderer.renderer.UploadPipeline(
-				Crescendo::BinaryFile(shader.name + ".vert.spv").Open().Read(),
-				Crescendo::BinaryFile(shader.name + ".frag.spv").Open().Read(),
+				cs_std::binary_file(shader.name + ".vert.spv").open().read(),
+				cs_std::binary_file(shader.name + ".frag.spv").open().read(),
 				shader.variants
 			);
 		}
+
+		cs_std::console::log("Shader upload took", this->GetTime() - now, "s");
+		now = this->GetTime();
 
 		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
 		IO::Model skyboxModel = { {{ skybox.vertices, {}, skybox.textureUVs, {}, skybox.indices, "./assets/skybox.png"}} };
@@ -108,15 +113,15 @@ public:
 			{
 				// Mesh upload
 				std::vector<Renderer::ShaderAttribute> attributes;
-				attributes.push_back({ mesh.vertices, Renderer::ShaderAttributeFlag::Position });
-				if (mesh.normals.size() > 0) attributes.push_back({ mesh.normals, Renderer::ShaderAttributeFlag::Normal });
-				if (mesh.tangents.size() > 0) attributes.push_back({ mesh.tangents, Renderer::ShaderAttributeFlag::Tangent });
-				attributes.push_back({ mesh.textureUVs, Renderer::ShaderAttributeFlag::TexCoord_0 });
+				if (mesh.vertices.size() > 0) attributes.emplace_back(mesh.vertices, Renderer::ShaderAttributeFlag::Position);
+				if (mesh.normals.size() > 0) attributes.emplace_back(mesh.normals, Renderer::ShaderAttributeFlag::Normal);
+				if (mesh.tangents.size() > 0) attributes.emplace_back(mesh.tangents, Renderer::ShaderAttributeFlag::Tangent);
+				if (mesh.textureUVs.size() > 0) attributes.emplace_back(mesh.textureUVs, Renderer::ShaderAttributeFlag::TexCoord_0);
 
 				this->renderer.renderer.UploadMesh(attributes, mesh.indices);
 
 				meshTransforms.push_back(mesh.transform);
-				meshBounds.push_back(Crescendo::Algorithms::CalculateMeshBoundingAABB(mesh.vertices).Transform(mesh.transform));
+				meshBounds.push_back(cs_std::graphics::bounding_aabb(mesh.vertices).transform(mesh.transform));
 				isTransparent.push_back(mesh.isTransparent);
 				isDoubleSided.push_back(mesh.isDoubleSided);
 				isShadowCasting.push_back(true);
@@ -143,13 +148,38 @@ public:
 		for (const auto& texture : seenTexturesDiffuse) textureStrings[texture.second] = texture.first;
 		for (const auto& texture : seenTexturesNormal) textureStrings[seenTexturesDiffuse.size() + texture.second] = texture.first;
 
+		cs_std::console::log("Mesh upload took", this->GetTime() - now, "s");
+		now = this->GetTime();
+
 		std::vector<IO::Image> images(textureStrings.size());
+
+		std::atomic<uint32_t> finishedTasks = 0;
+		uint32_t last = 0;
+
 		for (uint32_t i = 0; i < textureStrings.size(); i++)
 		{
-			this->taskQueue.AddTask([&images, &textureStrings, i]() { images[i] = IO::LoadImage(textureStrings[i]); });
+			this->taskQueue.push_back([&images, &textureStrings, i, &finishedTasks]() { images[i] = IO::LoadImage(textureStrings[i]); finishedTasks++; });
 		}
-		this->taskQueue.WaitTillFinished();
+		
+		while (!this->taskQueue.finished())
+		{
+			if (finishedTasks != last)
+			{
+				for (uint32_t i = 0; i < finishedTasks - last; i++) cs_std::console::raw("#");
+				last = finishedTasks;
+			}
+		}
+		cs_std::console::raw('\n');
+
+		this->taskQueue.sleep();
+
+		cs_std::console::log("Texture decode took", this->GetTime() - now, "s");
+		now = this->GetTime();
+
 		for (auto& image : images) this->renderer.renderer.UploadTexture(image.pixels.get(), image.width, image.height, image.channels, false);
+
+		cs_std::console::log("Texture upload took", this->GetTime() - now, "s");
+		cs_std::console::log("Startup took", this->GetTime() - now2, "s");
 	}
 	void OnUpdate(double dt)
 	{
@@ -159,20 +189,13 @@ public:
 		this->shadowMapCamera.SetPosition(glm::vec3(std::cosf(currentTime) * 6.0f, 30.0f, std::sinf(currentTime) * 6.0f));
 
 		// Render prep
-		struct data { glm::mat4 viewProj, lightSpace; } vertex {
-			this->camera.camera.GetViewProjectionMatrix(),
-			this->shadowMapCamera.GetViewProjectionMatrix()
-		};
-		struct VSLighting {glm::vec4 lightPosition, viewPosition; } vsLighting {
-			glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f),
-			glm::vec4(this->camera.camera.GetPosition(), 1.0f)
-		};
+		const glm::mat4 projections[2] = { this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
+		const glm::vec4 lightingPositions[2] = { glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f), glm::vec4(this->camera.camera.GetPosition(), 1.0f) };
 		const glm::vec3 lightIntensities = glm::vec3(0.2f, 0.5f, 0.3f);
 		
-		this->renderer.renderer.UpdateDescriptorSetData(0, 0, vertex);
-		this->renderer.renderer.UpdateDescriptorSetData(0, 1, vsLighting);
-		this->renderer.renderer.UpdateDescriptorSetData(1, 0, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-		this->renderer.renderer.UpdateDescriptorSetData(1, 1, lightIntensities);
+		this->renderer.renderer.UpdateDescriptorSetData(0, 0, projections, 2 * sizeof(glm::mat4));
+		this->renderer.renderer.UpdateDescriptorSetData(0, 1, lightingPositions, 2 * sizeof(glm::vec4));
+		this->renderer.renderer.UpdateDescriptorSetData(1, 0, lightIntensities);
 		this->renderer.renderer.UpdateDescriptorSetData(2, 0, this->camera.camera.GetViewProjectionMatrix());
 		this->renderer.renderer.UpdateDescriptorSetData(3, 0, this->shadowMapCamera.GetViewProjectionMatrix());
 		this->renderer.renderer.UpdateDescriptorSetData(4, 0, this->UICamera.GetViewProjectionMatrix());
@@ -184,12 +207,12 @@ public:
 		// Shadow render pass
 		{
 			this->renderer.renderer.CmdBeginRenderPass(1);
-			Crescendo::Algorithms::Frustum frustum = Crescendo::Algorithms::GetFrustum(this->shadowMapCamera.GetViewProjectionMatrix());
+			cs_std::graphics::frustum frustum(this->shadowMapCamera.GetViewProjectionMatrix());
 			this->renderer.renderer.CmdBindPipeline(5);
 
 			for (uint32_t i = 0; i < this->meshCount - 2; i++)
 			{
-				if (!Crescendo::Algorithms::IsInFrustum(frustum, this->meshBounds[i])) continue;
+				if (!frustum.intersects(this->meshBounds[i])) continue;
 				if (!this->isShadowCasting[i]) continue;
 
 				actualDrawCount++;
@@ -208,11 +231,11 @@ public:
 			this->renderer.renderer.CmdDraw(this->meshCount - 2);
 			actualDrawCount++;
 
-			Crescendo::Algorithms::Frustum frustum = Crescendo::Algorithms::GetFrustum(this->camera.camera.GetViewProjectionMatrix());
+			cs_std::graphics::frustum frustum(this->camera.camera.GetViewProjectionMatrix());
 
 			for (uint32_t i = 0; i < this->meshCount - 2; i++)
 			{
-				if (!Crescendo::Algorithms::IsInFrustum(frustum, this->meshBounds[i])) continue;
+				if (!frustum.intersects(this->meshBounds[i])) continue;
 
 				if (!isTransparent[i] && !isDoubleSided[i]) this->renderer.renderer.CmdBindPipeline(0);
 				if (!isTransparent[i] && isDoubleSided[i]) this->renderer.renderer.CmdBindPipeline(1);

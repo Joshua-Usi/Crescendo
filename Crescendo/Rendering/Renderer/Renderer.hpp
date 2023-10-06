@@ -126,7 +126,7 @@ namespace Crescendo
 			 *	Can be changed at runtime
 			 */
 			uint32_t msaaSamples;
-/*
+			/*
 			 *	Specifies the number of samples to use for anistropic filtering
 			 *	Anistropic filtering is a technique used to reduce aliasing, it does come with a performance cost
 			 *	Set to 1.0f for no anistropic filtering, if set higher than the highest supported value, it will be clamped to the highest supported value

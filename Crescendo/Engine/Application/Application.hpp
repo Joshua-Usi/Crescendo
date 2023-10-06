@@ -2,8 +2,9 @@
 
 #include "Core/common.hpp"
 #include "Core/LayerStack/LayerStack.hpp"
-#include "Core/include/TimeManager.hpp"
-#include "Core/TaskQueue/TaskQueue.hpp"
+
+#include "cs_std/task_queue.hpp"
+#include "cs_std/time_manager.hpp"
 
 #include "Engine/interfaces/Window.hpp"
 
@@ -17,11 +18,11 @@ namespace Crescendo::Engine
 		shared<Window> window;
 
 		LayerStack layerManager;
-		TimeManager timeManager;
+		cs_std::time_manager timeManager;
 
 		static Application* self;
 	protected:
-		TaskQueue taskQueue;
+		cs_std::task_queue taskQueue;
 		Atlas renderer;
 	public:
 		Application();
@@ -41,7 +42,7 @@ namespace Crescendo::Engine
 		/// </summary>
 		/// <returns>Time (in seconds) since the application started</returns>
 		template<typename return_type = double>
-		return_type GetTime() { return this->timeManager.GetTimeSinceStart<return_type>(); }
+		return_type GetTime() { return this->timeManager.now<return_type>(); }
 		/// <summary>
 		/// Returns the window interface for the current application
 		/// </summary>
@@ -68,5 +69,5 @@ namespace Crescendo::Engine
 	/// <summary>
 	/// To be defined by the client to implement their own inherited Application class
 	/// </summary>
-	shared<Application> CreateApplication();
+	unique<Application> CreateApplication();
 }

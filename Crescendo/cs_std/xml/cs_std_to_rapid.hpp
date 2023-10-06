@@ -1,14 +1,14 @@
 #pragma once
 
-#include "../XML.hpp"
+#include "xml.hpp"
 
 #include "rapidxml/rapidxml.hpp"
 #include "rapidxml/rapidxml_ext.hpp"
 #include "rapidxml/rapidxml_print.hpp"
 
-namespace Crescendo::Tools::XML::internal
+namespace cs_std::xml::internal
 {
-	inline rapidxml::xml_node<>* ConvertCrescendoNodeToRapid(rapidxml::xml_document<char>* rapidDoc, Node* csNode)
+	inline rapidxml::xml_node<>* cs_std_node_to_rapid_node(rapidxml::xml_document<char>* rapidDoc, node* csNode)
 	{
 		char* tag = rapidDoc->allocate_string(csNode->GetTagName().c_str());
 		char* text = rapidDoc->allocate_string(csNode->GetTextContent().c_str());
@@ -22,9 +22,9 @@ namespace Crescendo::Tools::XML::internal
 		}
 		return node;
 	};
-	inline void CrescendoToRapid(const Document& crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
+	inline void cs_std_to_rapid(const document& crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
 	{
-		Node* csWorkingNode = crescendoDoc.root.get();
+		node* csWorkingNode = crescendoDoc.root.get();
 		rapidxml::xml_node<>* workingNode = rapidDoc;
 
 		// Move declaration node, if declarations exist
@@ -44,9 +44,10 @@ namespace Crescendo::Tools::XML::internal
 		bool wasLastOperationUp = false;
 
 		// The below loop for some reason skips the root node
-		workingNode = ConvertCrescendoNodeToRapid(rapidDoc, csWorkingNode);
+		workingNode = cs_std_node_to_rapid_node(rapidDoc, csWorkingNode);
 		rapidDoc->append_node(workingNode);
 
+		// Lol do while go br
 		do
 		{
 			// depth first search
@@ -59,7 +60,7 @@ namespace Crescendo::Tools::XML::internal
 				wasLastOperationUp = false;
 
 				csWorkingNode = csWorkingNode->_first_node();
-				rapidxml::xml_node<>* node = ConvertCrescendoNodeToRapid(rapidDoc, csWorkingNode);
+				rapidxml::xml_node<>* node = cs_std_node_to_rapid_node(rapidDoc, csWorkingNode);
 
 				workingNode->append_node(node);
 				workingNode = node;
@@ -69,7 +70,7 @@ namespace Crescendo::Tools::XML::internal
 				wasLastOperationUp = false;
 
 				csWorkingNode = csWorkingNode->_next_sibling();
-				rapidxml::xml_node<>* node = ConvertCrescendoNodeToRapid(rapidDoc, csWorkingNode);
+				rapidxml::xml_node<>* node = cs_std_node_to_rapid_node(rapidDoc, csWorkingNode);
 
 				workingNode->parent()->append_node(node);
 				workingNode = node;
