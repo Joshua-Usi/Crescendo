@@ -36,7 +36,6 @@ private:
 public:
 	void OnStartup()
 	{
-
 		this->GetWindow()->SetCursorLock(true);
 
 		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
@@ -55,7 +54,6 @@ public:
 		);
 			
 		// Upload shaders (creates pipelines and descriptor sets)
-
 		double now = this->GetTime(), now2 = now;
 
 		struct Shader { std::string name; Renderer::PipelineVariants variants; };
@@ -167,11 +165,8 @@ public:
 		
 		while (!this->taskQueue.finished())
 		{
-			if (finishedTasks != last)
-			{
-				for (uint32_t i = 0; i < finishedTasks - last; i++) cs_std::console::raw("#");
-				last = finishedTasks;
-			}
+			for (uint32_t i = 0; i < finishedTasks - last; i++) cs_std::console::raw("#");
+			last = finishedTasks;
 		}
 		cs_std::console::raw('\n');
 
@@ -230,6 +225,7 @@ public:
 		{
 			this->renderer.renderer.CmdBeginRenderPass(0, 0.0f, 0.0f, 0.0f, 1.0f);
 
+			// Skybox
 			this->renderer.renderer.CmdBindPipeline(4);
 			this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), this->camera.camera.GetPosition()));
 			this->renderer.renderer.CmdBindTexture(1, textureIDs[this->meshCount - 2].diffuse);
@@ -255,6 +251,8 @@ public:
 
 				this->renderer.renderer.CmdDraw(i);
 			}
+
+			// Anything UI related
 
 			this->renderer.renderer.CmdBindPipeline(6);
 
