@@ -32,14 +32,8 @@ namespace Crescendo
 		std::vector<internal::Allocator::Image> images;
 		inline Swapchain(VkSwapchainKHR swapchain = nullptr, VkFormat imageFormat = {}, VkExtent2D extent = {}, const std::vector<internal::Allocator::Image>& images = {})
 			: swapchain(swapchain), imageFormat(imageFormat), extent(extent), images(images) {}
-		inline const VkExtent2D& GetExtent() const
-		{
-			return extent;
-		}
-		inline VkExtent3D GetExtent3D() const
-		{
-			return { extent.width, extent.height, 1 };
-		}
+		inline const VkExtent2D& GetExtent() const { return extent; }
+		inline VkExtent3D GetExtent3D() const { return { extent.width, extent.height, 1 }; }
 	};
 
 	struct FrameData
@@ -60,14 +54,8 @@ namespace Crescendo
 
 		bool didFramebufferResize;
 
-		inline RendererState() :
-			frameData({}),
-			frameIndex(0),
-			swapchainImageIndex(0),
-			boundPipelineIndex(0),
-			didFramebufferResize(false),
-			msaaSamples(VK_SAMPLE_COUNT_1_BIT)
-		{};
+		inline RendererState() : 
+			frameData({}), frameIndex(0), swapchainImageIndex(0), boundPipelineIndex(0), didFramebufferResize(false), msaaSamples(VK_SAMPLE_COUNT_1_BIT) {};
 	};
 	
 	// Minimum required data to build a pipeline from scratch
@@ -84,20 +72,20 @@ namespace Crescendo
 			device.DestroyShaderModule(vertexShader);
 			device.DestroyShaderModule(fragmentShader);
 		}
-	};	
+	};
 
-	struct RenderPass
+	struct Framebuffer
 	{
+		VkExtent2D extent;
+		VkFramebuffer framebuffer;
 		VkRenderPass renderPass;
 		bool hasColorAttachment, hasDepthAttachment;
 
-		inline RenderPass(VkRenderPass renderPass, bool hasColorAttachment, bool hasDepthAttachment) :
-			renderPass(renderPass), hasColorAttachment(hasColorAttachment), hasDepthAttachment(hasDepthAttachment) {}
+		inline Framebuffer(VkFramebuffer framebuffer = nullptr, VkRenderPass renderPass = nullptr, VkExtent2D extent = {}, bool hasColorAttachment = false, bool hasDepthAttachment = false) :
+			framebuffer(framebuffer), renderPass(renderPass), extent(extent), hasColorAttachment(hasColorAttachment), hasDepthAttachment(hasDepthAttachment) {}
 
-		inline operator VkRenderPass() const
-		{
-			return renderPass;
-		}
+		VkViewport GetViewport(bool flip = false) const { return Create::Viewport(0.0f, (flip) ? static_cast<float>(this->extent.height) : 0, static_cast<float>(this->extent.width), ((flip) ? -1.0f : 1.0f) * static_cast<float>(this->extent.height), 0.0f, 1.0f); }
+		VkRect2D GetScissor() const { return Create::Rect2D({ 0, 0 }, this->extent); }
 	};
 		
 	struct Pipeline
@@ -111,21 +99,16 @@ namespace Crescendo
 		std::vector<Renderer::ShaderAttributeFlag> vertexAttributeFlags;
 
 		inline Pipeline(
-			VkPipelineLayout layout, VkPipeline pipeline,
-			const std::vector<uint32_t>& dataDescriptorHandles,
-			const std::vector<uint32_t>& samplerDescriptorHandles,
-			const std::vector<Renderer::ShaderAttributeFlag>& vertexAttributeFlags
-		) : layout(layout), pipeline(pipeline),
-			dataDescriptorHandles(dataDescriptorHandles),
-			samplerDescriptorHandles(samplerDescriptorHandles),
-			vertexAttributeFlags(vertexAttributeFlags) {}
+			VkPipelineLayout layout, VkPipeline pipeline, const std::vector<uint32_t>& dataDescriptorHandles,
+			const std::vector<uint32_t>& samplerDescriptorHandles, const std::vector<Renderer::ShaderAttributeFlag>& vertexAttributeFlags
+		) : layout(layout), pipeline(pipeline), dataDescriptorHandles(dataDescriptorHandles),
+			samplerDescriptorHandles(samplerDescriptorHandles), vertexAttributeFlags(vertexAttributeFlags) {}
 	};
 
-	struct Framebuffer
+	struct Texture
 	{
-		VkImage image;
-		VkImageView imageView;
-		VkDeviceMemory memory;
+		internal::Allocator::Image image;
+		VkDescriptorSet set;
 	};
 
 	class Renderer::RendererImpl
@@ -139,6 +122,10 @@ namespace Crescendo
 		internal::Allocator allocator;
 		RendererState state;
 
+		// Basically just holds references so they can be destroyed later
+		std::vector<VkPipelineLayout> pipelineLayoutRef;
+		std::vector<VkRenderPass> renderPassRef;
+
 		// Instance related members
 		VkInstance instance;
 		VkDebugUtilsMessengerEXT debugMessenger;
@@ -149,9 +136,8 @@ namespace Crescendo
 
 		Swapchain swapchain;
 		internal::Allocator::Image depthBuffer,	multisamplingBuffer, shadowMapBuffer;
-		std::vector<RenderPass> renderPasses;
-		std::vector<VkFramebuffer> framebuffers;
-		VkFramebuffer shadowMapFramebuffer;
+		std::vector<Framebuffer> framebuffers;
+		Framebuffer shadowMapFramebuffer;
 		VkDescriptorSet shadowMapDescriptorSet;
 		VkSampler shadowMapSampler;
 
@@ -160,7 +146,6 @@ namespace Crescendo
 		// Offsets for the start of each vertex attributes data
 		std::vector<std::vector<uint32_t>> offsets;
 
-		std::vector<VkPipelineLayout> pipelineLayouts;
 		std::vector<Pipeline> pipelines;
 
 		internal::DescriptorManager descriptorManager;
@@ -183,8 +168,7 @@ namespace Crescendo
 		internal::CommandQueue uploadQueue, uploadTextureQueue;
 
 		// List of all the texture images that have been uploaded to the GPU.
-		std::vector<internal::Allocator::Image> images;
-		std::vector<VkDescriptorSet> imageDescriptorSets;
+		std::vector<Texture> textures;
  
 	public:
 		RendererImpl() = default;
@@ -221,7 +205,7 @@ namespace Crescendo
 		void BindPipeline(uint32_t pipelineIndex);
 		void BindTexture(uint32_t set, uint32_t textureIndex);
 		void UpdatePushConstant(ShaderStage stage, const void* data, uint32_t size);
-		void Draw(uint32_t mesh);
+		void Draw(uint32_t mesh, uint32_t instances);
 		void PresentFrame();
 		void UpdateDescriptorSet(uint32_t descriptorSetIndex, uint32_t binding, const void* data, size_t size);
 

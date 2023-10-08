@@ -34,6 +34,6 @@ namespace Crescendo::IO
 
 		//return Image(pixels, width, height, FIXED_CHANNELS);
 	}
-	inline Image::Image(stbi_uc* pixels, uint32_t width, uint32_t height, uint32_t channels)
-		: pixels(pixels, [](stbi_uc* p) { if (p) /*stbi_image_free(p);*/ delete p; }), width(width), height(height), channels(channels) {}
+	Image::Image(stbi_uc* pixels, uint32_t width, uint32_t height, uint32_t channels)
+		: pixels(pixels, [](stbi_uc* p) { if (p) /*stbi_image_free(p);*/ delete[] p; }), width(width), height(height), channels(channels) {}
 }

@@ -22,9 +22,10 @@ namespace Crescendo::internal
 			Buffer() = default;
 
 			// Offset in bytes, only valid for host visible mapped memory
-			inline void Fill(size_t offset, const void* data, size_t size)
+			inline Buffer& Fill(size_t offset, const void* data, size_t size)
 			{
 				memcpy(static_cast<char*>(this->memoryLocation) + offset, data, size);
+				return *this;
 			}
 		};
 

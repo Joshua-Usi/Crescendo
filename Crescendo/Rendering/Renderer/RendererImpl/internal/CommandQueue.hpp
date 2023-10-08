@@ -56,6 +56,10 @@ namespace Crescendo::internal
 		{
 			vkCmdBindIndexBuffer(this->commandBuffer, indexBuffer, 0, indexType);
 		}
+		inline void BindDescriptorSet(VkPipelineLayout layout, VkDescriptorSet set, uint32_t offset, uint32_t setIndex = 0, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const
+		{
+			vkCmdBindDescriptorSets(this->commandBuffer, bindPoint, layout, setIndex, 1, &set, (offset == 0) ? 0 : 1, &offset);
+		}
 		inline void BindDescriptorSets(VkPipelineLayout layout, const std::vector<VkDescriptorSet>& sets, const std::vector<uint32_t>& offsets, uint32_t firstSet = 0, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const
 		{
 			vkCmdBindDescriptorSets(this->commandBuffer, bindPoint, layout, firstSet, static_cast<uint32_t>(sets.size()), sets.data(), static_cast<uint32_t>(offsets.size()), offsets.data());
@@ -72,9 +76,29 @@ namespace Crescendo::internal
 		{
 			vkCmdDrawIndexed(this->commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 		}
+		inline void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, const VkBufferCopy& region) const
+		{
+			vkCmdCopyBuffer(this->commandBuffer, srcBuffer, dstBuffer, 1, &region);
+		}
 		inline void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, const std::vector<VkBufferCopy>& regions) const
 		{
 			vkCmdCopyBuffer(this->commandBuffer, srcBuffer, dstBuffer, static_cast<uint32_t>(regions.size()), regions.data());
+		}
+		inline void CopyBufferToImage(VkBuffer buffer, VkImage image, VkImageLayout dstImageLayout, const VkBufferImageCopy& region) const
+		{
+			vkCmdCopyBufferToImage(this->commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+		}
+		inline void BlitImage(VkImage srcImage, VkImage dstImage, const VkImageBlit& region, VkFilter filter = VK_FILTER_LINEAR) const
+		{
+			vkCmdBlitImage(this->commandBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, filter);
+		}
+		inline void BlitImage(VkImage srcImage, VkImage dstImage, const std::vector<VkImageBlit>& regions, VkFilter filter = VK_FILTER_LINEAR) const
+		{
+			vkCmdBlitImage(this->commandBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, static_cast<uint32_t>(regions.size()), regions.data(), filter);
+		}
+		inline void PipelineImageBarrier(VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, const VkImageMemoryBarrier& barrier) const
+		{
+			vkCmdPipelineBarrier(this->commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 		}
 	public:
 		/// <summary>
@@ -142,10 +166,6 @@ namespace Crescendo::internal
 			const std::vector<VkCommandBuffer> cmd = { this->commandBuffer };
 			VkSubmitInfo submit = Create::SubmitInfo(waitSemaphores, waitStages, cmd, signalSemaphores);
 			CS_ASSERT(vkQueueSubmit(this->queue, 1, &submit, this->completionFence) == VK_SUCCESS, "Failed to submit command buffer!");
-		}
-		inline void CopyBufferToImage(VkBuffer buffer, VkImage image, VkImageLayout dstImageLayout, const VkBufferImageCopy& region) const
-		{
-			vkCmdCopyBufferToImage(this->commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 		}
 	public:
 		/// <summary>

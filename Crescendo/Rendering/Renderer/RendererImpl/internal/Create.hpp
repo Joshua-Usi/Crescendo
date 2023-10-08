@@ -741,16 +741,16 @@ namespace Crescendo::internal::Create
 
 		return subresourceRange;
 	}
-	inline constexpr VkImageBlit ImageBlit(VkImageSubresourceLayers srcSubresource, const std::array<VkOffset3D, 2>& srcOffsets, VkImageSubresourceLayers dstSubresource, const std::array<VkOffset3D, 2>& dstOffsets)
+	inline constexpr VkImageBlit ImageBlit(VkImageSubresourceLayers srcSubresource, const VkOffset3D srcOffset0, const VkOffset3D srcOffset1, VkImageSubresourceLayers dstSubresource, const VkOffset3D dstOffset0, const VkOffset3D dstOffset1)
 	{
 		VkImageBlit imageBlit = {};
 
 		imageBlit.srcSubresource = srcSubresource;
-		imageBlit.srcOffsets[0] = srcOffsets[0];
-		imageBlit.srcOffsets[1] = srcOffsets[1];
+		imageBlit.srcOffsets[0] = srcOffset0;
+		imageBlit.srcOffsets[1] = srcOffset1;
 		imageBlit.dstSubresource = dstSubresource;
-		imageBlit.dstOffsets[0] = dstOffsets[0];
-		imageBlit.dstOffsets[1] = dstOffsets[1];
+		imageBlit.dstOffsets[0] = dstOffset0;
+		imageBlit.dstOffsets[1] = dstOffset1;
 
 		return imageBlit;
 	}
@@ -765,12 +765,18 @@ namespace Crescendo::internal::Create
 
 		return subresourceLayers;
 	}
+	inline constexpr VkExtent3D Extent3D(uint32_t width, uint32_t height, uint32_t depth)
+	{
+		return { width, height, depth };
+	}
+	inline constexpr VkOffset3D Offset3D(int32_t x, int32_t y, int32_t z)
+	{
+		return { x, y, z };
+	}
 	inline constexpr VkClearValue DefaultDepthClear()
 	{
 		VkClearValue depthClear = {};
-
 		depthClear.depthStencil.depth = 1.0f;
-
 		return depthClear;
 	}
 }

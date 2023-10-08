@@ -147,8 +147,8 @@ namespace Crescendo
 			for (auto& pipeline : this->pipelines) this->device.DestroyPipeline(pipeline.pipeline);
 			this->pipelines.clear();
 
-			this->device.DestroyPipelineLayouts(this->pipelineLayouts);
-			this->pipelineLayouts.clear();
+			this->device.DestroyPipelineLayouts(this->pipelineLayoutRef);
+			this->pipelineLayoutRef.clear();
 		});
 	}
 	void Renderer::RendererImpl::InitialiseBuffers(const BuilderInfo& info)
@@ -184,8 +184,8 @@ namespace Crescendo
 			this->allocator.DestroyBuffers(this->dataDescriptorSetBuffers);
 			this->dataDescriptorSetBuffers.clear();
 			// Delete texture buffers
-			this->allocator.DestroyImages(images);
-			this->images.clear();
+			for (auto& texture : this->textures) this->allocator.DestroyImage(texture.image);
+			this->textures.clear();
 		});
 	}
 
@@ -241,10 +241,10 @@ namespace Crescendo
 		const bool isMultiSampling = this->state.msaaSamples != VK_SAMPLE_COUNT_1_BIT;
 		/* -------------------------------- 0. RenderPass creation -------------------------------- */
 
-		this->renderPasses.push_back({ this->device.CreateDefaultRenderPass(this->swapchain.imageFormat, DEFAULT_DEPTH_FORMAT, this->state.msaaSamples), true, true });
+		this->renderPassRef.push_back(this->device.CreateDefaultRenderPass(this->swapchain.imageFormat, DEFAULT_DEPTH_FORMAT, this->state.msaaSamples));
 		if (info.shadowMapResolution > 0)
 		{
-			this->renderPasses.push_back({ this->device.CreateDefaultShadowRenderPass(DEFAULT_SHADOW_FORMAT, this->state.msaaSamples), false, true });
+			this->renderPassRef.push_back(this->device.CreateDefaultShadowRenderPass(DEFAULT_SHADOW_FORMAT, this->state.msaaSamples));
 		}
 
 		/* -------------------------------- 1. Image buffer creation -------------------------------- */
@@ -291,13 +291,15 @@ namespace Crescendo
 		for (const auto& swapChainImage : this->swapchain.images)
 		{
 			attachments[swapChainViewIndex] = swapChainImage.imageView;
-			this->framebuffers.push_back(this->device.CreateFramebuffer(this->renderPasses[DEFAULT_RENDER_PASS], attachments, info.windowExtent.width, info.windowExtent.height));
+			VkFramebuffer fb = this->device.CreateFramebuffer(this->renderPassRef[DEFAULT_RENDER_PASS], attachments, info.windowExtent.width, info.windowExtent.height);
+			this->framebuffers.emplace_back(fb, this->renderPassRef[DEFAULT_RENDER_PASS], this->swapchain.extent, true, true);
 		}
 
 		// Create shadowmap framebuffer
 		if (info.shadowMapResolution > 0)
 		{
-			this->shadowMapFramebuffer = this->device.CreateFramebuffer(this->renderPasses[SHADOW_RENDER_PASS], this->shadowMapBuffer.imageView, info.shadowMapResolution, info.shadowMapResolution);
+			VkFramebuffer fb = this->device.CreateFramebuffer(this->renderPassRef[SHADOW_RENDER_PASS], this->shadowMapBuffer.imageView, info.shadowMapResolution, info.shadowMapResolution);
+			this->shadowMapFramebuffer = Framebuffer(fb, this->renderPassRef[SHADOW_RENDER_PASS], { info.shadowMapResolution, info.shadowMapResolution }, false, true);
 		}
 
 		/* -------------------------------- 3. Shadow map descriptor set -------------------------------- */
@@ -317,17 +319,17 @@ namespace Crescendo
 		// Add to swapchain deletion queue because it can be destroyed by window resizes
 		this->swapChainDeletionQueue.push([&]() {
 
-			this->device.DestroyFramebuffers(this->framebuffers);
+			for (const auto& framebuffer : this->framebuffers) this->device.DestroyFramebuffer(framebuffer.framebuffer);
 			this->framebuffers.clear();
 
-			this->device.DestroyFramebuffer(this->shadowMapFramebuffer);
+			this->device.DestroyFramebuffer(this->shadowMapFramebuffer.framebuffer);
 
 			this->allocator.DestroyImage(this->depthBuffer);
 			this->allocator.DestroyImage(this->multisamplingBuffer);
 			this->allocator.DestroyImage(this->shadowMapBuffer);
 
-			for (auto& renderPass : this->renderPasses) this->device.DestroyRenderPass(renderPass);
-			this->renderPasses.clear();
+			for (auto& renderPass : this->renderPassRef) this->device.DestroyRenderPass(renderPass);
+			this->renderPassRef.clear();
 
 			this->device.DestroySampler(this->shadowMapSampler);
 		});

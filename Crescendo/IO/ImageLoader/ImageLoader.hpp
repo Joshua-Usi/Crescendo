@@ -10,7 +10,7 @@ namespace Crescendo::IO
 {
 	struct Image
 	{
-		std::shared_ptr<stbi_uc> pixels;
+		std::unique_ptr<stbi_uc[], void(*)(stbi_uc*)> pixels;
 		uint32_t width, height, channels;
 		// Automatically frees itself
 		inline Image(stbi_uc* pixels = nullptr, uint32_t width = 0, uint32_t height = 0, uint32_t channels = 0);

@@ -73,7 +73,7 @@ namespace Crescendo
 	}
 	void Renderer::CmdDraw(uint32_t mesh)
 	{
-		this->impl->Draw(mesh);
+		this->impl->Draw(mesh, 1);
 	}
 	void Renderer::CmdPresentFrame()
 	{

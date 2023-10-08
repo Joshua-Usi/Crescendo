@@ -37,37 +37,19 @@ namespace Crescendo
 		const FrameData& currentFrame = this->GetCurrentFrameData();
 		const internal::CommandQueue& cmd = currentFrame.commandQueue;
 
-		const RenderPass& renderPass = this->renderPasses[renderPassIndex];
+		const Framebuffer& framebuffer = (renderPassIndex == 0) ? this->framebuffers[this->state.swapchainImageIndex] : this->shadowMapFramebuffer;
 
-		VkViewport viewport;
-		VkRect2D scissor;
+		const VkViewport viewport = framebuffer.GetViewport(renderPassIndex == 0);
+		const VkRect2D scissor = framebuffer.GetScissor();
 
-		// If using the default render pass
-		if (renderPassIndex == 0)
-		{
-			// Set dynamic viewport and scissor, negative height to flip the viewport
-			viewport = Create::Viewport(0.0f, static_cast<float>(this->swapchain.extent.height), static_cast<float>(this->swapchain.extent.width), -static_cast<float>(this->swapchain.extent.height), 0.0f, 1.0f);
-			scissor = Create::Rect2D({ 0, 0 }, this->swapchain.extent);
-		}
-		else
-		{
-			viewport = Create::Viewport(0.0f, 0.0, static_cast<float>(this->rendererInfo.shadowMapResolution), static_cast<float>(this->rendererInfo.shadowMapResolution), 0.0f, 1.0f);
-			scissor = Create::Rect2D({ 0, 0 }, { this->rendererInfo.shadowMapResolution, this->rendererInfo.shadowMapResolution });
-		}
-
-		// Begin render pass
 		std::vector<VkClearValue> clearValues;
-		if (renderPass.hasColorAttachment) clearValues.push_back(clearColor);
-		if (renderPass.hasDepthAttachment) clearValues.push_back(Create::DefaultDepthClear());
-
-		cmd.BeginRenderPass(
-			this->renderPasses[renderPassIndex],
-			(renderPassIndex == 0) ? this->framebuffers[this->state.swapchainImageIndex] : this->shadowMapFramebuffer,
-			scissor, clearValues
-		);
+		if (framebuffer.hasColorAttachment) clearValues.push_back(clearColor);
+		if (framebuffer.hasDepthAttachment) clearValues.push_back(Create::DefaultDepthClear());
 
 		cmd.SetViewport(viewport);
 		cmd.SetScissor(scissor);
+
+		cmd.BeginRenderPass(framebuffer.renderPass, framebuffer.framebuffer, scissor, clearValues);
 	}
 	void Renderer::RendererImpl::EndRenderPass()
 	{
@@ -85,7 +67,7 @@ namespace Crescendo
 
 		this->state.boundPipelineIndex = pipelineIndex;
 
-		const Pipeline currentPipeline = this->pipelines[pipelineIndex];
+		const Pipeline& currentPipeline = this->pipelines[pipelineIndex];
 
 		std::vector<VkDescriptorSet> descriptorSets;
 		std::vector<uint32_t> offsets;
@@ -93,11 +75,8 @@ namespace Crescendo
 		{
 			descriptorSets.push_back(this->dataDescriptorSets[currentPipeline.dataDescriptorHandles[i] * this->rendererInfo.framesInFlight + this->GetFrameIndex()]);
 			// -1 because we ignore the last element because it specifies the end of the buffer
-			offsets.insert(
-				offsets.end(),
-				this->dataDescriptorSetLayoutOffsets[currentPipeline.dataDescriptorHandles[i]].begin(),
-				this->dataDescriptorSetLayoutOffsets[currentPipeline.dataDescriptorHandles[i]].end() - 1
-			);
+			auto& offset = this->dataDescriptorSetLayoutOffsets[currentPipeline.dataDescriptorHandles[i]];
+			offsets.insert(offsets.end(), offset.begin(), offset.end() - 1);
 		}
 		cmd.BindDescriptorSets(currentPipeline.layout, descriptorSets, offsets);
 		cmd.BindPipeline(currentPipeline.pipeline);
@@ -118,16 +97,9 @@ namespace Crescendo
 		const FrameData& currentFrame = this->GetCurrentFrameData();
 		const internal::CommandQueue& cmd = currentFrame.commandQueue;
 
-		const Pipeline currentPipeline = this->pipelines[this->state.boundPipelineIndex];
+		const Pipeline& currentPipeline = this->pipelines[this->state.boundPipelineIndex];
 
-		if (textureIndex == SHADOW_MAP_ID)
-		{
-			cmd.BindDescriptorSets(currentPipeline.layout, { this->shadowMapDescriptorSet }, {}, set);
-		}
-		else
-		{
-			cmd.BindDescriptorSets(currentPipeline.layout, { this->imageDescriptorSets[textureIndex] }, {}, set);
-		}
+		cmd.BindDescriptorSet(currentPipeline.layout, (textureIndex == SHADOW_MAP_ID) ? this->shadowMapDescriptorSet : this->textures[textureIndex].set, 0, set);
 	}
 	void Renderer::RendererImpl::UpdatePushConstant(ShaderStage stage, const void* data, uint32_t size)
 	{
@@ -139,19 +111,18 @@ namespace Crescendo
 		{
 			case ShaderStage::Vertex: stageFlags = VK_SHADER_STAGE_VERTEX_BIT; break;
 			case ShaderStage::Fragment: stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; break;
-			default: { CS_ASSERT(false, "Unknown shader stage"); }
 		}
 		cmd.PushConstants(this->pipelines[this->state.boundPipelineIndex].layout, data, size, stageFlags);
 	}
-	void Renderer::RendererImpl::Draw(uint32_t mesh)
+	void Renderer::RendererImpl::Draw(uint32_t mesh, uint32_t instances)
 	{
 		const FrameData& currentFrame = this->GetCurrentFrameData();
 		const internal::CommandQueue cmd = currentFrame.commandQueue;
 
-		uint32_t vertexCount = (this->offsets[0][mesh + 1] - this->offsets[0][mesh]) * 3;
+		const uint32_t vertexCount = (this->offsets[0][mesh + 1] - this->offsets[0][mesh]) * 3;
 
 		// It's pretty safe to assume that every draw will have a vertex position
-		cmd.DrawIndexed(vertexCount, 1, this->offsets[0][mesh] * 3, this->offsets[1][mesh], 0);
+		cmd.DrawIndexed(vertexCount, instances, this->offsets[0][mesh] * 3, this->offsets[1][mesh], 0);
 	}
 	void Renderer::RendererImpl::PresentFrame()
 	{

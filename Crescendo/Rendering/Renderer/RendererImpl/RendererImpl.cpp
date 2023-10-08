@@ -173,7 +173,7 @@ namespace Crescendo
 
 		// Create the pipeline layout
 		VkPipelineLayout pipelineLayout = this->device.CreatePipelineLayout(setLayouts, pushConstantRanges);
-		this->pipelineLayouts.push_back(pipelineLayout);
+		this->pipelineLayoutRef.push_back(pipelineLayout);
 
 		uint32_t pipelinesGenerated = 0;
 
@@ -193,7 +193,7 @@ namespace Crescendo
 								// Create the information required to build the pipeline
 								internal::Device::PipelineBuilderInfo pipelineBuilderInfo = {};
 								pipelineBuilderInfo.dynamicState = Create::PipelineDynamicStateCreateInfo(dynamicStates);
-								pipelineBuilderInfo.renderPass = (renderPass == PipelineVariants::RenderPass::Default) ? this->renderPasses[DEFAULT_RENDER_PASS] : this->renderPasses[SHADOW_RENDER_PASS];
+								pipelineBuilderInfo.renderPass = (renderPass == PipelineVariants::RenderPass::Default) ? this->renderPassRef[DEFAULT_RENDER_PASS] : this->renderPassRef[SHADOW_RENDER_PASS];
 								pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pipelineData.vertexShader));
 								pipelineBuilderInfo.shaderStagesInfo.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pipelineData.fragmentShader));
 								pipelineBuilderInfo.vertexInputInfo = Create::PipelineVertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
@@ -226,16 +226,12 @@ namespace Crescendo
 
 								// Create the pipeline
 								this->pipelines.emplace_back(pipelineLayout, this->device.CreatePipeline(pipelineBuilderInfo), dataDescriptorHandles, samplerDescriptorHandles, attributeFlags);
-
-								pipelinesGenerated++;
 							}
 						}
 					}
 				}
 			}
 		}
-
-		cs_std::console::log("Generated", pipelinesGenerated);
 
 		pipelineData.Destroy(this->device);
 	}
@@ -271,14 +267,14 @@ namespace Crescendo
 		this->uploadQueue.InstantSubmit([&](const internal::CommandQueue& cmd) {
 			// Copy index data
 			VkBufferCopy copy = Create::BufferCopy(0, this->offsets[0].back() * sizeof(uint32_t) * 3, indices.size() * sizeof(uint32_t));
-			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[0].buffer, { copy });
+			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[0].buffer, copy);
 			
 			// Copy other vertex attributes
 			for (size_t i = 0; i < attributes.size(); i++)
 			{
 				const uint8_t attributeIndex = static_cast<uint8_t>(attributes[i].attribute) + 1;
 				VkBufferCopy copy = Create::BufferCopy(bufferOffsets[i + 1], this->offsets[attributeIndex].back() * sizeof(float) * ELEMENTS_PER_ATTRIBUTE[attributeIndex - 1], attributes[i].data.size() * sizeof(float));
-				cmd.CopyBuffer(staging.buffer, this->vertexBuffers[attributeIndex].buffer, { copy });
+				cmd.CopyBuffer(staging.buffer, this->vertexBuffers[attributeIndex].buffer, copy);
 			}
 		});
 
@@ -320,11 +316,10 @@ namespace Crescendo
 		}
 
 		// Stage the image data
-		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-		staging.Fill(0, textureData, imageSize);
+		internal::Allocator::Buffer staging = this->allocator.CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY).Fill(0, textureData, imageSize);
 
 		// Create the image
-		VkExtent3D extent = { width, height, 1 };
+		const VkExtent3D extent = Create::Extent3D(width, height, 1);
 		internal::Allocator::Image image = this->allocator.CreateImage(Create::ImageCreateInfo(
 			VK_IMAGE_TYPE_2D, DEFAULT_FORMAT, extent,
 			mipLevels, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
@@ -344,11 +339,11 @@ namespace Crescendo
 				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, image.image,
 				Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 			);
-			vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+			cmd.PipelineImageBarrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, barrier);
 
 			// Copy buffer to image
-			VkBufferImageCopy region = Create::BufferImageCopy(
-				0, 0, 0, Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1), { 0, 0, 0 }, extent
+			const VkBufferImageCopy region = Create::BufferImageCopy(
+				0, 0, 0, Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1), Create::Offset3D(0, 0, 0), extent
 			);
 			cmd.CopyBufferToImage(staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region);
 
@@ -369,29 +364,23 @@ namespace Crescendo
 				barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 				barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 
-				vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+				cmd.PipelineImageBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, barrier);
 
-				VkImageBlit blit = Create::ImageBlit(
+				const VkImageBlit blit = Create::ImageBlit(
 					Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i - 1, 0, 1),
-					{ {
-						{ 0, 0, 0 },
-						{ static_cast<int32_t>(mipWidth), static_cast<int32_t>(mipHeight), 1 }
-					} },
+					Create::Offset3D(0, 0, 0), Create::Offset3D(static_cast<int32_t>(mipWidth), static_cast<int32_t>(mipHeight), 1),
 					Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i, 0, 1),
-					{ {
-						{ 0, 0, 0 },
-						{ static_cast<int32_t>(std::max(mipWidth / 2, 1u)), static_cast<int32_t>(std::max(mipHeight / 2, 1u)), 1 }
-					} }
+					Create::Offset3D(0, 0, 0), Create::Offset3D(static_cast<int32_t>(std::max(mipWidth / 2, 1u)), static_cast<int32_t>(std::max(mipHeight / 2, 1u)), 1)
 				);
 
-				vkCmdBlitImage(cmd.commandBuffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+				cmd.BlitImage(image.image, image.image, blit);
 
 				barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 				barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 				barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 				barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-				vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+				cmd.PipelineImageBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
 
 				mipWidth = std::max(mipWidth / 2, 1u);
 				mipHeight = std::max(mipHeight / 2, 1u);
@@ -403,7 +392,7 @@ namespace Crescendo
 			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-			vkCmdPipelineBarrier(cmd.commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+			cmd.PipelineImageBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
 		});
 
 		VkDescriptorSet descriptorSet = this->descriptorManager.AllocateSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->textureDescriptorSetLayout);
@@ -415,8 +404,7 @@ namespace Crescendo
 		);
 		this->device.WriteDescriptorSet(write);
 
-		this->images.push_back(image);
-		this->imageDescriptorSets.push_back(descriptorSet);
+		this->textures.emplace_back(image, descriptorSet);
 		this->allocator.DestroyBuffer(staging);
 	}
 }
