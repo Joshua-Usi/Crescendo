@@ -153,23 +153,6 @@ namespace Crescendo
 	}
 	void Renderer::RendererImpl::InitialiseBuffers(const BuilderInfo& info)
 	{
-		/* -------------------------------- 1. Vertex buffers -------------------------------- */
-
-		constexpr size_t SHADER_ATTRIBUTE_BUFFER_COUNT = static_cast<size_t>(ShaderAttributeFlag::SHADER_ATTRIBUTE_FLAG_COUNT);
-
-		this->vertexBuffers.resize(SHADER_ATTRIBUTE_BUFFER_COUNT + 1);
-		this->offsets = std::vector<std::vector<uint32_t>>(SHADER_ATTRIBUTE_BUFFER_COUNT + 1, std::vector<uint32_t>(1, 0));
-
-		// Zeroth buffer is the index buffer
-		this->vertexBuffers[0] = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-		
-		for (size_t i = 1; i < SHADER_ATTRIBUTE_BUFFER_COUNT + 1; i++)
-		{
-			this->vertexBuffers[i] = this->allocator.CreateBuffer(info.vertexBufferBlockSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-		}
-
-		/* -------------------------------- 2. Descriptor buffers -------------------------------- */
-
 		this->dataDescriptorSetBuffers.resize(info.framesInFlight);
 		for (uint32_t i = 0; i < info.framesInFlight; i++)
 		{
@@ -178,8 +161,14 @@ namespace Crescendo
 
 		this->mainDeletionQueue.push([&]() {
 			// Delete vertex buffers
-			this->allocator.DestroyBuffers(this->vertexBuffers);
-			this->vertexBuffers.clear();
+
+			for (auto& mesh : this->meshes)
+			{
+				this->allocator.DestroyBuffer(mesh.indexBuffer);
+				for (auto& attribute : mesh.vertexAttributes) this->allocator.DestroyBuffer(attribute.buffer);
+			}
+			this->meshes.clear();
+
 			// Delete descriptor buffer
 			this->allocator.DestroyBuffers(this->dataDescriptorSetBuffers);
 			this->dataDescriptorSetBuffers.clear();

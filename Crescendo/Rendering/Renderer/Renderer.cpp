@@ -21,7 +21,6 @@ namespace Crescendo
 		CS_ASSERT((info.msaaSamples & (info.msaaSamples - 1)) == 0 || info.msaaSamples == std::numeric_limits<uint32_t>::max(), "MSAA samples must be a power of 2!");
 		CS_ASSERT(info.anistropicFiltering >= 1.0f, "Anisotropic filtering must be greater than 0!");
 		CS_ASSERT(info.framesInFlight > 0, "Frames in flight must be greater than 0!");
-		CS_ASSERT(info.vertexBufferBlockSize > 0, "Vertex buffer block size must be greater than 0!");
 		CS_ASSERT(info.descriptorBufferBlockSize > 0, "Descriptor buffer block size must be greater than 0!");
 
 		// Fixed initialisation, these are never changable at runtime
@@ -87,6 +86,17 @@ namespace Crescendo
 	
 	void Renderer::UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices)
 	{
+		bool isSorted = true;
+		for (uint32_t i = 0; i < attributes.size() - 1; i++)
+		{
+			if (attributes[i].attribute > attributes[i + 1].attribute)
+			{
+				isSorted = false;
+				break;
+			}
+		}
+		CS_ASSERT_ALWAYS(isSorted, "Attributes are not sorted!, sorted attributes are required for this engine");
+
 		this->impl->UploadMesh(attributes, indices);
 	}
 	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariants& variants)

@@ -33,7 +33,6 @@ namespace Crescendo::Engine
 		info.windowExtent = { this->window->GetWidth(), this->window->GetHeight() };
 		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
 		info.framesInFlight = CVar::Get<int64_t>("rc_framesinflight");
-		info.vertexBufferBlockSize = CVar::Get<int64_t>("rc_vertexbufferblocksize");
 		info.descriptorBufferBlockSize = CVar::Get<int64_t>("rc_descriptorbufferblocksize");
 		info.msaaSamples = CVar::Get<int64_t>("rc_multisamples");
 		info.anistropicFiltering = CVar::Get<float>("rc_anisotropicfiltering");

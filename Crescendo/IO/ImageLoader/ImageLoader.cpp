@@ -17,7 +17,7 @@ namespace Crescendo::IO
 
 		// Optional downsampling code
 		// Nearest neighbour downsampling
-		constexpr uint32_t scaleFactor = 2;
+		constexpr uint32_t scaleFactor = 32;
 		stbi_uc* newPixels = new stbi_uc[width * height * FIXED_CHANNELS / (scaleFactor * scaleFactor)];
 		for (uint32_t i = 0; i < height / scaleFactor; i++)
 		{

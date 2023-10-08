@@ -80,17 +80,6 @@ namespace Crescendo
 		}
 		cmd.BindDescriptorSets(currentPipeline.layout, descriptorSets, offsets);
 		cmd.BindPipeline(currentPipeline.pipeline);
-
-		// Bind the vertex buffers
-		std::vector<VkBuffer> buffers;
-		for (uint32_t i = 0; i < currentPipeline.vertexAttributeFlags.size(); i++)
-		{
-			buffers.push_back(this->vertexBuffers[static_cast<size_t>(currentPipeline.vertexAttributeFlags[i]) + 1].buffer);
-		}
-		const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
-
-		cmd.BindVertexBuffers(buffers, bufferOffsets);
-		cmd.BindIndexBuffer(this->vertexBuffers[0].buffer);
 	}
 	void Renderer::RendererImpl::BindTexture(uint32_t set, uint32_t textureIndex)
 	{
@@ -119,10 +108,26 @@ namespace Crescendo
 		const FrameData& currentFrame = this->GetCurrentFrameData();
 		const internal::CommandQueue cmd = currentFrame.commandQueue;
 
-		const uint32_t vertexCount = (this->offsets[0][mesh + 1] - this->offsets[0][mesh]) * 3;
+		const Pipeline& currentPipeline = this->pipelines[this->state.boundPipelineIndex];
+		const Mesh& currentMesh = this->meshes[mesh];
+
+		// Bind the vertex buffers
+		std::vector<VkBuffer> buffers;
+		for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < currentPipeline.vertexAttributeFlags.size(); cpvaf++)
+		{
+			if (currentPipeline.vertexAttributeFlags[cpvaf] == currentMesh.vertexAttributes[mvaf].attribute)
+			{
+				buffers.push_back(currentMesh.vertexAttributes[mvaf].buffer);
+				mvaf++;
+			}
+		}
+		const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
+
+		cmd.BindVertexBuffers(buffers, bufferOffsets);
+		cmd.BindIndexBuffer(currentMesh.indexBuffer);
 
 		// It's pretty safe to assume that every draw will have a vertex position
-		cmd.DrawIndexed(vertexCount, instances, this->offsets[0][mesh] * 3, this->offsets[1][mesh], 0);
+		cmd.DrawIndexed(currentMesh.indexCount, instances, 0, 0, 0);
 	}
 	void Renderer::RendererImpl::PresentFrame()
 	{

@@ -238,7 +238,7 @@ namespace Crescendo
 	void Renderer::RendererImpl::UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices)
 	{
 		// Elements per attribute
-		constexpr size_t ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(ShaderAttributeFlag::SHADER_ATTRIBUTE_FLAG_COUNT)]{
+		constexpr size_t ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(ShaderAttributeFlag::SHADER_ATTRIBUTE_FLAG_COUNT)] {
 			3, // POSITION
 			3, // NORMAL
 			4, // TANGENT
@@ -252,7 +252,25 @@ namespace Crescendo
 		for (const auto& attribute : attributes) CS_ASSERT(attribute.data.size() % ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(attribute.attribute)] == 0, "Invalid mesh data! mesh has " + std::to_string(attribute.data.size()) + " elements! but expected a multiple of " + std::to_string(ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(attribute.attribute)]) + "!");
 		CS_ASSERT(indices.size() % 3 == 0, "Invalid mesh data! mesh has " + std::to_string(indices.size()) + " indices! but expected a multiple of 3!");
 		// TODO assert for potential buffer overflows
-		
+
+		Mesh mesh = {};
+		mesh.indexCount = static_cast<uint32_t>(indices.size());
+		mesh.indexBuffer = this->allocator.CreateBuffer(
+			sizeof(uint32_t) * indices.size(),
+			VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+			VMA_MEMORY_USAGE_GPU_ONLY
+		);
+		for (const auto& attribute : attributes)
+		{
+			mesh.vertexAttributes.emplace_back(
+				this->allocator.CreateBuffer(
+					sizeof(float) * attribute.data.size(),
+					VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+					VMA_MEMORY_USAGE_GPU_ONLY
+				), static_cast<uint32_t>(attribute.data.size()), attribute.attribute
+			);
+		}
+
 		// Determine the buffer offsets
 		std::vector<uint32_t> bufferOffsets(1, 0);
 		bufferOffsets.push_back(bufferOffsets.back() + indices.size() * sizeof(uint32_t));
@@ -266,35 +284,18 @@ namespace Crescendo
 		// Upload data to the GPU
 		this->uploadQueue.InstantSubmit([&](const internal::CommandQueue& cmd) {
 			// Copy index data
-			VkBufferCopy copy = Create::BufferCopy(0, this->offsets[0].back() * sizeof(uint32_t) * 3, indices.size() * sizeof(uint32_t));
-			cmd.CopyBuffer(staging.buffer, this->vertexBuffers[0].buffer, copy);
+			VkBufferCopy copy = Create::BufferCopy(0, 0, indices.size() * sizeof(uint32_t));
+			cmd.CopyBuffer(staging.buffer, mesh.indexBuffer, copy);
 			
 			// Copy other vertex attributes
 			for (size_t i = 0; i < attributes.size(); i++)
 			{
-				const uint8_t attributeIndex = static_cast<uint8_t>(attributes[i].attribute) + 1;
-				VkBufferCopy copy = Create::BufferCopy(bufferOffsets[i + 1], this->offsets[attributeIndex].back() * sizeof(float) * ELEMENTS_PER_ATTRIBUTE[attributeIndex - 1], attributes[i].data.size() * sizeof(float));
-				cmd.CopyBuffer(staging.buffer, this->vertexBuffers[attributeIndex].buffer, copy);
+				VkBufferCopy copy = Create::BufferCopy(bufferOffsets[i + 1], 0, attributes[i].data.size() * sizeof(float));
+				cmd.CopyBuffer(staging.buffer, mesh.vertexAttributes[i].buffer, copy);
 			}
 		});
 
-		// Buffer offsets
-		this->offsets[0].push_back(this->offsets[0].back() + indices.size() / 3);
-		// Only O(n) cause it presumes that the attributes are in sorted order
-		// Otherwise it'd be O(n log n) which honestly isn't that bad
-		for (uint32_t i = 1, attrIdx = 0; i < offsets.size(); i++)
-		{
-			if (attrIdx < attributes.size() && i == static_cast<uint32_t>(attributes[attrIdx].attribute) + 1)
-			{
-				this->offsets[i].push_back(this->offsets[i].back() + static_cast<uint32_t>(attributes[attrIdx].data.size()) / ELEMENTS_PER_ATTRIBUTE[i - 1]);
-				attrIdx++;
-			}
-			else
-			{
-				this->offsets[i].push_back(this->offsets[i].back());
-			}
-		}
-
+		this->meshes.push_back(mesh);
 		this->allocator.DestroyBuffer(staging);
 	}
 	void Renderer::RendererImpl::UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps)

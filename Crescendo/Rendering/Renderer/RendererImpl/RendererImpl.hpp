@@ -111,6 +111,19 @@ namespace Crescendo
 		VkDescriptorSet set;
 	};
 
+	struct Mesh
+	{
+		struct Attribute
+		{
+			internal::Allocator::Buffer buffer;
+			uint32_t elements;
+			Renderer::ShaderAttributeFlag attribute;
+		};
+		internal::Allocator::Buffer indexBuffer;
+		uint32_t indexCount;
+		std::vector<Attribute> vertexAttributes;
+	};
+
 	class Renderer::RendererImpl
 	{
 	private:
@@ -141,10 +154,12 @@ namespace Crescendo
 		VkDescriptorSet shadowMapDescriptorSet;
 		VkSampler shadowMapSampler;
 
+		std::vector<Mesh> meshes;
+
 		// universal buffers that contain all the data for the respective vertex attribute, including indices which is stored at attribute 0
-		std::vector<internal::Allocator::Buffer> vertexBuffers;
+		//std::vector<internal::Allocator::Buffer> vertexBuffers;
 		// Offsets for the start of each vertex attributes data
-		std::vector<std::vector<uint32_t>> offsets;
+		//std::vector<std::vector<uint32_t>> offsets;
 
 		std::vector<Pipeline> pipelines;
 

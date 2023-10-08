@@ -97,17 +97,6 @@ namespace Crescendo
 			 */
 			uint32_t framesInFlight;
 			/*
-			 *	Specifies the base block size of the vertex attribute data. When vertex data is uploaded to the engine
-			 *	The engine will automatically find a free space for it, if not, then it will allocate a new block equal
-			 *	To the size of this variable. If the block required is larger than this variable, then the block will be
-			 *	Allocated to be a multiple of this variable
-			 *	Larger blocks increase initial memory usage but decrease binds
-			 *	Size is in bytes, highly recommended to be a multiple of 2, Must be greater than 0
-			 * 
-			 *  Set during initialisation
-			 */
-			uint64_t vertexBufferBlockSize;
-			/*
 			 *	Specifies the base block size of the descriptor set data. When descriptor set data is uploaded to the engine
 			 *	The engine will automatically find a free space for it, if not, then it will allocate a new block equal
 			 *	To the size of this variable. If the block required is larger than this variable, then the block will be

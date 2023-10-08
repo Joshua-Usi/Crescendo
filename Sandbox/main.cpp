@@ -158,8 +158,9 @@ public:
 		
 		while (!this->taskQueue.finished())
 		{
-			for (uint32_t i = 0; i < finishedTasks - last; i++) cs_std::console::raw("#");
-			last = finishedTasks;
+			uint32_t local = finishedTasks;
+			for (uint32_t i = 0; i < local - last; i++) cs_std::console::raw("#");
+			last = local;
 		}
 		cs_std::console::raw('\n');
 

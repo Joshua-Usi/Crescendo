@@ -26,6 +26,15 @@ using shared = std::shared_ptr<T>;
 	#endif
 #endif
 
+#ifndef CS_ASSERT_ALWAYS
+	#define CS_ASSERT_ALWAYS(x, message)\
+		if (!(x))\
+		{\
+			cs_std::console::fatal(__FILE__, ":", __LINE__, message);\
+			abort();\
+		}
+#endif
+
 #ifndef CS_TIME
 	// Shows time taken to execute a block of code in milliseconds with 3 decimal places
 	#ifdef CS_SHOW_TIMINGS

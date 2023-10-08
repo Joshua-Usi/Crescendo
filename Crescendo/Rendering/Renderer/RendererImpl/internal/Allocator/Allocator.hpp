@@ -21,6 +21,8 @@ namespace Crescendo::internal
 
 			Buffer() = default;
 
+			operator VkBuffer() const { return buffer; }
+
 			// Offset in bytes, only valid for host visible mapped memory
 			inline Buffer& Fill(size_t offset, const void* data, size_t size)
 			{
