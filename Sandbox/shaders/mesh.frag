@@ -34,12 +34,12 @@ void main()
 {
 	vec4 texelColor = texture(diffuseTex, iTexCoord);
 
-	/* ---------------- Normals ---------------- */
+	/* ---------------- Normal mapped ---------------- */
 
 	vec3 normal = texture(normalTex, iTexCoord).rgb;
 	normal = normalize(normal * 2.0f - 1.0f);
 
-	/* ---------------- Lighting ---------------- */
+	/* ---------------- Lighting - Blinn-Phong ---------------- */
 
 	// Diffuse
 	vec3 lightDir = normalize(iTanLightPos - iTanFragPos);
@@ -49,9 +49,10 @@ void main()
 	// Specular
 	vec3 viewDir = normalize(iTanViewPos - iTanFragPos);
 	vec3 reflectDir = reflect(-lightDir, normal);
-	vec3 halfwayDir = normalize(lightDir + viewDir);
-	float spec = pow(max(dot(normal, halfwayDir), 0.0f), 32.0f);
+	float spec = pow(max(dot(viewDir, reflectDir), 0.0), 8.0);
 	float specular = bpli.specular * spec;
+
+
 
 	// Lighting mixing
 	vec3 result = (bpli.ambient + diffuse + specular) * texelColor.rgb;

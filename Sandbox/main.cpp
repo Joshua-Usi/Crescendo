@@ -57,18 +57,19 @@ public:
 			
 		// Upload shaders (creates pipelines and descriptor sets)
 		struct Shader { std::string name; Renderer::PipelineVariants variants; };
+
+		const Renderer::PipelineVariants defaultVariant = Renderer::PipelineVariants(
+			{ Renderer::PipelineVariants::FillMode::Solid },
+			{ true },
+			{ true, false },
+			{ Renderer::PipelineVariants::DepthFunc::Less },
+			{ Renderer::PipelineVariants::CullMode::Back, Renderer::PipelineVariants::CullMode::None },
+			{ Renderer::PipelineVariants::RenderPass::Default }
+		);
+
 		std::vector<Shader> shaderList = {
-			{
-				"./shaders/compiled/mesh",
-				Renderer::PipelineVariants(
-					{ Renderer::PipelineVariants::FillMode::Solid },
-					{ true },
-					{ true, false },
-					{ Renderer::PipelineVariants::DepthFunc::Less },
-					{ Renderer::PipelineVariants::CullMode::Back, Renderer::PipelineVariants::CullMode::None },
-					{ Renderer::PipelineVariants::RenderPass::Default }
-				)
-			},
+			{"./shaders/compiled/mesh", defaultVariant },
+			{"./shaders/compiled/mesh-unlit", defaultVariant },
 			{"./shaders/compiled/skybox", Renderer::PipelineVariants(Renderer::PipelineVariants::FillMode::Solid, true, false, Renderer::PipelineVariants::DepthFunc::Less, Renderer::PipelineVariants::CullMode::Back, Renderer::PipelineVariants::RenderPass::Default) }, // Skybox
 			{"./shaders/compiled/shadow_map", Renderer::PipelineVariants(Renderer::PipelineVariants::FillMode::Solid, true, true, Renderer::PipelineVariants::DepthFunc::Less, Renderer::PipelineVariants::CullMode::Front, Renderer::PipelineVariants::RenderPass::Shadow) }, // Shadow map
 			{"./shaders/compiled/ui", Renderer::PipelineVariants(Renderer::PipelineVariants::FillMode::Solid, false, false, Renderer::PipelineVariants::DepthFunc::Less, Renderer::PipelineVariants::CullMode::None, Renderer::PipelineVariants::RenderPass::Default) }, // UI
@@ -95,7 +96,8 @@ public:
 			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
-			IO::LoadGLTF("./assets/tree/tree.gltf"),
+			//IO::LoadGLTF("./assets/tree/tree.gltf"),
+			//IO::LoadGLTF("./assets/chair/chair.gltf"),
 			skyboxModel,
 			quadModel
 		};
@@ -172,23 +174,33 @@ public:
 	{
 		this->camera.Update();
 
-		float currentTime = this->GetTime<float>() / 2.5f;
+		//float currentTime = this->GetTime<float>() / 2.5f;
+		float currentTime = std::numbers::pi / 36.0f;
 		this->shadowMapCamera.SetPosition(glm::vec3(0.0f, std::cosf(currentTime) * 40.0f, std::sinf(currentTime) * 40.0f));
 		this->shadowMapCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f));
 
 		// Render prep
 		const glm::mat4 projections[2] = { this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
 		const glm::vec4 lightingPositions[2] = { glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f), glm::vec4(this->camera.camera.GetPosition(), 1.0f) };
-		const glm::vec3 lightIntensities = glm::vec3(0.2f, 0.5f, 0.3f);
-		
+		const glm::vec3 lightIntensities = glm::vec3(0.3f, 0.4f, 0.3f);
+
 		this->renderer.renderer.UpdateDescriptorSetData(0, 0, projections);
 		this->renderer.renderer.UpdateDescriptorSetData(0, 1, lightingPositions);
 		this->renderer.renderer.UpdateDescriptorSetData(1, 0, lightIntensities);
-		this->renderer.renderer.UpdateDescriptorSetData(2, 0, this->camera.camera.GetViewProjectionMatrix());
-		this->renderer.renderer.UpdateDescriptorSetData(3, 0, this->shadowMapCamera.GetViewProjectionMatrix());
-		this->renderer.renderer.UpdateDescriptorSetData(4, 0, this->UICamera.GetViewProjectionMatrix());
+
+		this->renderer.renderer.UpdateDescriptorSetData(2, 0, projections[0]);
+
+		this->renderer.renderer.UpdateDescriptorSetData(3, 0, this->camera.camera.GetViewProjectionMatrix());
+
+		this->renderer.renderer.UpdateDescriptorSetData(4, 0, this->shadowMapCamera.GetViewProjectionMatrix());
+
+		this->renderer.renderer.UpdateDescriptorSetData(5, 0, this->UICamera.GetViewProjectionMatrix());
 
 		uint32_t actualDrawCount = 0;
+
+		uint32_t usePipeline = 0;
+
+		if (Input::GetKeyPressed(Key::One)) usePipeline = 1;
 
 		// Render commands
 		this->renderer.renderer.CmdBeginFrame();
@@ -196,7 +208,7 @@ public:
 		{
 			this->renderer.renderer.CmdBeginRenderPass(1);
 			cs_std::graphics::frustum frustum(this->shadowMapCamera.GetViewProjectionMatrix());
-			this->renderer.renderer.CmdBindPipeline(5);
+			this->renderer.renderer.CmdBindPipeline(2 * 4 + 1);
 
 			for (uint32_t i = 0; i < this->meshCount - 2; i++)
 			{
@@ -214,7 +226,7 @@ public:
 			this->renderer.renderer.CmdBeginRenderPass(0, 0.0f, 0.0f, 0.0f, 1.0f);
 
 			// Skybox
-			this->renderer.renderer.CmdBindPipeline(4);
+			this->renderer.renderer.CmdBindPipeline(2 * 4);
 			this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, glm::translate(glm::mat4(1.0f), this->camera.camera.GetPosition()));
 			this->renderer.renderer.CmdBindTexture(1, this->modelData[this->meshCount - 2].textureID);
 			this->renderer.renderer.CmdDraw(this->meshCount - 2);
@@ -226,22 +238,34 @@ public:
 			{
 				if (!frustum.intersects(this->modelData[i].bounds)) continue;
 
-				if (!this->modelData[i].isTransparent && !this->modelData[i].isDoubleSided) this->renderer.renderer.CmdBindPipeline(0);
-				if (!this->modelData[i].isTransparent && this->modelData[i].isDoubleSided) this->renderer.renderer.CmdBindPipeline(1);
-				if (this->modelData[i].isTransparent && !this->modelData[i].isDoubleSided) this->renderer.renderer.CmdBindPipeline(2);
-				if (this->modelData[i].isTransparent && this->modelData[i].isDoubleSided) this->renderer.renderer.CmdBindPipeline(3);
+				if (!this->modelData[i].isTransparent && !this->modelData[i].isDoubleSided) this->renderer.renderer.CmdBindPipeline(4 * usePipeline + 0);
+				if (!this->modelData[i].isTransparent &&  this->modelData[i].isDoubleSided) this->renderer.renderer.CmdBindPipeline(4 * usePipeline + 1);
+				if ( this->modelData[i].isTransparent && !this->modelData[i].isDoubleSided) this->renderer.renderer.CmdBindPipeline(4 * usePipeline + 2);
+				if ( this->modelData[i].isTransparent &&  this->modelData[i].isDoubleSided) this->renderer.renderer.CmdBindPipeline(4 * usePipeline + 3);
 
 				actualDrawCount++;
 				this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->modelData[i].transform);
-				this->renderer.renderer.CmdBindTexture(2, this->modelData[i].textureID);
-				this->renderer.renderer.CmdBindTexture(3, this->modelData[i].normalID);
-				this->renderer.renderer.CmdBindTexture(4, Renderer::SHADOW_MAP_ID);
+				
+				switch (usePipeline)
+				{
+				case 0:
+					{
+						this->renderer.renderer.CmdBindTexture(2, this->modelData[i].textureID);
+						this->renderer.renderer.CmdBindTexture(3, this->modelData[i].normalID);
+						this->renderer.renderer.CmdBindTexture(4, Renderer::SHADOW_MAP_ID);
+					}
+				case 1:
+					{
+						this->renderer.renderer.CmdBindTexture(1, this->modelData[i].textureID);
+						break;
+					}
+				}
 
 				this->renderer.renderer.CmdDraw(i);
 			}
 
 			// Anything UI related
-			this->renderer.renderer.CmdBindPipeline(6);
+			this->renderer.renderer.CmdBindPipeline(2 * 4 + 2);
 
 			glm::mat4 model = glm::mat4(1.0f);
 			model = glm::translate(model, glm::vec3(200.0f, -200.0f, 0.0f));

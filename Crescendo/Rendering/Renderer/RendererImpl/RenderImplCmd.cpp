@@ -115,10 +115,10 @@ namespace Crescendo
 		std::vector<VkBuffer> buffers;
 		for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < currentPipeline.vertexAttributeFlags.size(); cpvaf++)
 		{
+			while (currentPipeline.vertexAttributeFlags[cpvaf] != currentMesh.vertexAttributes[mvaf].attribute) mvaf++;
 			if (currentPipeline.vertexAttributeFlags[cpvaf] == currentMesh.vertexAttributes[mvaf].attribute)
 			{
 				buffers.push_back(currentMesh.vertexAttributes[mvaf].buffer);
-				mvaf++;
 			}
 		}
 		const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
