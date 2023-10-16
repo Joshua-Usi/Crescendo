@@ -93,10 +93,10 @@ public:
 		{
 			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
 			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
-			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
+			IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
-			IO::LoadGLTF("./assets/tree/tree.gltf"),
+			//IO::LoadGLTF("./assets/tree/tree.gltf"),
 			//IO::LoadGLTF("./assets/chair/chair.gltf"),
 			skyboxModel,
 			quadModel
@@ -186,12 +186,15 @@ public:
 		const glm::vec4 lightingPositions[2] = { glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f), glm::vec4(this->camera.camera.GetPosition(), 1.0f) };
 		const glm::vec3 lightIntensities = glm::vec3(0.3f, 0.4f, 0.3f);
 
+		// Lit meshs
 		this->renderer.renderer.UpdateDescriptorSetData(0, 0, projections);
 		this->renderer.renderer.UpdateDescriptorSetData(0, 1, lightingPositions);
 		this->renderer.renderer.UpdateDescriptorSetData(1, 0, lightIntensities);
 
+		// Unlit meshes
 		this->renderer.renderer.UpdateDescriptorSetData(2, 0, projections[0]);
 
+		// Skybox i think
 		this->renderer.renderer.UpdateDescriptorSetData(3, 0, this->camera.camera.GetViewProjectionMatrix());
 
 		this->renderer.renderer.UpdateDescriptorSetData(4, 0, this->shadowMapCamera.GetViewProjectionMatrix());
@@ -200,9 +203,9 @@ public:
 
 		uint32_t actualDrawCount = 0;
 
-		uint32_t usePipeline = 1;
+		uint32_t usePipeline = 0;
 
-		if (Input::GetKeyPressed(Key::One)) usePipeline = 0;
+		if (Input::GetKeyPressed(Key::One)) usePipeline = 1;
 
 		// Render commands
 		this->renderer.renderer.CmdBeginFrame();

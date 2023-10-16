@@ -123,7 +123,7 @@ namespace Crescendo
 		}
 		const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 
-		CS_ASSERT_ALWAYS(buffers.size() == currentPipeline.vertexAttributeFlags.size(), "Not all vertex attributes are bound!");
+		CS_ASSERT(buffers.size() == currentPipeline.vertexAttributeFlags.size(), "Not all vertex attributes are bound!");
 
 		cmd.BindVertexBuffers(buffers, bufferOffsets);
 		cmd.BindIndexBuffer(currentMesh.indexBuffer);
