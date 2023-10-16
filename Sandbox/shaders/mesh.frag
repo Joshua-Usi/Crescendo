@@ -52,8 +52,6 @@ void main()
 	float spec = pow(max(dot(viewDir, reflectDir), 0.0), 8.0);
 	float specular = bpli.specular * spec;
 
-
-
 	// Lighting mixing
 	vec3 result = (bpli.ambient + diffuse + specular) * texelColor.rgb;
 

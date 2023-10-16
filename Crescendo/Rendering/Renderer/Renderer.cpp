@@ -86,6 +86,7 @@ namespace Crescendo
 	
 	void Renderer::UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices)
 	{
+		// Assert that the attributes are sorted
 		bool isSorted = true;
 		for (uint32_t i = 0; i < attributes.size() - 1; i++)
 		{

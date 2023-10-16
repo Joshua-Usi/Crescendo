@@ -113,15 +113,17 @@ namespace Crescendo
 
 		// Bind the vertex buffers
 		std::vector<VkBuffer> buffers;
-		for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < currentPipeline.vertexAttributeFlags.size(); cpvaf++)
+		for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < currentPipeline.vertexAttributeFlags.size(); mvaf++)
 		{
-			while (currentPipeline.vertexAttributeFlags[cpvaf] != currentMesh.vertexAttributes[mvaf].attribute) mvaf++;
 			if (currentPipeline.vertexAttributeFlags[cpvaf] == currentMesh.vertexAttributes[mvaf].attribute)
 			{
 				buffers.push_back(currentMesh.vertexAttributes[mvaf].buffer);
+				cpvaf++;
 			}
 		}
 		const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
+
+		CS_ASSERT_ALWAYS(buffers.size() == currentPipeline.vertexAttributeFlags.size(), "Not all vertex attributes are bound!");
 
 		cmd.BindVertexBuffers(buffers, bufferOffsets);
 		cmd.BindIndexBuffer(currentMesh.indexBuffer);

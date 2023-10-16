@@ -96,7 +96,7 @@ public:
 			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
-			//IO::LoadGLTF("./assets/tree/tree.gltf"),
+			IO::LoadGLTF("./assets/tree/tree.gltf"),
 			//IO::LoadGLTF("./assets/chair/chair.gltf"),
 			skyboxModel,
 			quadModel
@@ -168,14 +168,16 @@ public:
 
 		this->taskQueue.sleep();
 
+		//this->renderer.renderer.CreateImage(CVar::Get<int32_t>("rc_shadowmap"), CVar::Get<int32_t>("rc_shadowmap"));
+
 		for (auto& image : images) this->renderer.renderer.UploadTexture(image.pixels.get(), image.width, image.height, image.channels, false);
 	}
 	void OnUpdate(double dt)
 	{
 		this->camera.Update();
 
-		//float currentTime = this->GetTime<float>() / 2.5f;
-		float currentTime = std::numbers::pi / 36.0f;
+		float currentTime = this->GetTime<float>() / 10.0f;
+		//float currentTime = std::numbers::pi / 36.0f;
 		this->shadowMapCamera.SetPosition(glm::vec3(0.0f, std::cosf(currentTime) * 40.0f, std::sinf(currentTime) * 40.0f));
 		this->shadowMapCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f));
 
@@ -198,9 +200,9 @@ public:
 
 		uint32_t actualDrawCount = 0;
 
-		uint32_t usePipeline = 0;
+		uint32_t usePipeline = 1;
 
-		if (Input::GetKeyPressed(Key::One)) usePipeline = 1;
+		if (Input::GetKeyPressed(Key::One)) usePipeline = 0;
 
 		// Render commands
 		this->renderer.renderer.CmdBeginFrame();
@@ -253,6 +255,7 @@ public:
 						this->renderer.renderer.CmdBindTexture(2, this->modelData[i].textureID);
 						this->renderer.renderer.CmdBindTexture(3, this->modelData[i].normalID);
 						this->renderer.renderer.CmdBindTexture(4, Renderer::SHADOW_MAP_ID);
+						break;
 					}
 				case 1:
 					{
