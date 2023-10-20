@@ -41,7 +41,7 @@ public:
 		this->GetWindow()->SetCursorLock(true);
 
 		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
-		this->camera.camera.SetPosition(glm::vec3(0.0f, 1.0f, 0.0f));
+		this->camera.camera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
 
 		this->UICamera = Graphics::OrthographicCamera(
 			glm::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f),
@@ -91,12 +91,13 @@ public:
 
 		std::vector<IO::Model> models =
 		{
+			//IO::LoadGLTF("./assets/tristan/TRISTANSEXY.gl	tf"),
 			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
 			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
 			IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
-			//IO::LoadGLTF("./assets/tree/tree.gltf"),
+			IO::LoadGLTF("./assets/tree/tree.gltf"),
 			//IO::LoadGLTF("./assets/chair/chair.gltf"),
 			skyboxModel,
 			quadModel
@@ -203,7 +204,7 @@ public:
 
 		uint32_t actualDrawCount = 0;
 
-		uint32_t usePipeline = 0;
+		uint32_t usePipeline = 1;
 
 		if (Input::GetKeyPressed(Key::One)) usePipeline = 1;
 
@@ -300,7 +301,18 @@ public:
 		}
 
 		if (Input::GetKeyDown(Key::F11)) this->GetWindow()->SetFullScreen(!this->GetWindow()->IsFullScreen());
-		if (Input::GetKeyDown(Key::Escape)) this->Exit();
+		if (Input::GetMouseButtonDown(MouseButton::Left)) this->GetWindow()->SetCursorLock(true);
+		if (Input::GetKeyDown(Key::Escape))
+		{
+			if (this->GetWindow()->IsCursorLocked())
+			{
+				this->GetWindow()->SetCursorLock(false);
+			}
+			else
+			{
+				this->Exit();
+			}
+		}
 	}
 	void OnExit()
 	{
