@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include "cs_std/graphics/mesh.hpp"
+
 namespace Crescendo
 {
 	class Renderer
@@ -16,33 +18,16 @@ namespace Crescendo
 	public:
 		const static uint32_t SHADOW_MAP_ID = UINT32_MAX;
 		enum class ShaderStage { Vertex, Fragment };
-		enum class ShaderAttributeFlag : uint32_t
-		{
-			Position = 0,
-			Normal,
-			Tangent,
-			TexCoord_0,
-			TexCoord_1,
-			Color_0,
-			Joints_0,
-			Weights_0,
-			SHADER_ATTRIBUTE_FLAG_COUNT,
-		};
-		struct ShaderAttribute
-		{
-			std::vector<float> data;
-			ShaderAttributeFlag attribute;
-		};
 		/// <summary>
 		/// Outlines instructions for how the renderer should be built
 		/// </summary>
 		struct BuilderInfo
 		{
-			enum class DeviceType : uint32_t { Discrete = 0, Integrated = 1 };
+			enum class DeviceType : uint32_t { Discrete = 0, Integrated };
 			enum class PresentMode : uint32_t
 			{
 				Mailbox = 0, // The displayed image will always be the most recent image
-				FIFO = 1 // Images are placed in a queue and the oldest image is displayed. Guaranteed to be supported
+				FIFO // Images are placed in a queue and the oldest image is displayed. Guaranteed to be supported
 			};
 			struct WindowExtent { uint32_t width, height; };
 			/*
@@ -148,10 +133,10 @@ namespace Crescendo
 		// Also note that cartesian products can generate a lot of variants (exponentially)
 		struct PipelineVariants
 		{
-			enum class FillMode : uint8_t { Solid = 0, Wireframe = 1, Point = 2 };
-			enum class DepthFunc : uint8_t { Never = 0, Less = 1, Equal = 2, LessEqual = 3, Greater = 4, NotEqual = 5, GreaterEqual = 6, Always = 7 };
-			enum class CullMode : uint8_t { None = 0, Front = 1, Back = 2 };
-			enum class RenderPass : uint8_t { Default = 0, Shadow = 1 };
+			enum class FillMode : uint8_t { Solid = 0, Wireframe, Point };
+			enum class DepthFunc : uint8_t { Never = 0, Less, Equal, LessEqual, Greater, NotEqual, GreaterEqual, Always };
+			enum class CullMode : uint8_t { None = 0, Front, Back };
+			enum class RenderPass : uint8_t { Default = 0, Shadow };
 			std::vector<FillMode> fillModes;
 			std::vector<bool> depthTestEnables;
 			std::vector<bool> depthWriteEnables;
@@ -204,7 +189,7 @@ namespace Crescendo
 
 		void Resize();
 
-		void UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices);
+		void UploadMesh(const cs_std::graphics::mesh& mesh);
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariants& variants);
 		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 

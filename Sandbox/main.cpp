@@ -5,7 +5,7 @@ typedef Crescendo::Renderer Renderer;
 namespace Graphics = Crescendo::Graphics;
 namespace IO = Crescendo::IO;
 
-#include <cs_std/graphics/algorithms.hpp>
+#include "cs_std/graphics/algorithms.hpp"
 
 #include "glm/gtx/common.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -13,6 +13,21 @@ namespace IO = Crescendo::IO;
 #include "CameraController.hpp"
 
 #include <map>
+
+struct Transform
+{
+	glm::mat4 transform;
+	Transform(const glm::mat4& transform) : transform(transform) {}
+
+	operator glm::mat4&() { return this->transform; }
+};
+
+struct ModelData
+{
+	cs_std::graphics::bounding_aabb bounds;
+	uint32_t textureID, normalID;
+	bool isTransparent, isDoubleSided, isShadowCasting;
+};
 
 class Sandbox : public Application
 {
@@ -23,21 +38,16 @@ private:
 
 	uint32_t meshCount = 0;
 
-	struct ModelData
-	{
-		glm::mat4 transform;
-		cs_std::graphics::bounding_aabb bounds;
-		uint32_t textureID, normalID;
-		bool isTransparent, isDoubleSided, isShadowCasting;
-	};
-
 	std::vector<ModelData> modelData;
+	std::vector<Entity> entities;
+
 
 	int frame = 0;
 	double lastTime = 0.0;
 public:
 	void OnStartup()
 	{
+
 		this->GetWindow()->SetCursorLock(true);
 
 		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
@@ -51,8 +61,8 @@ public:
 		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
 
 		this->shadowMapCamera = Graphics::OrthographicCamera(
-			glm::vec4(-20.0f, 20.0f, -20.0f, 20.0f),
-			glm::vec2(-21.0f, 61.0f)
+			glm::vec4(-25.0f, 25.0f, -25.0f, 25.0f),
+			glm::vec2(-250.0f, 250.0f)
 		);
 			
 		// Upload shaders (creates pipelines and descriptor sets)
@@ -91,10 +101,10 @@ public:
 
 		std::vector<IO::Model> models =
 		{
-			//IO::LoadGLTF("./assets/tristan/TRISTANSEXY.gl	tf"),
+			//IO::LoadGLTF("./assets/tristan/TRISTANSEXY.gltf"),
 			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
 			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
-			IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
+			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
 			IO::LoadGLTF("./assets/tree/tree.gltf"),
@@ -106,6 +116,7 @@ public:
 		std::map<std::filesystem::path, uint32_t> seenTexturesDiffuse, seenTexturesNormal;
 		this->meshCount = 0;
 		uint32_t i = 0, j = 0;
+		double accumulatingTime = 0.0;
 		for (const auto& model : models)
 		{
 			this->meshCount += model.meshes.size();
@@ -113,13 +124,23 @@ public:
 			for (const auto& mesh : model.meshes)
 			{
 				// Mesh upload
-				std::vector<Renderer::ShaderAttribute> attributes;
-				if (mesh.vertices.size() > 0) attributes.emplace_back(mesh.vertices, Renderer::ShaderAttributeFlag::Position);
-				if (mesh.normals.size() > 0) attributes.emplace_back(mesh.normals, Renderer::ShaderAttributeFlag::Normal);
-				if (mesh.tangents.size() > 0) attributes.emplace_back(mesh.tangents, Renderer::ShaderAttributeFlag::Tangent);
-				if (mesh.textureUVs.size() > 0) attributes.emplace_back(mesh.textureUVs, Renderer::ShaderAttributeFlag::TexCoord_0);
+				std::vector<cs_std::graphics::shader_attribute> attributes;
+				if (mesh.vertices.size() > 0) attributes.emplace_back(mesh.vertices, cs_std::graphics::Attribute::POSITION);
+				if (mesh.normals.size() > 0) attributes.emplace_back(mesh.normals, cs_std::graphics::Attribute::NORMAL);
+				attributes.emplace_back(mesh.tangents, cs_std::graphics::Attribute::TANGENT);
+				if (mesh.textureUVs.size() > 0) attributes.emplace_back(mesh.textureUVs, cs_std::graphics::Attribute::TEXCOORD_0);
 
-				this->renderer.renderer.UploadMesh(attributes, mesh.indices);
+				cs_std::graphics::mesh csMesh(attributes, mesh.indices);
+
+				if (mesh.tangents.size() == 0)
+				{
+					double now = this->GetTime();
+					cs_std::console::log("Generated normals");
+					cs_std::graphics::generate_tangents(csMesh);
+					accumulatingTime += this->GetTime() - now;
+				}
+
+				this->renderer.renderer.UploadMesh(cs_std::graphics::mesh(csMesh.attributes, csMesh.indices));
 
 				// Texture upload
 				if (!mesh.diffuse.empty() && seenTexturesDiffuse.find(mesh.diffuse) == seenTexturesDiffuse.end())
@@ -134,13 +155,20 @@ public:
 				}
 
 				this->modelData.emplace_back(
-					mesh.transform,
 					cs_std::graphics::bounding_aabb(mesh.vertices).transform(mesh.transform),
 					seenTexturesDiffuse[mesh.diffuse], seenTexturesNormal[mesh.normal],
 					mesh.isTransparent, mesh.isDoubleSided, true
 				);
+
+				Entity entity = EntityManager::CreateEntity();
+				entity.AddComponent<Transform>(Transform(mesh.transform));
+			
+				this->entities.push_back(entity);
 			}
 		}
+
+		cs_std::console::log("Generated tangents in " + std::to_string(accumulatingTime) + " seconds");
+
 		seenTexturesDiffuse.erase("");
 		seenTexturesNormal.erase("");
 		for (auto& modelData : this->modelData) modelData.normalID += seenTexturesDiffuse.size();
@@ -169,8 +197,6 @@ public:
 
 		this->taskQueue.sleep();
 
-		//this->renderer.renderer.CreateImage(CVar::Get<int32_t>("rc_shadowmap"), CVar::Get<int32_t>("rc_shadowmap"));
-
 		for (auto& image : images) this->renderer.renderer.UploadTexture(image.pixels.get(), image.width, image.height, image.channels, false);
 	}
 	void OnUpdate(double dt)
@@ -178,8 +204,7 @@ public:
 		this->camera.Update();
 
 		float currentTime = this->GetTime<float>() / 10.0f;
-		//float currentTime = std::numbers::pi / 36.0f;
-		this->shadowMapCamera.SetPosition(glm::vec3(0.0f, std::cosf(currentTime) * 40.0f, std::sinf(currentTime) * 40.0f));
+		this->shadowMapCamera.SetPosition(glm::vec3(std::sinf(currentTime) * 100.0f, std::cosf(currentTime) * 100.0f, 0.0f));
 		this->shadowMapCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f));
 
 		// Render prep
@@ -204,7 +229,7 @@ public:
 
 		uint32_t actualDrawCount = 0;
 
-		uint32_t usePipeline = 1;
+		uint32_t usePipeline = 0;
 
 		if (Input::GetKeyPressed(Key::One)) usePipeline = 1;
 
@@ -222,7 +247,7 @@ public:
 				if (!this->modelData[i].isShadowCasting) continue;
 
 				actualDrawCount++;
-				this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->modelData[i].transform);
+				this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->entities[i].GetComponent<Transform>());
 				this->renderer.renderer.CmdDraw(i);
 			}
 			this->renderer.renderer.CmdEndRenderPass();
@@ -250,7 +275,7 @@ public:
 				if ( this->modelData[i].isTransparent &&  this->modelData[i].isDoubleSided) this->renderer.renderer.CmdBindPipeline(4 * usePipeline + 3);
 
 				actualDrawCount++;
-				this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->modelData[i].transform);
+				this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, this->entities[i].GetComponent<Transform>());
 				
 				switch (usePipeline)
 				{

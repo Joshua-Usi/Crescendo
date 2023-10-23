@@ -84,13 +84,13 @@ namespace Crescendo
 		this->impl->Resize();
 	}
 	
-	void Renderer::UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices)
+	void Renderer::UploadMesh(const cs_std::graphics::mesh& mesh)
 	{
 		// Assert that the attributes are sorted
 		bool isSorted = true;
-		for (uint32_t i = 0; i < attributes.size() - 1; i++)
+		for (uint32_t i = 0; i < mesh.attributes.size() - 1; i++)
 		{
-			if (attributes[i].attribute > attributes[i + 1].attribute)
+			if (mesh.attributes[i].attribute > mesh.attributes[i + 1].attribute)
 			{
 				isSorted = false;
 				break;
@@ -98,7 +98,7 @@ namespace Crescendo
 		}
 		CS_ASSERT_ALWAYS(isSorted, "Attributes are not sorted!, sorted attributes are required for this engine");
 
-		this->impl->UploadMesh(attributes, indices);
+		this->impl->UploadMesh(mesh.attributes, mesh.indices);
 	}
 	void Renderer::UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariants& variants)
 	{

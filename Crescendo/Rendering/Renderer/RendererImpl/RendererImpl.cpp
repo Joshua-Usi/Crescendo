@@ -60,19 +60,19 @@ namespace Crescendo
 		constexpr VkPolygonMode FILL_MODE_MAP[3] = { VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE, VK_POLYGON_MODE_POINT };
 		constexpr VkCompareOp DEPTH_COMPARE_MAP[8] = { VK_COMPARE_OP_NEVER, VK_COMPARE_OP_LESS, VK_COMPARE_OP_EQUAL, VK_COMPARE_OP_LESS_OR_EQUAL, VK_COMPARE_OP_GREATER, VK_COMPARE_OP_NOT_EQUAL, VK_COMPARE_OP_GREATER_OR_EQUAL, VK_COMPARE_OP_ALWAYS };
 		constexpr VkCullModeFlags CULL_MODE_MAP[3] = { VK_CULL_MODE_NONE, VK_CULL_MODE_FRONT_BIT, VK_CULL_MODE_BACK_BIT };
-		constexpr std::array<std::pair<const char*, ShaderAttributeFlag>, 12> ATTRIBUTE_MAP = {
-			std::make_pair("iPosition", ShaderAttributeFlag::Position),
-			std::make_pair("iNormal", ShaderAttributeFlag::Normal),
-			std::make_pair("iTangent", ShaderAttributeFlag::Tangent),
-			std::make_pair("iTexCoord", ShaderAttributeFlag::TexCoord_0), // Alternative name
-			std::make_pair("iTexCoord0", ShaderAttributeFlag::TexCoord_0),
-			std::make_pair("iTexCoord1", ShaderAttributeFlag::TexCoord_1),
-			std::make_pair("iColor", ShaderAttributeFlag::Color_0), // Alternative name
-			std::make_pair("iColor0", ShaderAttributeFlag::Color_0),
-			std::make_pair("iJoints", ShaderAttributeFlag::Color_0), // Alternative name
-			std::make_pair("iJoints0", ShaderAttributeFlag::Joints_0),
-			std::make_pair("iWeights", ShaderAttributeFlag::Color_0), // Alternative name
-			std::make_pair("iWeights0", ShaderAttributeFlag::Weights_0)
+		constexpr std::array<std::pair<const char*, cs_std::graphics::Attribute>, 12> ATTRIBUTE_MAP = {
+			std::make_pair("iPosition",		cs_std::graphics::Attribute::POSITION),
+			std::make_pair("iNormal",		cs_std::graphics::Attribute::NORMAL),
+			std::make_pair("iTangent",		cs_std::graphics::Attribute::TANGENT),
+			std::make_pair("iTexCoord",		cs_std::graphics::Attribute::TEXCOORD_0), // Alternative name
+			std::make_pair("iTexCoord0",	cs_std::graphics::Attribute::TEXCOORD_0),
+			std::make_pair("iTexCoord1",	cs_std::graphics::Attribute::TEXCOORD_1),
+			std::make_pair("iColor",		cs_std::graphics::Attribute::COLOR_0), // Alternative name
+			std::make_pair("iColor0",		cs_std::graphics::Attribute::COLOR_0),
+			std::make_pair("iJoints",		cs_std::graphics::Attribute::JOINTS_0), // Alternative name
+			std::make_pair("iJoints0",		cs_std::graphics::Attribute::JOINTS_0),
+			std::make_pair("iWeights",		cs_std::graphics::Attribute::WEIGHTS_0), // Alternative name
+			std::make_pair("iWeights0",		cs_std::graphics::Attribute::WEIGHTS_0)
 		};
 
 		// We we always use dynamic states, there is really no performance penalty for just viewports and scissors and it means we don't need to recreate pipelines when resizing
@@ -85,7 +85,7 @@ namespace Crescendo
 
 		PipelineData pipelineData(ReflectSpirv(vertexShader), ReflectSpirv(fragmentShader), this->device.CreateShaderModule(vertexShader), this->device.CreateShaderModule(fragmentShader));
 
-		std::vector<ShaderAttributeFlag> attributeFlags;
+		std::vector<cs_std::graphics::Attribute> attributeFlags;
 		// O(n^2) algo, not the fastest, but not the end of the world, since n is small
 		for (const auto& inputVariable : pipelineData.vertexReflection.inputVariables)
 		{
@@ -235,10 +235,10 @@ namespace Crescendo
 
 		pipelineData.Destroy(this->device);
 	}
-	void Renderer::RendererImpl::UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices)
+	void Renderer::RendererImpl::UploadMesh(const std::vector<cs_std::graphics::shader_attribute>& attributes, const std::vector<uint32_t>& indices)
 	{
 		// Elements per attribute
-		constexpr size_t ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(ShaderAttributeFlag::SHADER_ATTRIBUTE_FLAG_COUNT)] {
+		constexpr size_t ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(cs_std::graphics::Attribute::ATTRIBUTE_COUNT)] {
 			3, // POSITION
 			3, // NORMAL
 			4, // TANGENT

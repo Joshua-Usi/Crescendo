@@ -96,11 +96,11 @@ namespace Crescendo
 		std::vector<uint32_t> dataDescriptorHandles;
 		// Set number of the sampler descriptor set
 		std::vector<uint32_t> samplerDescriptorHandles;
-		std::vector<Renderer::ShaderAttributeFlag> vertexAttributeFlags;
+		std::vector<cs_std::graphics::Attribute> vertexAttributeFlags;
 
 		inline Pipeline(
 			VkPipelineLayout layout, VkPipeline pipeline, const std::vector<uint32_t>& dataDescriptorHandles,
-			const std::vector<uint32_t>& samplerDescriptorHandles, const std::vector<Renderer::ShaderAttributeFlag>& vertexAttributeFlags
+			const std::vector<uint32_t>& samplerDescriptorHandles, const std::vector<cs_std::graphics::Attribute>& vertexAttributeFlags
 		) : layout(layout), pipeline(pipeline), dataDescriptorHandles(dataDescriptorHandles),
 			samplerDescriptorHandles(samplerDescriptorHandles), vertexAttributeFlags(vertexAttributeFlags) {}
 	};
@@ -117,7 +117,7 @@ namespace Crescendo
 		{
 			internal::Allocator::Buffer buffer;
 			uint32_t elements;
-			Renderer::ShaderAttributeFlag attribute;
+			cs_std::graphics::Attribute attribute;
 		};
 		internal::Allocator::Buffer indexBuffer;
 		uint32_t indexCount;
@@ -226,7 +226,7 @@ namespace Crescendo
 
 		// Upload commands
 		void UploadPipeline(const std::vector<uint8_t>& vertexShader, const std::vector<uint8_t>& fragmentShader, const PipelineVariants& variants);
-		void UploadMesh(const std::vector<ShaderAttribute>& attributes, const std::vector<uint32_t>& indices);
+		void UploadMesh(const std::vector<cs_std::graphics::shader_attribute>& attributes, const std::vector<uint32_t>& indices);
 		void UploadTexture(const void* textureData, uint32_t width, uint32_t height, uint32_t channels, bool generateMipmaps);
 	};
 }
