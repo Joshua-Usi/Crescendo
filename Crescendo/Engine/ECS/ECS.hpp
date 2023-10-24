@@ -25,7 +25,7 @@ namespace Crescendo::Engine
 	class EntityManager
 	{
 	private:
-		friend class Entity;
+		friend struct Entity;
 		static entt::registry registry;
 	public:
 		inline static Entity CreateEntity() { return Entity(EntityManager::registry.create()); }

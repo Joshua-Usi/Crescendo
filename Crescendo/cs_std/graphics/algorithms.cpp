@@ -140,6 +140,8 @@ namespace cs_std::graphics
 	}
 	void generate_tangents(mesh& inputMesh)
 	{
+		if (!inputMesh.has_attribute(Attribute::TANGENT)) inputMesh.add_attribute(Attribute::TANGENT, {});
+
 		inputMesh.get_attribute(Attribute::TANGENT).data.resize(inputMesh.get_attribute(Attribute::POSITION).data.size() / 3 * 4);
 
 		SMikkTSpaceInterface interface;
