@@ -16,6 +16,7 @@ namespace Crescendo
 		class RendererImpl;
 		unique<RendererImpl> impl;
 	public:
+
 		const static uint32_t SHADOW_MAP_ID = UINT32_MAX;
 		enum class ShaderStage { Vertex, Fragment };
 		/// <summary>
@@ -23,7 +24,6 @@ namespace Crescendo
 		/// </summary>
 		struct BuilderInfo
 		{
-			enum class DeviceType : uint32_t { Discrete = 0, Integrated };
 			enum class PresentMode : uint32_t
 			{
 				Mailbox = 0, // The displayed image will always be the most recent image
@@ -39,13 +39,6 @@ namespace Crescendo
 			 *	Set during initialisation
 			 */
 			bool useValidationLayers;
-			/*
-			 *	Specifies if the engine should "prefer" a discrete or integrated GPU
-			 *	Preferences aren't guaranteed but it will try to use the preferred device type
-			 *
-			 *	Set during initialisation
-			 */
-			DeviceType preferredDeviceType;
 			/*
 			 *	Companies can sometimes release game-specific drivers dedicated for a specific game or engine
 			 *	

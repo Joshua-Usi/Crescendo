@@ -26,7 +26,6 @@ namespace Crescendo::Engine
 		Renderer::BuilderInfo info = {};
 
 		info.useValidationLayers = CVar::Get<bool>("rc_validationlayers");
-		info.preferredDeviceType = Renderer::BuilderInfo::DeviceType::Discrete;
 		info.appName = CVar::Get<std::string>("rc_appname");
 		info.engineName = CVar::Get<std::string>("rc_enginename");
 		info.window = this->window->GetNative();

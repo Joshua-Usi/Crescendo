@@ -2,7 +2,6 @@
 
 namespace Crescendo
 {
-	constexpr vkb::PreferredDeviceType DEVICE_TYPE_MAPPING[2] = { vkb::PreferredDeviceType::discrete, vkb::PreferredDeviceType::integrated };
 	constexpr VkPresentModeKHR PRESENT_MODE_MAPPING[2] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR };
 	constexpr VkFormat DEFAULT_DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
 	constexpr VkFormat DEFAULT_SHADOW_FORMAT = VK_FORMAT_D16_UNORM;
@@ -73,7 +72,7 @@ namespace Crescendo
 		// Select physical device
 		const vkb::PhysicalDevice physicalDeviceResult = vkb::PhysicalDeviceSelector(instance)
 			.set_minimum_version(1, 3) // We use bindless, since we are using 1.3 we don't need to enable it
-			.prefer_gpu_device_type(DEVICE_TYPE_MAPPING[static_cast<uint32_t>(info.preferredDeviceType)])
+			.prefer_gpu_device_type(vkb::PreferredDeviceType::discrete)
 			.set_surface(this->surface)
 			.set_required_features(deviceFeatures)
 			.select().value();
