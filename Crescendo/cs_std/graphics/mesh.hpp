@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <algorithm>
 
 namespace cs_std::graphics
 {
@@ -19,6 +20,7 @@ namespace cs_std::graphics
 		COLOR_0,
 		JOINTS_0,
 		WEIGHTS_0,
+		UNKNOWN,
 		// Must be last
 		ATTRIBUTE_COUNT
 	};
@@ -28,6 +30,11 @@ namespace cs_std::graphics
 	{
 		std::vector<float> data;
 		Attribute attribute;
+
+		// Comparator for sorting
+		bool operator<(const shader_attribute& other) const {
+			return attribute < other.attribute;
+		}
 	};
 
 	// Specifies the data for a mesh
@@ -59,6 +66,12 @@ namespace cs_std::graphics
 				if (attr.attribute == attribute) return true;
 			}
 			return false;
+		}
+		// Insert in-place according to Attribute index
+		inline void add_attribute(Attribute attribute, const std::vector<float>& data)
+		{
+			this->attributes.push_back({ data, attribute });
+			std::sort(this->attributes.begin(), this->attributes.end());
 		}
 	};
 }

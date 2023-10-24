@@ -14,6 +14,8 @@ namespace IO = Crescendo::IO;
 
 #include <map>
 
+//#include "cs_std/packed_vector.hpp"
+
 struct Transform
 {
 	glm::mat4 transform;
@@ -41,12 +43,38 @@ private:
 	std::vector<ModelData> modelData;
 	std::vector<Entity> entities;
 
-
 	int frame = 0;
 	double lastTime = 0.0;
 public:
 	void OnStartup()
 	{
+		/*cs_std::packed_vector<uint32_t> packed;
+
+		CS_ASSERT(packed.insert(0) == 0, "Incorrect");
+		CS_ASSERT(packed.insert(1) == 1, "Incorrect");
+		CS_ASSERT(packed.insert(2) == 2, "Incorrect");
+		CS_ASSERT(packed.insert(3) == 3, "Incorrect");
+
+		CS_ASSERT(packed[3] == 3, "Incorrect");
+
+		packed.erase(1);
+
+		CS_ASSERT(packed.insert(98) == 1, "Incorrect");
+		CS_ASSERT(packed.insert(4) == 4, "Incorrect");	
+		CS_ASSERT(packed.insert(5) == 5, "Incorrect");
+		CS_ASSERT(packed.insert(6) == 6, "Incorrect");
+		CS_ASSERT(packed.insert(7) == 7, "Incorrect");
+
+		packed.erase(5);
+		packed.erase(6);
+
+		CS_ASSERT(packed.insert(8) == 5, "Incorrect");
+		CS_ASSERT(packed.insert(9) == 6, "Incorrect");
+
+		packed.erase(3);
+		packed.erase(4);*/
+
+
 
 		this->GetWindow()->SetCursorLock(true);
 
@@ -94,10 +122,19 @@ public:
 		}
 
 		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
-		IO::Model skyboxModel = { {{ skybox.vertices, {}, skybox.textureUVs, {}, skybox.indices, "./assets/skybox.png"}} };
+		IO::Model skyboxModel;
+		skyboxModel.meshes.emplace_back(IO::Model::Mesh());
+		skyboxModel.meshes[0].meshData.indices = skybox.indices;
+		skyboxModel.meshes[0].meshData.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices);
+		skyboxModel.meshes[0].meshData.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
+		skyboxModel.meshes[0].diffuse = "./assets/skybox.png";
 
 		Construct::Mesh quad = Construct::Quad();
-		IO::Model quadModel = { {{ quad.vertices, {}, quad.textureUVs, {}, quad.indices}} };
+		IO::Model quadModel;
+		quadModel.meshes.emplace_back(IO::Model::Mesh());
+		quadModel.meshes[0].meshData.indices = quad.indices;
+		quadModel.meshes[0].meshData.add_attribute(cs_std::graphics::Attribute::POSITION, quad.vertices);
+		quadModel.meshes[0].meshData.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, quad.textureUVs);
 
 		std::vector<IO::Model> models =
 		{
@@ -117,30 +154,22 @@ public:
 		this->meshCount = 0;
 		uint32_t i = 0, j = 0;
 		double accumulatingTime = 0.0;
-		for (const auto& model : models)
+		for (auto& model : models)
 		{
 			this->meshCount += model.meshes.size();
 			
-			for (const auto& mesh : model.meshes)
+			for (auto& mesh : model.meshes)
 			{
-				// Mesh upload
-				std::vector<cs_std::graphics::shader_attribute> attributes;
-				if (mesh.vertices.size() > 0) attributes.emplace_back(mesh.vertices, cs_std::graphics::Attribute::POSITION);
-				if (mesh.normals.size() > 0) attributes.emplace_back(mesh.normals, cs_std::graphics::Attribute::NORMAL);
-				attributes.emplace_back(mesh.tangents, cs_std::graphics::Attribute::TANGENT);
-				if (mesh.textureUVs.size() > 0) attributes.emplace_back(mesh.textureUVs, cs_std::graphics::Attribute::TEXCOORD_0);
 
-				cs_std::graphics::mesh csMesh(attributes, mesh.indices);
-
-				if (mesh.tangents.size() == 0)
+				if (!mesh.meshData.has_attribute(cs_std::graphics::Attribute::TANGENT))
 				{
 					double now = this->GetTime();
 					cs_std::console::log("Generated normals");
-					cs_std::graphics::generate_tangents(csMesh);
+					cs_std::graphics::generate_tangents(mesh.meshData);
 					accumulatingTime += this->GetTime() - now;
 				}
 
-				this->renderer.renderer.UploadMesh(cs_std::graphics::mesh(csMesh.attributes, csMesh.indices));
+				this->renderer.renderer.UploadMesh(mesh.meshData);
 
 				// Texture upload
 				if (!mesh.diffuse.empty() && seenTexturesDiffuse.find(mesh.diffuse) == seenTexturesDiffuse.end())
@@ -155,7 +184,7 @@ public:
 				}
 
 				this->modelData.emplace_back(
-					cs_std::graphics::bounding_aabb(mesh.vertices).transform(mesh.transform),
+					cs_std::graphics::bounding_aabb(mesh.meshData.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(mesh.transform),
 					seenTexturesDiffuse[mesh.diffuse], seenTexturesNormal[mesh.normal],
 					mesh.isTransparent, mesh.isDoubleSided, true
 				);

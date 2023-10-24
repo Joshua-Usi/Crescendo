@@ -121,12 +121,6 @@ namespace Crescendo::IO
 
 				mesh.transform = transform;
 
-				std::unordered_map<std::string, std::vector<float>*> attributes = {
-					{ "POSITION", &mesh.vertices },
-					{ "NORMAL", &mesh.normals },
-					{ "TEXCOORD_0", &mesh.textureUVs },
-					{ "TANGENT", &mesh.tangents }
-				};
 				if (primitive.indices >= 0)
 				{
 					const auto& accessor = gltfModel.accessors[primitive.indices];
@@ -138,13 +132,13 @@ namespace Crescendo::IO
 					{
 						for (size_t i = 0; i < accessor.count; i++)
 						{
-							mesh.indices.push_back(static_cast<uint32_t>(*(reinterpret_cast<const uint16_t*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset) + i)));
+							mesh.meshData.indices.push_back(static_cast<uint32_t>(*(reinterpret_cast<const uint16_t*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset) + i)));
 						}
 					}
 					// Fast path if we don't need to convert
 					else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
 					{
-						mesh.indices.insert(mesh.indices.end(),
+						mesh.meshData.indices.insert(mesh.meshData.indices.end(),
 							reinterpret_cast<const uint32_t*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset),
 							reinterpret_cast<const uint32_t*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset + accessor.count * TypeEnumToSize(accessor.type) * ComponentEnumToSize(accessor.componentType))
 						);
@@ -156,13 +150,21 @@ namespace Crescendo::IO
 					const auto& bufferView = gltfModel.bufferViews[accessor.bufferView];
 					const auto& buffer = gltfModel.buffers[bufferView.buffer];
 
-					if (attributes.find(attribute.first) != attributes.end())
-					{
-						attributes[attribute.first]->insert(attributes[attribute.first]->end(),
-							reinterpret_cast<const float*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset),
-							reinterpret_cast<const float*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset + accessor.count * TypeEnumToSize(accessor.type) * ComponentEnumToSize(accessor.componentType))
-						);
-					}
+					cs_std::graphics::Attribute type = cs_std::graphics::Attribute::UNKNOWN;
+
+					if (attribute.first == "POSITION") type = cs_std::graphics::Attribute::POSITION;
+					if (attribute.first == "NORMAL") type = cs_std::graphics::Attribute::NORMAL;
+					if (attribute.first == "TANGENT") type = cs_std::graphics::Attribute::TANGENT;
+					if (attribute.first == "TEXCOORD_0") type = cs_std::graphics::Attribute::TEXCOORD_0;
+					if (attribute.first == "TEXCOORD_1") type = cs_std::graphics::Attribute::TEXCOORD_1;
+					if (attribute.first == "COLOR_0") type = cs_std::graphics::Attribute::COLOR_0;
+					if (attribute.first == "JOINTS_0") type = cs_std::graphics::Attribute::JOINTS_0;
+					if (attribute.first == "WEIGHTS_0") type = cs_std::graphics::Attribute::WEIGHTS_0;
+
+					mesh.meshData.add_attribute(type, std::vector<float>(
+						reinterpret_cast<const float*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset),
+						reinterpret_cast<const float*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset + accessor.count * TypeEnumToSize(accessor.type) * ComponentEnumToSize(accessor.componentType))
+					));
 				}
 				if (primitive.material >= 0)
 				{
