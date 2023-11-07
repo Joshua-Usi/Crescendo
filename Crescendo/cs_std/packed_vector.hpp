@@ -20,11 +20,10 @@ namespace cs_std
 			// Used by the set to sort the free blocks
 			inline bool operator<(const free_block& other) const { return start < other.start; }
 		};
+	private:
 		std::vector<T> vector;
 		std::set<free_block> free_blocks;
 	public:
-		T& operator[](size_t index) { return vector[index]; }
-		const T& operator[](size_t index) const { return vector[index]; }
 		// O(1)
 		size_t insert(const T& item)
 		{
@@ -51,10 +50,35 @@ namespace cs_std
 				return vector.size() - 1;
 			}
 		}
+		size_t insert(T&& item)
+		{
+			if (!free_blocks.empty())
+			{
+				auto it = free_blocks.begin();
+				size_t index = it->start;
+				if (it->length > 1)
+				{
+					free_block modifiedBlock(it->start + 1, it->length - 1);
+					free_blocks.erase(it);
+					free_blocks.insert(modifiedBlock);
+				}
+				else
+				{
+					free_blocks.erase(it);
+				}
+				vector[index] = std::move(item);
+				return index;
+			}
+			else
+			{
+				vector.push_back(std::move(item));
+				return vector.size() - 1;
+			}
+		}
 		void erase(size_t index) {
-			// Optionally we can clear the value at the index.
+			// clear the value at the index.
 			// Could potentially be faster to just leave it as is.
-			// vector[index] = T();
+			vector[index] = T();
 			auto next_it = free_blocks.lower_bound(free_block(index, 0));
 			auto prev_it = (next_it == free_blocks.begin()) ? free_blocks.end() : std::prev(next_it);
 			bool merged = false;
@@ -76,5 +100,9 @@ namespace cs_std
 			if (!merged) free_blocks.insert(free_block(index, 1));
 		}
 		size_t capacity() const { return vector.size(); }
+		void clear() { vector.clear(); free_blocks.clear(); }
+	public:
+		T& operator[](size_t index) { return vector[index]; }
+		const T& operator[](size_t index) const { return vector[index]; }
 	};
 }

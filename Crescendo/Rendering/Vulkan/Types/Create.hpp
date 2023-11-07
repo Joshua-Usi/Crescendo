@@ -1,7 +1,6 @@
 #pragma once
 
-#define VK_NO_PROTOTYPES
-#include "vulkan/vulkan.h"
+#include "Volk/volk.h"
 
 #include <array>
 #include <vector>
@@ -9,7 +8,7 @@
 /// <summary>
 /// Argument order is defined exactly as in the Vulkan API.
 /// </summary>
-namespace Crescendo::internal::Create
+namespace Crescendo::Vulkan::Create
 {
 	template<typename T = std::vector<VkSemaphore>, typename U = std::vector<uint32_t>, typename V = std::vector<VkCommandBuffer>, typename W = std::vector<VkSemaphore>>
 	constexpr VkSubmitInfo SubmitInfo(const T& waitSemaphores, const U& waitDstStageMask, const V& commandBuffers, const W& signalSemaphores)
@@ -28,6 +27,22 @@ namespace Crescendo::internal::Create
 
 		return submitInfo;
 	}
+	constexpr VkSubmitInfo SubmitInfo(const VkSemaphore& waitSemaphore, const uint32_t& waitDstStageMask, const VkCommandBuffer& commandBuffer, const VkSemaphore& signalSemaphore)
+	{
+		VkSubmitInfo submitInfo = {};
+
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.pNext = nullptr;
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = &waitSemaphore;
+		submitInfo.pWaitDstStageMask = &waitDstStageMask;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &commandBuffer;
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = &signalSemaphore;
+
+		return submitInfo;
+	}
 	inline constexpr VkPresentInfoKHR PresentInfoKHR(uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, uint32_t swapchainCount, const VkSwapchainKHR* pSwapchains, const uint32_t* pImageIndices, VkResult* pResults)
 	{
 		VkPresentInfoKHR presentInfo = {};
@@ -40,6 +55,21 @@ namespace Crescendo::internal::Create
 		presentInfo.pSwapchains = pSwapchains;
 		presentInfo.pImageIndices = pImageIndices;
 		presentInfo.pResults = pResults;
+
+		return presentInfo;
+	}
+	inline constexpr VkPresentInfoKHR PresentInfoKHR(const VkSemaphore& waitSemaphore, const VkSwapchainKHR& swapchain, const uint32_t& imageIndex)
+	{
+		VkPresentInfoKHR presentInfo = {};
+
+		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+		presentInfo.pNext = nullptr;
+		presentInfo.waitSemaphoreCount = 1;
+		presentInfo.pWaitSemaphores = &waitSemaphore;
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = &swapchain;
+		presentInfo.pImageIndices = &imageIndex;
+		presentInfo.pResults = nullptr;
 
 		return presentInfo;
 	}
@@ -381,7 +411,7 @@ namespace Crescendo::internal::Create
 
 		return createInfo;
 	}
-	inline constexpr VkImageCreateInfo ImageCreateInfo(VkImageType imageType, VkFormat format, VkExtent3D extent, uint32_t mipLevels, uint32_t arrayLayers, VkSampleCountFlagBits samples, VkImageTiling tiling, VkImageUsageFlags usage, VkSharingMode sharingMode, uint32_t queueFamilyIndexCount, const uint32_t* pQueueFamilyIndices, VkImageLayout initialLayout)
+	inline constexpr VkImageCreateInfo ImageCreateInfo(VkImageType imageType, VkFormat format, VkExtent3D extent, uint32_t mipLevels, uint32_t arrayLayers, VkSampleCountFlagBits samples, VkImageTiling tiling, VkImageUsageFlags usage, VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE	, uint32_t queueFamilyIndexCount = 0, const uint32_t* pQueueFamilyIndices = nullptr, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED)
 	{
 		VkImageCreateInfo createInfo = {};
 
@@ -570,7 +600,7 @@ namespace Crescendo::internal::Create
 
 		return descriptorSet;
 	}
-	inline constexpr VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding(uint32_t binding, VkDescriptorType descriptorType, uint32_t descriptorCount, VkShaderStageFlags stageFlags, const VkSampler* pImmutableSamplers)
+	inline constexpr VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding(uint32_t binding, VkDescriptorType descriptorType, uint32_t descriptorCount, VkShaderStageFlags stageFlags, const VkSampler* pImmutableSamplers = nullptr)
 	{
 		VkDescriptorSetLayoutBinding layoutBinding = {};
 

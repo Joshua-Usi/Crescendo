@@ -1,16 +1,12 @@
-#include "Reflection.hpp"
-
+#include "ShaderReflection.hpp"
 #include "Core/common.hpp"
+#include "Create.hpp"
 
-#include "volk/volk.h"
 #include "SPIRV-reflect/spirv_reflect.h"
 
-#include "Rendering/Renderer/RendererImpl/internal/Create.hpp"
-
-#include <unordered_set>
 #include <algorithm>
 
-namespace Crescendo
+namespace Crescendo::Vulkan
 {
 	VkFormat GetFormatFromSize(uint32_t size)
 	{
@@ -27,21 +23,38 @@ namespace Crescendo
 	uint32_t GetTypeSize(const SpvReflectNumericTraits& traits)
 	{
 		if (traits.matrix.column_count == 0 && traits.matrix.row_count == 0) return sizeof(float) * traits.vector.component_count;
-		else return sizeof(float) * traits.matrix.column_count * traits.matrix.row_count;
+		return sizeof(float) * traits.matrix.column_count * traits.matrix.row_count;
 	}
-	SpirvReflection::DescriptorType GetType(SpvReflectDescriptorType type)
+	ShaderReflection::DescriptorType GetType(SpvReflectDescriptorType type)
 	{
 		switch (type)
 		{
-			case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return SpirvReflection::DescriptorType::Sampler;
-			case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER: return SpirvReflection::DescriptorType::Block;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return ShaderReflection::DescriptorType::Sampler;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER: return ShaderReflection::DescriptorType::Block;
 		}
 		CS_ASSERT(false, "Unsupported / Unknown descriptor type");
-		return SpirvReflection::DescriptorType::Unknown;
+		return ShaderReflection::DescriptorType::Unknown;
 	}
-	SpirvReflection Crescendo::ReflectSpirv(const std::vector<uint8_t>& code)
+	std::vector<std::vector<VkDescriptorSetLayoutBinding>> ShaderReflection::GetDescriptorSetLayoutBindings(ShaderReflection::DescriptorType descriptorType, uint32_t shaderStage) const
 	{
-		SpirvReflection reflection;
+		std::vector<std::vector<VkDescriptorSetLayoutBinding>> bindings;
+		for (const auto& setLayout : this->descriptorSetLayouts)
+		{
+			std::vector<VkDescriptorSetLayoutBinding> setBindings;
+			for (const auto& binding : setLayout.bindings)
+			{
+				if (descriptorType != ShaderReflection::DescriptorType::All && binding.type != descriptorType) break;
+				VkDescriptorType descriptorType = binding.IsSampler()
+												? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+												: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+				setBindings.emplace_back(binding.binding, descriptorType, 1, shaderStage, nullptr);
+			}
+			if (setBindings.size() > 0) bindings.push_back(setBindings);
+		}
+		return bindings;
+	}
+	ShaderReflection::ShaderReflection(const std::vector<uint8_t>& code)
+	{
 		SpvReflectShaderModule reflectionModule;
 		CS_ASSERT(spvReflectCreateShaderModule(code.size(), code.data(), &reflectionModule) == SPV_REFLECT_RESULT_SUCCESS, "Failed to create shader reflection module!");
 		// Reflect input variables
@@ -53,10 +66,10 @@ namespace Crescendo
 			for (uint32_t i = 0; i < inputCount; i++)
 			{
 				if (inputVariables[i]->location == std::numeric_limits<uint32_t>::max()) continue;
-				reflection.inputVariables.emplace_back(inputVariables[i]->name, inputVariables[i]->location, GetTypeSize(inputVariables[i]->numeric));
+				this->inputVariables.emplace_back(inputVariables[i]->name, inputVariables[i]->location, GetTypeSize(inputVariables[i]->numeric));
 			}
 			// Sort in location ascending
-			std::sort(reflection.inputVariables.begin(), reflection.inputVariables.end(), [](const SpirvReflection::InterfaceVariable& a, const SpirvReflection::InterfaceVariable& b) { return a.location < b.location; });
+			std::sort(this->inputVariables.begin(), this->inputVariables.end(), [](const ShaderReflection::InterfaceVariable& a, const ShaderReflection::InterfaceVariable& b) { return a.location < b.location; });
 		}
 		// Reflect output variables
 		{
@@ -67,10 +80,10 @@ namespace Crescendo
 			for (uint32_t i = 0; i < outputCount; i++)
 			{
 				if (outputVariables[i]->location == std::numeric_limits<uint32_t>::max()) continue;
-				reflection.outputVariables.emplace_back(outputVariables[i]->name, outputVariables[i]->location, GetTypeSize(outputVariables[i]->numeric));
+				this->outputVariables.emplace_back(outputVariables[i]->name, outputVariables[i]->location, GetTypeSize(outputVariables[i]->numeric));
 			}
 			// Sort in location ascending
-			std::sort(reflection.outputVariables.begin(), reflection.outputVariables.end(), [](const SpirvReflection::InterfaceVariable& a, const SpirvReflection::InterfaceVariable& b) { return a.location < b.location; });
+			std::sort(this->outputVariables.begin(), this->outputVariables.end(), [](const ShaderReflection::InterfaceVariable& a, const ShaderReflection::InterfaceVariable& b) { return a.location < b.location; });
 		}
 		// Reflect descriptor sets
 		{
@@ -78,31 +91,31 @@ namespace Crescendo
 			CS_ASSERT(spvReflectEnumerateDescriptorSets(&reflectionModule, &setCount, nullptr) == SPV_REFLECT_RESULT_SUCCESS, "Failed to enumerate descriptor sets!");
 			std::vector<SpvReflectDescriptorSet*> sets(setCount);
 			CS_ASSERT(spvReflectEnumerateDescriptorSets(&reflectionModule, &setCount, sets.data()) == SPV_REFLECT_RESULT_SUCCESS, "Failed to enumerate descriptor sets!");
-			
+
 			for (uint32_t i = 0; i < setCount; i++)
 			{
 				SpvReflectDescriptorSet* set = sets[i];
-				
-				SpirvReflection::DescriptorSetLayout descriptorSet;
+
+				ShaderReflection::DescriptorSetLayout descriptorSet;
 				descriptorSet.set = set->set;
-				
+
 				for (uint32_t j = 0; j < set->binding_count; j++)
 				{
 					SpvReflectDescriptorBinding* binding = set->bindings[j];
 
-					SpirvReflection::DescriptorSetBinding bindingSet;
+					ShaderReflection::DescriptorSetBinding bindingSet;
 					bindingSet.binding = binding->binding;
 					bindingSet.type = GetType(binding->descriptor_type);
 
 					for (uint32_t k = 0; k < binding->block.member_count; k++)
 					{
 						SpvReflectBlockVariable member = binding->block.members[k];
-						
+
 						bindingSet.members.emplace_back(member.offset, member.size);
 					}
 					descriptorSet.bindings.push_back(bindingSet);
 				}
-				reflection.descriptorSetLayouts.push_back(descriptorSet);
+				this->descriptorSetLayouts.push_back(descriptorSet);
 			}
 		}
 		// Reflect push constants
@@ -115,7 +128,7 @@ namespace Crescendo
 			{
 				SpvReflectBlockVariable* pushConstant = pushConstants[i];
 
-				SpirvReflection::PushConstantLayout pushConstantLayout;
+				ShaderReflection::PushConstantLayout pushConstantLayout;
 
 				for (uint32_t j = 0; j < pushConstant->member_count; j++)
 				{
@@ -123,42 +136,22 @@ namespace Crescendo
 					pushConstantLayout.members.emplace_back(member.offset, member.size);
 				}
 
-				reflection.pushConstants.push_back(pushConstantLayout);
+				this->pushConstants.push_back(pushConstantLayout);
 			}
 		}
 		spvReflectDestroyShaderModule(&reflectionModule);
-
-		return reflection;
 	}
-	std::vector<std::vector<VkDescriptorSetLayoutBinding>> SpirvReflection::GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType descriptorType, uint32_t shaderStage) const
+	std::vector<ShaderReflection::DescriptorSetLayout> ShaderReflection::GetDescriptorSetLayouts(ShaderReflection::DescriptorType descriptorType) const
 	{
-		std::vector<std::vector<VkDescriptorSetLayoutBinding>> bindings;
+		std::vector<ShaderReflection::DescriptorSetLayout> layouts;
 		for (const auto& setLayout : this->descriptorSetLayouts)
 		{
-			std::vector<VkDescriptorSetLayoutBinding> setBindings;
-			for (const auto& binding : setLayout.bindings)
-			{
-				if (descriptorType != SpirvReflection::DescriptorType::All && binding.type != descriptorType) break;
-				VkDescriptorType descriptorType = binding.IsSampler()
-												? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-												: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-				setBindings.emplace_back(binding.binding, descriptorType, 1, shaderStage, nullptr);
-			}
-			if (setBindings.size() > 0) bindings.push_back(setBindings);
-		}
-		return bindings;
-	}
-	std::vector<SpirvReflection::DescriptorSetLayout> SpirvReflection::GetDescriptorSetLayouts(SpirvReflection::DescriptorType descriptorType) const
-	{
-		std::vector<SpirvReflection::DescriptorSetLayout> layouts;
-		for (const auto& setLayout : this->descriptorSetLayouts)
-		{
-			if (descriptorType != SpirvReflection::DescriptorType::All && setLayout.bindings.front().type != descriptorType) continue;
+			if (descriptorType != ShaderReflection::DescriptorType::All && setLayout.bindings.front().type != descriptorType) continue;
 			layouts.push_back(setLayout);
 		}
 		return layouts;
 	}
-	std::vector<VkVertexInputBindingDescription> SpirvReflection::GetVertexBindings() const
+	std::vector<VkVertexInputBindingDescription> ShaderReflection::GetVertexBindings() const
 	{
 		std::vector<VkVertexInputBindingDescription> bindings(this->inputVariables.size());
 		for (uint32_t i = 0; i < this->inputVariables.size(); i++)
@@ -167,7 +160,7 @@ namespace Crescendo
 		}
 		return bindings;
 	}
-	std::vector<VkVertexInputAttributeDescription> SpirvReflection::GetVertexAttributes() const
+	std::vector<VkVertexInputAttributeDescription> ShaderReflection::GetVertexAttributes() const
 	{
 		std::vector<VkVertexInputAttributeDescription> attributes(this->inputVariables.size());
 		for (uint32_t i = 0; i < this->inputVariables.size(); i++)
@@ -176,7 +169,7 @@ namespace Crescendo
 		}
 		return attributes;
 	}
-	std::vector<VkPushConstantRange> SpirvReflection::GetPushConstantRanges(uint32_t shaderStage) const
+	std::vector<VkPushConstantRange> ShaderReflection::GetPushConstantRanges(uint32_t shaderStage) const
 	{
 		std::vector<VkPushConstantRange> ranges;
 		for (const auto& pushConstant : this->pushConstants)

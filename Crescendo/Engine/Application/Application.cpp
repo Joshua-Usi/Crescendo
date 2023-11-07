@@ -23,22 +23,22 @@ namespace Crescendo::Engine
 
 		this->window->SetSize(CVar::Get<int64_t>("ec_windowwidth"), CVar::Get<int64_t>("ec_windowheight"));
 
-		Renderer::BuilderInfo info = {};
+		//Renderer::BuilderInfo info = {};
 
-		info.useValidationLayers = CVar::Get<bool>("rc_validationlayers");
-		info.appName = CVar::Get<std::string>("rc_appname");
-		info.engineName = CVar::Get<std::string>("rc_enginename");
-		info.window = this->window->GetNative();
-		info.windowExtent = { this->window->GetWidth(), this->window->GetHeight() };
-		info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
-		info.framesInFlight = CVar::Get<int64_t>("rc_framesinflight");
-		info.descriptorBufferBlockSize = CVar::Get<int64_t>("rc_descriptorbufferblocksize");
-		info.msaaSamples = CVar::Get<int64_t>("rc_multisamples");
-		info.anistropicFiltering = CVar::Get<float>("rc_anisotropicfiltering");
-		info.desriptorSetsPerPool = CVar::Get<int64_t>("rc_descriptorsetsperpool");
-		info.shadowMapResolution = CVar::Get<int64_t>("rc_shadowmapresolution");
+		//info.useValidationLayers = CVar::Get<bool>("rc_validationlayers");
+		//info.appName = CVar::Get<std::string>("rc_appname");
+		//info.engineName = CVar::Get<std::string>("rc_enginename");
+		//info.window = this->window->GetNative();
+		//info.windowExtent = { this->window->GetWidth(), this->window->GetHeight() };
+		//info.preferredPresentMode = Renderer::BuilderInfo::PresentMode::Mailbox;
+		//info.framesInFlight = CVar::Get<int64_t>("rc_framesinflight");
+		//info.descriptorBufferBlockSize = CVar::Get<int64_t>("rc_descriptorbufferblocksize");
+		//info.msaaSamples = CVar::Get<int64_t>("rc_multisamples");
+		//info.anistropicFiltering = CVar::Get<float>("rc_anisotropicfiltering");
+		//info.desriptorSetsPerPool = CVar::Get<int64_t>("rc_descriptorsetsperpool");
+		//info.shadowMapResolution = CVar::Get<int64_t>("rc_shadowmapresolution");
 
-		this->renderer = Atlas(info);
+		//this->renderer = Atlas(info);
 	}
 	void Application::Run()
 	{

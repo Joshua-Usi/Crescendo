@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vector>
+#include <stack>
 #include <functional>
 
 namespace cs_std
@@ -8,13 +8,28 @@ namespace cs_std
 	class function_queue
 	{
 	private:
-		std::vector<std::function<void()>> queue;
+		std::stack<std::function<void()>> stack;
 	public:
-		inline void push(std::function<void()>&& function) { queue.push_back(function); }
+		/// <summary>
+		/// Add a function to the queue, the last function pushed on the queue will be called first
+		/// </summary>
+		/// <param name="function"></param>
+		inline void push(std::function<void()>&& function) { stack.push(std::move(function)); }
+		/// <summary>
+		/// Flush the queue, the last function pushed on the queue will be called first
+		/// </summary>
 		inline void flush()
 		{
-			for (auto it = queue.rbegin(); it != queue.rend(); it++) (*it)();
-			this->queue.clear();
+			while (!stack.empty())
+			{
+				auto& function = stack.top();
+				function();
+				stack.pop();
+			}
 		}
+		/// <summary>
+		/// Clears the queue without calling any functions
+		/// </summary>
+		inline void clear() { while (!stack.empty()) stack.pop(); }
 	};
 }

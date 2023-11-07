@@ -6,68 +6,67 @@
 
 namespace Crescendo::IO
 {
-	Model LoadOBJ(const std::filesystem::path& path)
+	cs_std::graphics::model LoadOBJ(const std::filesystem::path& path)
 	{
-
 		constexpr uint32_t VERTICES_PER_FACE = 3;
-
 		const std::filesystem::path texturePathPrepend = path.parent_path();
 
-		Model model;
+		cs_std::graphics::model model;
 
 		rapidobj::Result result = rapidobj::ParseFile(path);
 		rapidobj::Triangulate(result);
 
-		if (result.error)
-		{
-			CS_ASSERT(false, "Failed to load obj: " + path.string());
-		}
+		if (result.error) CS_ASSERT(false, "Failed to load obj: " + path.string());
 
 		auto& attrib = result.attributes;
 		auto& shapes = result.shapes;
 		auto& materials = result.materials;
-
-		model.meshes.resize(shapes.size());
-
-		for (size_t s = 0, sSize = shapes.size(); s < sSize; s++)
+		
+		for (const auto& shape : shapes)
 		{
-			model.meshes[s].transform = glm::mat4(1.0f);
+			cs_std::graphics::mesh mesh;
+			cs_std::graphics::mesh_attributes attributes;
 
 			size_t indexOffset = 0;
 
-			model.meshes[s].meshData.add_attribute(cs_std::graphics::Attribute::POSITION, std::vector<float>(3 * VERTICES_PER_FACE * shapes[s].mesh.num_face_vertices.size()));
-			model.meshes[s].meshData.add_attribute(cs_std::graphics::Attribute::NORMAL, std::vector<float>(3 * VERTICES_PER_FACE * shapes[s].mesh.num_face_vertices.size()));
-			model.meshes[s].meshData.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, std::vector<float>(2 * VERTICES_PER_FACE * shapes[s].mesh.num_face_vertices.size()));
+			mesh.add_attribute(cs_std::graphics::Attribute::POSITION, std::vector<float>(3 * VERTICES_PER_FACE * shape.mesh.num_face_vertices.size()));
+			mesh.add_attribute(cs_std::graphics::Attribute::NORMAL, std::vector<float>(3 * VERTICES_PER_FACE * shape.mesh.num_face_vertices.size()));
+			mesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, std::vector<float>(2 * VERTICES_PER_FACE * shape.mesh.num_face_vertices.size()));
 
-			model.meshes[s].meshData.indices.resize(3 * shapes[s].mesh.num_face_vertices.size());
+			mesh.indices.resize(3 * shape.mesh.num_face_vertices.size());
 
-			auto& vertices = model.meshes[s].meshData.get_attribute(cs_std::graphics::Attribute::POSITION).data;
-			auto& normals = model.meshes[s].meshData.get_attribute(cs_std::graphics::Attribute::NORMAL).data;
-			auto& textureUVs = model.meshes[s].meshData.get_attribute(cs_std::graphics::Attribute::TEXCOORD_0).data;
-			auto& indices = model.meshes[s].meshData.indices;
+			auto& vertices = mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data;
+			auto& normals = mesh.get_attribute(cs_std::graphics::Attribute::NORMAL).data;
+			auto& textureUVs = mesh.get_attribute(cs_std::graphics::Attribute::TEXCOORD_0).data;
+			auto& indices = mesh.indices;
 
-			const std::string& ambient  = materials[shapes[s].mesh.material_ids[0]].ambient_texname;
-			const std::string& diffuse  = materials[shapes[s].mesh.material_ids[0]].diffuse_texname;
-			const std::string& specular = materials[shapes[s].mesh.material_ids[0]].specular_texname;
-			const std::string& normal   = materials[shapes[s].mesh.material_ids[0]].normal_texname;
-			const std::string& emissive = materials[shapes[s].mesh.material_ids[0]].emissive_texname;
+			const std::string& ambient   = materials[shape.mesh.material_ids[0]].ambient_texname;
+			const std::string& diffuse   = materials[shape.mesh.material_ids[0]].diffuse_texname;
+			const std::string& specular  = materials[shape.mesh.material_ids[0]].specular_texname;
+			const std::string& normal    = materials[shape.mesh.material_ids[0]].normal_texname;
+			const std::string& emissive  = materials[shape.mesh.material_ids[0]].emissive_texname;
+			const std::string& metallic  = materials[shape.mesh.material_ids[0]].metallic_texname;
+			const std::string& roughness = materials[shape.mesh.material_ids[0]].roughness_texname;
 
-			model.meshes[s].diffuse = (ambient.empty() ? "" : texturePathPrepend) / ambient;
-			model.meshes[s].normal = "";
-			model.meshes[s].emissive = "";
-			model.meshes[s].occlusion = "";
-			model.meshes[s].metallicRoughness = "";
+			attributes.transform = glm::mat4(1.0f);
 
-			model.meshes[s].isDoubleSided = false;
-			model.meshes[s].isTransparent = false;
+			attributes.diffuse =   (ambient.empty()   ? "" : texturePathPrepend) / ambient;
+			attributes.normal =    (normal.empty()    ? "" : texturePathPrepend) / normal;
+			attributes.emissive =  (emissive.empty()  ? "" : texturePathPrepend) / emissive;
+			attributes.metallic =  (metallic.empty()  ? "" : texturePathPrepend) / metallic;
+			attributes.roughness = (roughness.empty() ? "" : texturePathPrepend) / roughness;
+			attributes.metallicRoughness = "";
 
-			for (size_t f = 0, fSize = shapes[s].mesh.num_face_vertices.size(); f < fSize; f++)
+			attributes.isDoubleSided = false;
+			attributes.isTransparent = false;
+
+			for (uint32_t f = 0, fSize = shape.mesh.num_face_vertices.size(); f < fSize; f++)
 			{
 				// We are going to assume that all faces are triangles
-				for (size_t v = 0; v < VERTICES_PER_FACE; v++)
+				for (uint32_t v = 0; v < VERTICES_PER_FACE; v++)
 				{
-					const rapidobj::Index& index = shapes[s].mesh.indices[indexOffset + v];
-					const size_t idx = f * VERTICES_PER_FACE + v;
+					const rapidobj::Index& index = shape.mesh.indices[indexOffset + v];
+					const uint32_t idx = f * VERTICES_PER_FACE + v;
 					// Positions
 					vertices[idx * 3 + 0] = attrib.positions[index.position_index * 3 + 0];
 					vertices[idx * 3 + 1] = attrib.positions[index.position_index * 3 + 1];
@@ -84,6 +83,8 @@ namespace Crescendo::IO
 				}
 				indexOffset += VERTICES_PER_FACE;
 			}
+			model.meshes.push_back(mesh);
+			model.meshAttributes.push_back(attributes);
 		}
 		return model;
 	}

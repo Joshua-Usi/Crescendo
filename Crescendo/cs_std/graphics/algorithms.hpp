@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mesh.hpp"
+#include "model.hpp"
 
 #include <glm/vec3.hpp>
 #include <glm/matrix.hpp>

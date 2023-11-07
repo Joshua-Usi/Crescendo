@@ -6,17 +6,12 @@
 #include "rapidjson/prettywriter.h"
 
 #define TINYGLTF_NOEXCEPTION
-
 #define TINYGLTF_NO_STB_IMAGE_WRITE
 #define TINYGLTF_NO_STB_IMAGE
-
 #define TINYGLTF_NO_INCLUDE_RAPIDJSON
-
 #define TINYGLTF_NO_EXTERNAL_IMAGE
-
 #define TINYGLTF_USE_RAPIDJSON
 #define TINYGLTF_USE_CPP14
-
 #define TINYGLTF_IMPLEMENTATION
 #include "tinygltf/tiny_gltf.h"
 
@@ -86,30 +81,22 @@ namespace Crescendo::IO
 		nodeMap[node.mesh].node = &node;
 		nodeMap[node.mesh].transform = finalTransform;
 
-		for (int child : node.children)
-		{
-			traverseNode(model, nodeMap, model.nodes[child], finalTransform);
-		}
+		for (const int child : node.children) traverseNode(model, nodeMap, model.nodes[child], finalTransform);
 	}
-	Model LoadGLTF(const std::filesystem::path& path)
+	cs_std::graphics::model LoadGLTF(const std::filesystem::path& path)
 	{
 		const std::filesystem::path texturePathPrepend = path.parent_path();
 
-		Model model = {};
+		cs_std::graphics::model model = {};
 
 		tinygltf::TinyGLTF loader;
 		tinygltf::Model gltfModel;
 		std::string err, warn;
 
-		bool ret = loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path.string());
-
-		if (!ret) return model;
+		if (!loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path.string())) return model;
 
 		std::unordered_map<uint32_t, NodeData> nodeToMesh;
-		for (auto& node : gltfModel.scenes[gltfModel.defaultScene].nodes)
-		{
-			traverseNode(gltfModel, nodeToMesh, gltfModel.nodes[node]);
-		}
+		for (auto& node : gltfModel.scenes[gltfModel.defaultScene].nodes) traverseNode(gltfModel, nodeToMesh, gltfModel.nodes[node]);
 
 		for (uint32_t i = 0; i < gltfModel.meshes.size(); i++)
 		{
@@ -117,9 +104,10 @@ namespace Crescendo::IO
 			const glm::mat4& transform = nodeToMesh[i].transform;
 			for (const auto& primitive : gltfModel.meshes[i].primitives)
 			{
-				Model::Mesh mesh = {};
+				cs_std::graphics::mesh mesh = {};
+				cs_std::graphics::mesh_attributes attributes {};
 
-				mesh.transform = transform;
+				attributes.transform = transform;
 
 				if (primitive.indices >= 0)
 				{
@@ -132,13 +120,13 @@ namespace Crescendo::IO
 					{
 						for (size_t i = 0; i < accessor.count; i++)
 						{
-							mesh.meshData.indices.push_back(static_cast<uint32_t>(*(reinterpret_cast<const uint16_t*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset) + i)));
+							mesh.indices.push_back(static_cast<uint32_t>(*(reinterpret_cast<const uint16_t*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset) + i)));
 						}
 					}
 					// Fast path if we don't need to convert
 					else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
 					{
-						mesh.meshData.indices.insert(mesh.meshData.indices.end(),
+						mesh.indices.insert(mesh.indices.end(),
 							reinterpret_cast<const uint32_t*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset),
 							reinterpret_cast<const uint32_t*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset + accessor.count * TypeEnumToSize(accessor.type) * ComponentEnumToSize(accessor.componentType))
 						);
@@ -161,7 +149,7 @@ namespace Crescendo::IO
 					if (attribute.first == "JOINTS_0") type = cs_std::graphics::Attribute::JOINTS_0;
 					if (attribute.first == "WEIGHTS_0") type = cs_std::graphics::Attribute::WEIGHTS_0;
 
-					mesh.meshData.add_attribute(type, std::vector<float>(
+					mesh.add_attribute(type, std::vector<float>(
 						reinterpret_cast<const float*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset),
 						reinterpret_cast<const float*>(buffer.data.data() + bufferView.byteOffset + accessor.byteOffset + accessor.count * TypeEnumToSize(accessor.type) * ComponentEnumToSize(accessor.componentType))
 					));
@@ -169,24 +157,25 @@ namespace Crescendo::IO
 				if (primitive.material >= 0)
 				{
 					const auto& gltfMaterial = gltfModel.materials[primitive.material];
-					mesh.isDoubleSided = gltfMaterial.doubleSided;
-					mesh.isTransparent = gltfMaterial.alphaMode == "BLEND";
+					attributes.isDoubleSided = gltfMaterial.doubleSided;
+					attributes.isTransparent = gltfMaterial.alphaMode == "BLEND";
 					for (const auto& texture : gltfMaterial.values)
 					{
-						int baseColorTextureIndex			= gltfMaterial.pbrMetallicRoughness.baseColorTexture.index,
-							metallicRoughnessTextureIndex	= gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index,
-							normalTextureIndex				= gltfMaterial.normalTexture.index,
-							occlusionTextureIndex			= gltfMaterial.occlusionTexture.index,
-							emissiveTextureIndex			= gltfMaterial.emissiveTexture.index;
+						const int	& baseColorTextureIndex			= gltfMaterial.pbrMetallicRoughness.baseColorTexture.index,
+									& metallicRoughnessTextureIndex	= gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index,
+									& normalTextureIndex			= gltfMaterial.normalTexture.index,
+									& occlusionTextureIndex			= gltfMaterial.occlusionTexture.index,
+									& emissiveTextureIndex			= gltfMaterial.emissiveTexture.index;
 
-						if (baseColorTextureIndex			!= -1) mesh.diffuse				= texturePathPrepend / gltfModel.images[baseColorTextureIndex].uri;
-						if (metallicRoughnessTextureIndex	!= -1) mesh.metallicRoughness	= texturePathPrepend / gltfModel.images[metallicRoughnessTextureIndex].uri;
-						if (normalTextureIndex				!= -1) mesh.normal				= texturePathPrepend / gltfModel.images[normalTextureIndex].uri;
-						if (occlusionTextureIndex			!= -1) mesh.occlusion			= texturePathPrepend / gltfModel.images[occlusionTextureIndex].uri;
-						if (emissiveTextureIndex			!= -1) mesh.emissive			= texturePathPrepend / gltfModel.images[emissiveTextureIndex].uri;
+						if (baseColorTextureIndex			!= -1) attributes.diffuse			= texturePathPrepend / gltfModel.images[baseColorTextureIndex].uri;
+						if (metallicRoughnessTextureIndex	!= -1) attributes.metallicRoughness	= texturePathPrepend / gltfModel.images[metallicRoughnessTextureIndex].uri;
+						if (normalTextureIndex				!= -1) attributes.normal			= texturePathPrepend / gltfModel.images[normalTextureIndex].uri;
+						if (occlusionTextureIndex			!= -1) attributes.occlusion			= texturePathPrepend / gltfModel.images[occlusionTextureIndex].uri;
+						if (emissiveTextureIndex			!= -1) attributes.emissive			= texturePathPrepend / gltfModel.images[emissiveTextureIndex].uri;
 					}
 				}
 				model.meshes.push_back(mesh);
+				model.meshAttributes.push_back(attributes);
 			}
 		}
 		return model;

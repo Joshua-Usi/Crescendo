@@ -7,8 +7,7 @@
 #include "cs_std/time_manager.hpp"
 
 #include "Engine/interfaces/Window.hpp"
-
-#include "Rendering/Atlas/Atlas.hpp"
+#include "Engine/interfaces/Window.hpp"
 
 namespace Crescendo::Engine
 {
@@ -23,7 +22,6 @@ namespace Crescendo::Engine
 		static Application* self;
 	protected:
 		cs_std::task_queue taskQueue;
-		Atlas renderer;
 	public:
 		Application();
 		virtual ~Application() = default;

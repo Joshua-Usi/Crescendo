@@ -1,20 +1,18 @@
 #pragma once
 
-#include <vector>
+#include "Volk/volk.h"
+
+#include <cstdint>
 #include <string>
+#include <vector>
 
-struct VkDescriptorSetLayoutBinding;
-struct VkDescriptorSetLayoutCreateInfo;
-struct VkVertexInputBindingDescription;
-struct VkVertexInputAttributeDescription;
-struct VkPushConstantRange;
-
-namespace Crescendo
+namespace Crescendo::Vulkan
 {
-	struct SpirvReflection
+	struct ShaderReflection
 	{
+	public:
 		// We only ever use block and sampler descriptors
-		enum class DescriptorType : uint32_t { Unknown = 0, Block = 1, Sampler = 2, All = 3 };
+		enum class DescriptorType : uint32_t { Unknown = 0, Block, Sampler, All };
 		struct InterfaceVariable { std::string name;  uint32_t location, size; };
 		struct BlockMember { uint32_t offset, size; };
 		struct DescriptorSetBinding
@@ -45,19 +43,19 @@ namespace Crescendo
 				return size;
 			}
 		};
-
+	public:
 		std::vector<InterfaceVariable> inputVariables;
 		std::vector<InterfaceVariable> outputVariables;
 		std::vector<DescriptorSetLayout> descriptorSetLayouts;
 		std::vector<PushConstantLayout> pushConstants;
+	public:
+		ShaderReflection(const std::vector<uint8_t>& code);
+	public:
+		std::vector<DescriptorSetLayout> GetDescriptorSetLayouts(DescriptorType descriptorType = DescriptorType::All) const;
 
-		std::vector<DescriptorSetLayout> GetDescriptorSetLayouts(SpirvReflection::DescriptorType descriptorType = DescriptorType::All) const;
-
-		std::vector<std::vector<VkDescriptorSetLayoutBinding>> GetDescriptorSetLayoutBindings(SpirvReflection::DescriptorType descriptorType, uint32_t shaderStage) const;
+		std::vector<std::vector<VkDescriptorSetLayoutBinding>> GetDescriptorSetLayoutBindings(DescriptorType descriptorType, uint32_t shaderStage) const;
 		std::vector<VkVertexInputBindingDescription> GetVertexBindings() const;
 		std::vector<VkVertexInputAttributeDescription> GetVertexAttributes() const;
 		std::vector<VkPushConstantRange> GetPushConstantRanges(uint32_t shaderStage) const;
 	};
-
-	SpirvReflection ReflectSpirv(const std::vector<uint8_t>& code);
 }

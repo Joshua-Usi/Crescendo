@@ -2,9 +2,9 @@
 
 #include "VkBootstrap/VkBootstrap.h"
 
-namespace Crescendo::internal
+namespace Crescendo::Vulkan
 {
-	class QueueManager
+	class Queues
 	{
 	public:
 		struct Queue { VkQueue queue;  uint32_t family; };
@@ -13,9 +13,10 @@ namespace Crescendo::internal
 		 *	Transfer is transfer dedicated
 		 *	Compute is compute dedicated
 		 */
-		Queue universal, transfer, compute, present;
+		Queue universal, transfer, compute;
 
-		inline void GetQueues(const vkb::Device& device)
+		Queues() = default;
+		inline Queues(const vkb::Device& device)
 		{
 			this->universal.queue = device.get_queue(vkb::QueueType::graphics).value();
 			this->transfer.queue = device.get_queue(vkb::QueueType::transfer).value();
@@ -25,8 +26,5 @@ namespace Crescendo::internal
 			this->transfer.family = device.get_queue_index(vkb::QueueType::transfer).value();
 			this->compute.family = device.get_queue_index(vkb::QueueType::compute).value();
 		}
-
-		QueueManager() = default;
-		inline QueueManager(const vkb::Device& device) { this->GetQueues(device); }
 	};
 }

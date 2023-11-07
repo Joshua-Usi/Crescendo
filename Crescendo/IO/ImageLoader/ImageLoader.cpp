@@ -7,7 +7,7 @@
 
 namespace Crescendo::IO
 {
-	Image LoadImage(const std::filesystem::path& path)
+	cs_std::image LoadImage(const std::filesystem::path& path)
 	{
 		constexpr int FIXED_CHANNELS = 4;
 		int width, height, channels;
@@ -18,7 +18,7 @@ namespace Crescendo::IO
 		// Optional downsampling code
 		// Nearest neighbour downsampling
 		constexpr uint32_t scaleFactor = 2;
-		stbi_uc* newPixels = new stbi_uc[width * height * FIXED_CHANNELS / (scaleFactor * scaleFactor)];
+		std::vector<uint8_t> newPixels(width * height * FIXED_CHANNELS / (scaleFactor * scaleFactor));
 		for (uint32_t i = 0; i < height / scaleFactor; i++)
 		{
 			for (uint32_t j = 0; j < width / scaleFactor; j++)
@@ -30,10 +30,6 @@ namespace Crescendo::IO
 			}
 		}
 		stbi_image_free(pixels);
-		return Image(newPixels, width / scaleFactor, height / scaleFactor, FIXED_CHANNELS);
-
-		//return Image(pixels, width, height, FIXED_CHANNELS);
+		return cs_std::image(newPixels, width / scaleFactor, height / scaleFactor, FIXED_CHANNELS);
 	}
-	Image::Image(stbi_uc* pixels, uint32_t width, uint32_t height, uint32_t channels)
-		: pixels(pixels, [](stbi_uc* p) { if (p) /*stbi_image_free(p);*/ delete[] p; }), width(width), height(height), channels(channels) {}
 }
