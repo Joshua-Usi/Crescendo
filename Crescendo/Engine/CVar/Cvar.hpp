@@ -35,17 +35,17 @@ namespace Crescendo::Engine
 		/// </summary>
 		/// <returns>A vector of strings</returns>
 		static std::vector<std::string> GetNames();
-		inline static void Set(const std::string& name, std::string value)
+		static void Set(const std::string& name, std::string value)
 		{
 			CS_ASSERT(data.count(name) != 0, "CVar does not exist / Was not registered");
 			data[name] = value;
 		}
-		inline static void Set(const std::string& name, int64_t value)
+		static void Set(const std::string& name, int64_t value)
 		{
 			CS_ASSERT(data.count(name) != 0, "CVar does not exist / Was not registered");
 			data[name] = std::to_string(value);
 		}
-		inline static void Set(const std::string& name, double value)
+		static void Set(const std::string& name, double value)
 		{
 			CS_ASSERT(data.count(name) != 0, "CVar does not exist / Was not registered");
 			data[name] = std::to_string(value);

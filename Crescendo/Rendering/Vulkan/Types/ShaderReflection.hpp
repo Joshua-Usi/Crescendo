@@ -20,13 +20,13 @@ namespace Crescendo::Vulkan
 			std::vector<BlockMember> members;
 			uint32_t binding;
 			DescriptorType type; // Block or sampler
-			inline uint32_t GetSize() const
+			uint32_t GetSize() const
 			{
 				uint32_t size = 0;
 				for (const auto& member : members) size += member.size;
 				return size;
 			}
-			inline uint32_t IsSampler() const { return type == DescriptorType::Sampler; }
+			uint32_t IsSampler() const { return type == DescriptorType::Sampler; }
 		};
 		struct DescriptorSetLayout
 		{
@@ -36,7 +36,7 @@ namespace Crescendo::Vulkan
 		struct PushConstantLayout
 		{
 			std::vector<BlockMember> members;
-			inline uint32_t GetSize() const
+			uint32_t GetSize() const
 			{
 				uint32_t size = 0;
 				for (const auto& member : members) size += member.size;

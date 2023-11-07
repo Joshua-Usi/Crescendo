@@ -19,10 +19,10 @@ namespace Crescendo::Vulkan
 	public:
 		// Constructors
 		Buffer() = default;
-		inline Buffer(VkBuffer buffer, VmaAllocator allocator, VmaAllocation allocation, void* mPtr) :
+		Buffer(VkBuffer buffer, VmaAllocator allocator, VmaAllocation allocation, void* mPtr) :
 			buffer(buffer), allocator(allocator), allocation(allocation), mPtr(mPtr) {}
 		// Destructors
-		inline ~Buffer()
+		~Buffer()
 		{
 			if (this->allocator == nullptr) return;
 			if (this->mPtr != nullptr) vmaUnmapMemory(this->allocator, this->allocation);
@@ -32,7 +32,7 @@ namespace Crescendo::Vulkan
 		Buffer(const Buffer&) = delete;
 		Buffer& operator=(const Buffer&) = delete;
 		// Move
-		inline Buffer(Buffer&& other) noexcept :
+		Buffer(Buffer&& other) noexcept :
 			buffer(other.buffer), allocator(other.allocator), allocation(other.allocation), mPtr(other.mPtr)
 		{
 			other.buffer = nullptr;
@@ -40,7 +40,7 @@ namespace Crescendo::Vulkan
 			other.allocation = nullptr;
 			other.mPtr = nullptr;
 		}
-		inline Buffer& operator=(Buffer&& other) noexcept
+		Buffer& operator=(Buffer&& other) noexcept
 		{
 			if (this != &other)
 			{
@@ -52,12 +52,12 @@ namespace Crescendo::Vulkan
 			return *this;
 		}
 	public:
-		inline Buffer&& Fill(size_t offset, const void* data, size_t size)
+		Buffer&& Fill(size_t offset, const void* data, size_t size)
 		{
 			memcpy(static_cast<char*>(this->mPtr) + offset, data, size);
 			return std::move(*this);
 		}
 	public:
-		inline operator VkBuffer() const { return buffer; }
+		operator VkBuffer() const { return buffer; }
 	};
 }

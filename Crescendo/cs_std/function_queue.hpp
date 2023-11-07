@@ -14,11 +14,11 @@ namespace cs_std
 		/// Add a function to the queue, the last function pushed on the queue will be called first
 		/// </summary>
 		/// <param name="function"></param>
-		inline void push(std::function<void()>&& function) { stack.push(std::move(function)); }
+		void push(std::function<void()>&& function) { stack.push(std::move(function)); }
 		/// <summary>
 		/// Flush the queue, the last function pushed on the queue will be called first
 		/// </summary>
-		inline void flush()
+		void flush()
 		{
 			while (!stack.empty())
 			{
@@ -30,6 +30,6 @@ namespace cs_std
 		/// <summary>
 		/// Clears the queue without calling any functions
 		/// </summary>
-		inline void clear() { while (!stack.empty()) stack.pop(); }
+		void clear() { while (!stack.empty()) stack.pop(); }
 	};
 }

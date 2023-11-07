@@ -11,7 +11,7 @@ namespace Crescendo::Engine
 	{
 	public:
 		LayerUpdate(double a, int b) : Layer(a, b) {}
-		inline virtual void OnUpdate(double dt) override final
+		virtual void OnUpdate(double dt) override final
 		{
 			Input::PollEvents();
 			Application::Get()->OnUpdate(dt);

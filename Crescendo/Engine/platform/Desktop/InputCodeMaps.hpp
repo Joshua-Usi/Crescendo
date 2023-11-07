@@ -6,7 +6,7 @@
 namespace Crescendo::Engine
 {
 	// indices map to GLFW keycodes
-	inline const static uint32_t MouseButtonToGLFWMapping[]
+	const static uint32_t MouseButtonToGLFWMapping[]
 	{
 		// Specific commonly used button
 		GLFW_MOUSE_BUTTON_LEFT, GLFW_MOUSE_BUTTON_MIDDLE, GLFW_MOUSE_BUTTON_RIGHT,
@@ -14,7 +14,7 @@ namespace Crescendo::Engine
 		// Non-specific unknown bound buttons
 		GLFW_MOUSE_BUTTON_1, GLFW_MOUSE_BUTTON_2, GLFW_MOUSE_BUTTON_3, GLFW_MOUSE_BUTTON_4, GLFW_MOUSE_BUTTON_5, GLFW_MOUSE_BUTTON_6, GLFW_MOUSE_BUTTON_7, GLFW_MOUSE_BUTTON_8
 	};
-	inline const static uint32_t KeyToGLFWMapping[]
+	const static uint32_t KeyToGLFWMapping[]
 	{
 		GLFW_KEY_SPACE,
 		GLFW_KEY_APOSTROPHE,

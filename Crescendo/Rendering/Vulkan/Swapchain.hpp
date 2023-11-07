@@ -33,17 +33,17 @@ namespace Crescendo::Vulkan
 		operator VkSwapchainKHR() const { return swapchain; }
 
 		uint32_t AcquireNextImage(VkSemaphore signalSemaphore, uint64_t timeout = std::numeric_limits<uint64_t>::max());
-		inline bool NeedsRecreation() const { return needsRecreation; }
-		inline uint32_t GetImageCount() const { return static_cast<uint32_t>(images.size()); }
-		inline VkFormat GetImageFormat() const { return imageFormat; }
-		inline 	const VkExtent2D& GetExtent() const { return extent; }
-		inline VkExtent3D GetExtent3D() const { return { extent.width, extent.height, 1 }; }
-		inline VkSwapchainKHR GetSwapchain() const { return swapchain; }
+		bool NeedsRecreation() const { return needsRecreation; }
+		uint32_t GetImageCount() const { return static_cast<uint32_t>(images.size()); }
+		VkFormat GetImageFormat() const { return imageFormat; }
+			const VkExtent2D& GetExtent() const { return extent; }
+		VkExtent3D GetExtent3D() const { return { extent.width, extent.height, 1 }; }
+		VkSwapchainKHR GetSwapchain() const { return swapchain; }
 
 		// Iterator over images
-		inline std::vector<Image>::iterator begin() { return images.begin(); }
-		inline std::vector<Image>::iterator end() { return images.end(); }
-		inline std::vector<Image>::const_iterator begin() const { return images.begin(); }
-		inline std::vector<Image>::const_iterator end() const { return images.end(); }
+		std::vector<Image>::iterator begin() { return images.begin(); }
+		std::vector<Image>::iterator end() { return images.end(); }
+		std::vector<Image>::const_iterator begin() const { return images.begin(); }
+		std::vector<Image>::const_iterator end() const { return images.end(); }
 	};
 }

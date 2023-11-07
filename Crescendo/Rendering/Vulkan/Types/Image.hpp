@@ -17,10 +17,10 @@ namespace Crescendo::Vulkan
 	public:
 		// Constructors
 		Image() = default;
-		inline Image(VkImage image, VkImageView imageView, VkDevice device, VmaAllocator allocator = nullptr, VmaAllocation allocation = nullptr) :
+		Image(VkImage image, VkImageView imageView, VkDevice device, VmaAllocator allocator = nullptr, VmaAllocation allocation = nullptr) :
 			image(image), imageView(imageView), device(device), allocator(allocator), allocation(allocation) {}
 		// Destructors
-		inline ~Image()
+		~Image()
 		{
 			if (this->device == nullptr) return;
 			vkDestroyImageView(this->device, this->imageView, nullptr);
@@ -30,7 +30,7 @@ namespace Crescendo::Vulkan
 		Image(const Image&) = delete;
 		Image& operator=(const Image&) = delete;
 		// Move
-		inline Image(Image&& other) noexcept :
+		Image(Image&& other) noexcept :
 			image(other.image), imageView(other.imageView), device(other.device), allocator(other.allocator), allocation(other.allocation)
 		{
 			other.image = nullptr;
@@ -39,7 +39,7 @@ namespace Crescendo::Vulkan
 			other.allocator = nullptr;
 			other.allocation = nullptr;
 		}
-		inline Image& operator=(Image&& other) noexcept
+		Image& operator=(Image&& other) noexcept
 		{
 			if (this != &other)
 			{
@@ -52,6 +52,6 @@ namespace Crescendo::Vulkan
 			return *this;
 		}
 	public:
-		inline operator VkImage() const { return image; }
+		operator VkImage() const { return image; }
 	};
 }

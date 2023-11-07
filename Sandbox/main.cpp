@@ -596,6 +596,7 @@ public:
 		const Crescendo::Vulkan::Framebuffer& framebuffer = this->framebuffers[currentImage];
 
 		const uint32_t usePipeline = 0;
+		const uint32_t skyboxPipeline = 2;
 		const uint32_t shadowPipeline = 3;
 
 		cmd.Begin();
@@ -637,21 +638,21 @@ public:
 			cmd.BeginRenderPass(framebuffer.renderPass, framebuffer, framebuffer.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f }, Crescendo::Vulkan::Create::DefaultDepthClear() });
 				// Skybox			
 				{
-					cmd.BindPipeline(this->pipelines[2][0]);
-					cmd.PushConstants(this->pipelines[2], glm::translate(glm::mat4(1.0f), this->camera.camera.GetPosition()), VK_SHADER_STAGE_VERTEX_BIT);
-					cmd.BindDescriptorSets(this->pipelines[2], { this->pipelines[2].descriptorSets[0][frameIndex].set }, { 0 });
-					cmd.BindDescriptorSet(this->pipelines[2], this->textures[this->modelData[this->meshes.capacity() - 2].textureID].set, 0, 1);
+					cmd.BindPipeline(this->pipelines[skyboxPipeline][0]);
+					cmd.PushConstants(this->pipelines[skyboxPipeline], glm::translate(glm::mat4(1.0f), this->camera.camera.GetPosition()), VK_SHADER_STAGE_VERTEX_BIT);
+					cmd.BindDescriptorSets(this->pipelines[skyboxPipeline], { this->pipelines[skyboxPipeline].descriptorSets[0][frameIndex].set }, { 0 });
+					cmd.BindDescriptorSet(this->pipelines[skyboxPipeline], this->textures[this->modelData[this->meshes.capacity() - 2].textureID].set, 0, 1);
 					// Bind vertex meshes
 					std::vector<VkBuffer> buffers;
 					for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < this->pipelines[2].vertexAttributes.size(); mvaf++)
 					{
-						if (this->pipelines[2].vertexAttributes[cpvaf] == this->meshes[this->meshes.capacity() - 2].vertexAttributes[mvaf].attribute)
+						if (this->pipelines[skyboxPipeline].vertexAttributes[cpvaf] == this->meshes[this->meshes.capacity() - 2].vertexAttributes[mvaf].attribute)
 						{
 							buffers.push_back(this->meshes[this->meshes.capacity() - 2].vertexAttributes[mvaf].buffer);
 							cpvaf++;
 						}
 					}
-					CS_ASSERT(buffers.size() == this->pipelines[2].vertexAttributes.size(), "Not all vertex attributes are bound!");
+					CS_ASSERT(buffers.size() == this->pipelines[skyboxPipeline].vertexAttributes.size(), "Not all vertex attributes are bound!");
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
 					cmd.BindIndexBuffer(this->meshes[this->meshes.capacity() - 2].indexBuffer);

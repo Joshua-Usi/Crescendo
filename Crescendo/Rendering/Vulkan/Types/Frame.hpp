@@ -14,9 +14,9 @@ namespace Crescendo::Vulkan
 	public:
 		// Constructors
 		Frame() = default;
-		inline Frame(Crescendo::Vulkan::GraphicsCommandQueue&& cmd, VkSemaphore&& presentReady, VkSemaphore&& renderFinish) noexcept : cmd(std::move(cmd)), presentReady(presentReady), renderFinish(renderFinish) {}
+		Frame(Crescendo::Vulkan::GraphicsCommandQueue&& cmd, VkSemaphore&& presentReady, VkSemaphore&& renderFinish) noexcept : cmd(std::move(cmd)), presentReady(presentReady), renderFinish(renderFinish) {}
 		// Destructors
-		inline ~Frame()
+		~Frame()
 		{
 			vkDestroySemaphore(this->cmd.GetDevice(), this->presentReady, nullptr);
 			vkDestroySemaphore(this->cmd.GetDevice(), this->renderFinish, nullptr);
@@ -25,12 +25,12 @@ namespace Crescendo::Vulkan
 		Frame(const Frame&) = delete;
 		Frame& operator=(const Frame&) = delete;
 		// Move
-		inline Frame(Frame&& other) noexcept : cmd(std::move(other.cmd)), presentReady(other.presentReady), renderFinish(other.renderFinish)
+		Frame(Frame&& other) noexcept : cmd(std::move(other.cmd)), presentReady(other.presentReady), renderFinish(other.renderFinish)
 		{
 			other.presentReady = nullptr;
 			other.renderFinish = nullptr;
 		}
-		inline Frame& operator=(Frame&& other) noexcept
+		Frame& operator=(Frame&& other) noexcept
 		{
 			if (this != &other)
 			{

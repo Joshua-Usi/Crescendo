@@ -10,7 +10,7 @@ namespace cs_std
 		std::vector<uint8_t> data;
 		uint16_t width, height, channels;
 
-		image() = default;
+		image() : data(), width(0), height(0), channels(0) {}
 		image(const std::vector<uint8_t>& data, uint16_t width, uint16_t height, uint16_t channels) : data(data), width(width), height(height), channels(channels) {}
 		image(uint16_t width, uint16_t height, uint16_t channels) : data(width * height * channels), width(width), height(height), channels(channels) {}
 		~image() = default;

@@ -13,8 +13,8 @@ namespace Crescendo::Vulkan
 		// Constructors
 		ShaderModule() = default;
 		// Destructors
-		inline ShaderModule(VkDevice device, VkShaderModule module) : device(device), module(module) {}
-		inline ~ShaderModule() { vkDestroyShaderModule(this->device, this->module, nullptr); }
+		ShaderModule(VkDevice device, VkShaderModule module) : device(device), module(module) {}
+		~ShaderModule() { vkDestroyShaderModule(this->device, this->module, nullptr); }
 		// No copy
 		ShaderModule(const ShaderModule&) = delete;
 		ShaderModule& operator=(const ShaderModule&) = delete;
@@ -22,6 +22,6 @@ namespace Crescendo::Vulkan
 		ShaderModule(ShaderModule&& other) noexcept : device(other.device), module(other.module) { other.module = nullptr; }
 		ShaderModule& operator=(ShaderModule&& other) noexcept { if (this != &other) { device = other.device; module = other.module; other.module = nullptr; } return *this; }
 	public:
-		inline operator VkShaderModule() const { return module; }
+		operator VkShaderModule() const { return module; }
 	};
 }

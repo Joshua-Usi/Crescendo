@@ -14,7 +14,7 @@ namespace Crescendo::Vulkan
 	struct PipelineVariants
 	{
 	private:
-		inline static constexpr uint8_t getNthSetBit(uint8_t number, uint8_t n)
+		static constexpr uint8_t getNthSetBit(uint8_t number, uint8_t n)
 		{
 			uint8_t count = 0;
 			for (uint8_t i = 0; i < 8; i++)
@@ -51,7 +51,7 @@ namespace Crescendo::Vulkan
 		DepthWrite depthWriteFlags;
 	public:
 		// Determines the number of pipelines that will be created
-		inline uint32_t GetVariantCount() const
+		uint32_t GetVariantCount() const
 		{
 			return
 				std::popcount(static_cast<uint8_t>(fillModeFlags)) *
@@ -61,7 +61,7 @@ namespace Crescendo::Vulkan
 				std::popcount(static_cast<uint8_t>(depthTestFlags)) *
 				std::popcount(static_cast<uint8_t>(depthWriteFlags));
 		}
-		inline bool VariantExists(FillMode fillMode, CullMode cullMode, Multisamples multisamples, DepthFunc depthFunc, DepthTest depthTest, DepthWrite depthWrite) const
+		bool VariantExists(FillMode fillMode, CullMode cullMode, Multisamples multisamples, DepthFunc depthFunc, DepthTest depthTest, DepthWrite depthWrite) const
 		{
 			return
 				static_cast<uint8_t>(fillModeFlags & fillMode) &&
@@ -71,7 +71,7 @@ namespace Crescendo::Vulkan
 				static_cast<uint8_t>(depthTestFlags & depthTest) &&
 				static_cast<uint8_t>(depthWriteFlags & depthWrite);
 		}
-		inline uint32_t GetVariantIndex(FillMode fillMode, CullMode cullMode, Multisamples multisamples, DepthFunc depthFunc, DepthTest depthTest, DepthWrite depthWrite) const
+		uint32_t GetVariantIndex(FillMode fillMode, CullMode cullMode, Multisamples multisamples, DepthFunc depthFunc, DepthTest depthTest, DepthWrite depthWrite) const
 		{
 			// If the variant doesn't exist, return some invalid index, I doubt this will ever be used
 			if (!VariantExists(fillMode, cullMode, multisamples, depthFunc, depthTest, depthWrite)) return std::numeric_limits<uint32_t>::max();
@@ -97,7 +97,7 @@ namespace Crescendo::Vulkan
 
 			return index;
 		}
-		inline PipelineVariants GetVariant(uint32_t index) const
+		PipelineVariants GetVariant(uint32_t index) const
 		{
 			PipelineVariants variant{};
 			variant.renderPass = renderPass;
@@ -135,7 +135,7 @@ namespace Crescendo::Vulkan
 			return variant;
 		}
 	public:
-		inline static VkPolygonMode GetPolygonMode(FillMode fillMode)
+		static VkPolygonMode GetPolygonMode(FillMode fillMode)
 		{
 			switch (fillMode)
 			{
@@ -146,7 +146,7 @@ namespace Crescendo::Vulkan
 			// TODO assert or quietly assert
 			return VK_POLYGON_MODE_MAX_ENUM;
 		}
-		inline static VkCullModeFlags GetCullMode(CullMode cullMode)
+		static VkCullModeFlags GetCullMode(CullMode cullMode)
 		{
 			switch (cullMode)
 			{
@@ -158,7 +158,7 @@ namespace Crescendo::Vulkan
 
 			return VK_CULL_MODE_FLAG_BITS_MAX_ENUM;
 		}
-		inline static VkSampleCountFlagBits GetMultisamples(Multisamples samples)
+		static VkSampleCountFlagBits GetMultisamples(Multisamples samples)
 		{
 			switch (samples)
 			{
@@ -173,7 +173,7 @@ namespace Crescendo::Vulkan
 			// TODO assert or quietly assert
 			return VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM;
 		}
-		inline static VkCompareOp GetDepthFunc(DepthFunc depthFunc)
+		static VkCompareOp GetDepthFunc(DepthFunc depthFunc)
 		{
 			switch (depthFunc)
 			{
@@ -188,7 +188,7 @@ namespace Crescendo::Vulkan
 			// TODO assert or quietly assert
 			return VK_COMPARE_OP_MAX_ENUM;
 		}
-		inline static VkBool32 GetDepthTest(DepthTest depthTest)
+		static VkBool32 GetDepthTest(DepthTest depthTest)
 		{
 			switch (depthTest)
 			{
@@ -198,7 +198,7 @@ namespace Crescendo::Vulkan
 			// TODO assert or quietly assert
 			return VK_FALSE;
 		}
-		inline static VkBool32 GetDepthWrite(DepthWrite depthWrite)
+		static VkBool32 GetDepthWrite(DepthWrite depthWrite)
 		{
 			switch (depthWrite)
 			{
@@ -209,7 +209,7 @@ namespace Crescendo::Vulkan
 			return VK_FALSE;
 		}
 	public:
-		inline PipelineVariants operator[](uint32_t index) const { return GetVariant(index); }
+		PipelineVariants operator[](uint32_t index) const { return GetVariant(index); }
 	};
 }
 

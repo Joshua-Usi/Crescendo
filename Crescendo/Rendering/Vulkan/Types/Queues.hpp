@@ -16,7 +16,7 @@ namespace Crescendo::Vulkan
 		Queue universal, transfer, compute;
 
 		Queues() = default;
-		inline Queues(const vkb::Device& device)
+		Queues(const vkb::Device& device)
 		{
 			this->universal.queue = device.get_queue(vkb::QueueType::graphics).value();
 			this->transfer.queue = device.get_queue(vkb::QueueType::transfer).value();

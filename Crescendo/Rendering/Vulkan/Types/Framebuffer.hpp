@@ -17,9 +17,9 @@ namespace Crescendo::Vulkan
 	public:
 		// Constructors
 		Framebuffer() = default;
-		inline Framebuffer(VkDevice device, VkFramebuffer framebuffer, VkRenderPass renderPass, VkExtent2D extent, bool hasColorAttachment, bool hasDepthAttachment) : device(device), framebuffer(framebuffer), renderPass(renderPass), extent(extent), hasColorAttachment(hasColorAttachment), hasDepthAttachment(hasDepthAttachment) {}
+		Framebuffer(VkDevice device, VkFramebuffer framebuffer, VkRenderPass renderPass, VkExtent2D extent, bool hasColorAttachment, bool hasDepthAttachment) : device(device), framebuffer(framebuffer), renderPass(renderPass), extent(extent), hasColorAttachment(hasColorAttachment), hasDepthAttachment(hasDepthAttachment) {}
 		// Destructors
-		inline ~Framebuffer() { vkDestroyFramebuffer(this->device, this->framebuffer, nullptr); }
+		~Framebuffer() { vkDestroyFramebuffer(this->device, this->framebuffer, nullptr); }
 		// No copy
 		Framebuffer(const Framebuffer&) = delete;
 		Framebuffer& operator=(const Framebuffer&) = delete;
@@ -42,9 +42,9 @@ namespace Crescendo::Vulkan
 			return *this;
 		}
 	public:
-		inline VkViewport GetViewport(bool flip = false) const { return Create::Viewport(0.0f, (flip) ? static_cast<float>(this->extent.height) : 0, static_cast<float>(this->extent.width), ((flip) ? -1.0f : 1.0f) * static_cast<float>(this->extent.height), 0.0f, 1.0f); }
-		inline VkRect2D GetScissor() const { return Create::Rect2D({ 0, 0 }, this->extent); }
+		VkViewport GetViewport(bool flip = false) const { return Create::Viewport(0.0f, (flip) ? static_cast<float>(this->extent.height) : 0, static_cast<float>(this->extent.width), ((flip) ? -1.0f : 1.0f) * static_cast<float>(this->extent.height), 0.0f, 1.0f); }
+		VkRect2D GetScissor() const { return Create::Rect2D({ 0, 0 }, this->extent); }
 	public:
-		inline operator VkFramebuffer() const { return framebuffer; }
+		operator VkFramebuffer() const { return framebuffer; }
 	};
 }

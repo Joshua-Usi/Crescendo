@@ -12,13 +12,10 @@ namespace cs_std
 	private:
 		struct free_block
 		{
-			size_t start;
-			size_t length;
-
-			inline free_block(size_t start, size_t length) : start(start), length(length) {}
-
+			size_t start, length;
+			free_block(size_t start, size_t length) : start(start), length(length) {}
 			// Used by the set to sort the free blocks
-			inline bool operator<(const free_block& other) const { return start < other.start; }
+			bool operator<(const free_block& other) const { return start < other.start; }
 		};
 	private:
 		std::vector<T> vector;

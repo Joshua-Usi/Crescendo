@@ -34,7 +34,7 @@ namespace cs_std
 		static bool printSeverity, printTimestamp;
 
 		template<typename... Ts>
-		inline static void base_log(severity_bits severity, Ts&&... args)
+		static void base_log(severity_bits severity, Ts&&... args)
 		{
 			if ((displayedSeverities & static_cast<uint8_t>(severity)) == 0) return;
 			if (enableThreadSafety) std::scoped_lock lock(threadMutex);
@@ -51,25 +51,25 @@ namespace cs_std
 	public:
 		// Verbose, usually not displayed
 		template <typename... Ts>
-		inline static void verbose(Ts&&... args) { base_log(severity_bits::verbose, args...); }
+		static void verbose(Ts&&... args) { base_log(severity_bits::verbose, args...); }
 		// Info, provides useful information alongside other logs
 		template <typename... Ts>
-		inline static void info(Ts&&... args) { base_log(severity_bits::info, args...); }
+		static void info(Ts&&... args) { base_log(severity_bits::info, args...); }
 		// Log, standard logging method
 		template <typename... Ts>
-		inline static void log(Ts&&... args) { base_log(severity_bits::log, args...); }
+		static void log(Ts&&... args) { base_log(severity_bits::log, args...); }
 		// Warn, denotes potential side-effects or errors
 		template <typename... Ts>
-		inline static void warn(Ts&&... args) { base_log(severity_bits::warn, args...); }
+		static void warn(Ts&&... args) { base_log(severity_bits::warn, args...); }
 		// Error, denotes a non-fatal error
 		template <typename... Ts>
-		inline static void error(Ts&&... args) { base_log(severity_bits::error, args...); }
+		static void error(Ts&&... args) { base_log(severity_bits::error, args...); }
 		// Fatal, denotes a fatal error that requires a program crash
 		template <typename... Ts>
-		inline static void fatal(Ts&&... args) { base_log(severity_bits::fatal, args...); }
+		static void fatal(Ts&&... args) { base_log(severity_bits::fatal, args...); }
 
 		template<typename... Ts>
-		inline static void raw(Ts&&... args)
+		static void raw(Ts&&... args)
 		{
 			if (enableThreadSafety) std::scoped_lock lock(threadMutex);
 			([&] { std::cout << args; } (), ...);

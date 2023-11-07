@@ -30,7 +30,7 @@ namespace cs_std
 		/// Set the current time to now, used to alleviate floating point errors that can arise from using the program for a very long time or high-precision timing
 		/// https://stackoverflow.com/a/41210880/11098922
 		/// </summary>
-		inline void rebase() { start = std::chrono::high_resolution_clock::now(); }
+		void rebase() { start = std::chrono::high_resolution_clock::now(); }
 	};
 }
 

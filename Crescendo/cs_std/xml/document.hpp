@@ -14,19 +14,19 @@ namespace cs_std::xml
 		std::map<const char*, const char*> attributes;
 	public:
 		attribute_container() = default;
-		inline std::string GetAttribute(const char* attributeName)
+		std::string GetAttribute(const char* attributeName)
 		{
 			return attributes[attributeName];
 		}
-		inline void SetAttribute(const char* attributeName, const char* attributeValue)
+		void SetAttribute(const char* attributeName, const char* attributeValue)
 		{
 			attributes[attributeName] = attributeValue;
 		}
-		inline void RemoveAttribute(const char* attributeName)
+		void RemoveAttribute(const char* attributeName)
 		{
 			attributes.erase(attributeName);
 		}
-		inline uint64_t AttributeCount() const
+		uint64_t AttributeCount() const
 		{
 			return attributes.size();
 		}
@@ -40,12 +40,12 @@ namespace cs_std::xml
 		std::string tag, innerText;
 	public:
 		// RapidXML like syntax
-		inline node* _first_node() const
+		node* _first_node() const
 		{
 			if (this->GetChildCount() > 0) return this->GetChild(0);
 			return nullptr;
 		}
-		inline node* _next_sibling()
+		node* _next_sibling()
 		{
 			if (!this->GetParent()) return nullptr;
 			uint32_t i = 0;
@@ -59,12 +59,12 @@ namespace cs_std::xml
 			}
 			return nullptr;
 		}
-		inline node* _parent()
+		node* _parent()
 		{
 			return (this->GetParent()) ? this->GetParent() : nullptr;
 		}
 	public:
-		inline node(node* par = nullptr)
+		node(node* par = nullptr)
 		{
 			parent = par;
 			if (parent != nullptr) parent->children.emplace_back(this);
@@ -73,7 +73,7 @@ namespace cs_std::xml
 		/// Returns a pointer to the parent nodes of the current node
 		/// </summary>
 		/// <returns>Pointer to parent node</returns>
-		inline node* GetParent() const
+		node* GetParent() const
 		{
 			return parent;
 		}
@@ -81,7 +81,7 @@ namespace cs_std::xml
 		/// Returns a pointer that points to the beginning of the children array
 		/// </summary>
 		/// <returns>Pointer to beginning of children array</returns>
-		inline node** GetChildren() const
+		node** GetChildren() const
 		{
 			return (node**)children.data()->get();
 		}
@@ -90,7 +90,7 @@ namespace cs_std::xml
 		/// </summary>
 		/// <param name="n">Index of the child</param>
 		/// <returns>Pointer to child</returns>
-		inline node* GetChild(unsigned int n) const
+		node* GetChild(unsigned int n) const
 		{
 			if (n < children.size()) return children[n].get();
 			return nullptr;
@@ -99,7 +99,7 @@ namespace cs_std::xml
 		/// Returns the number of child nodes the current node has
 		/// </summary>
 		/// <returns>The number of child nodes as an integer</returns>
-		inline uint32_t GetChildCount() const
+		uint32_t GetChildCount() const
 		{
 			return static_cast<uint32_t>(children.size());
 		}
@@ -108,7 +108,7 @@ namespace cs_std::xml
 		/// </summary>
 		/// <param name="nodes">A set of nodes to append</param>
 		template <typename...>
-		inline void Append(node* nodes, ...)
+		void Append(node* nodes, ...)
 		{
 			for (const auto node : { nodes... }) {
 				node->parent = this;
@@ -119,7 +119,7 @@ namespace cs_std::xml
 		/// Appends a singular node to the current node
 		/// </summary>
 		/// <param name="node">Pointer to node</param>
-		inline void AppendChild(node* node)
+		void AppendChild(node* node)
 		{
 			node->parent = this;
 			children.emplace_back(node);
@@ -128,14 +128,14 @@ namespace cs_std::xml
 		/// Removes a child node from the current node
 		/// </summary>
 		/// <param name="n">index of the child node to remove</param>
-		inline void RemoveChild(unsigned int n)
+		void RemoveChild(unsigned int n)
 		{
 			children.erase(children.begin() + n);
 		}
 		/// <summary>
 		/// Removes all child nodes from the current node
 		/// </summary>
-		inline void RemoveAllChildren()
+		void RemoveAllChildren()
 		{
 			children.clear();
 		}
@@ -143,7 +143,7 @@ namespace cs_std::xml
 		/// Gets the tag name of the node
 		/// </summary>
 		/// <returns>Tag name of the node</returns>
-		inline std::string GetTagName() const
+		const std::string& GetTagName() const
 		{
 			return tag;
 		}
@@ -151,7 +151,7 @@ namespace cs_std::xml
 		/// Gets the text content of the node
 		/// </summary>
 		/// <returns>Text content of the node</returns>
-		inline std::string GetTextContent() const
+		const std::string& GetTextContent() const
 		{
 			return innerText;
 		}

@@ -12,9 +12,9 @@ namespace Crescendo::Vulkan
 	public:
 		// Constructors
 		RenderPass() = default;
-		inline RenderPass(VkDevice device, VkRenderPass pass) : device(device), pass(pass) {}
+		RenderPass(VkDevice device, VkRenderPass pass) : device(device), pass(pass) {}
 		// Destructors
-		inline ~RenderPass() { vkDestroyRenderPass(this->device, this->pass, nullptr); }
+		~RenderPass() { vkDestroyRenderPass(this->device, this->pass, nullptr); }
 		// No copy
 		RenderPass(const RenderPass&) = delete;
 		RenderPass& operator=(const RenderPass&) = delete;

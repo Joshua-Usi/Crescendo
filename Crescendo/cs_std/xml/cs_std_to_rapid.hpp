@@ -8,7 +8,7 @@
 
 namespace cs_std::xml::internal
 {
-	inline rapidxml::xml_node<>* cs_std_node_to_rapid_node(rapidxml::xml_document<char>* rapidDoc, node* csNode)
+	rapidxml::xml_node<>* cs_std_node_to_rapid_node(rapidxml::xml_document<char>* rapidDoc, node* csNode)
 	{
 		char* tag = rapidDoc->allocate_string(csNode->GetTagName().c_str());
 		char* text = rapidDoc->allocate_string(csNode->GetTextContent().c_str());
@@ -22,7 +22,7 @@ namespace cs_std::xml::internal
 		}
 		return node;
 	};
-	inline void cs_std_to_rapid(const document& crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
+	void cs_std_to_rapid(const document& crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
 	{
 		node* csWorkingNode = crescendoDoc.root.get();
 		rapidxml::xml_node<>* workingNode = rapidDoc;

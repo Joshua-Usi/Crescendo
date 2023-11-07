@@ -11,7 +11,7 @@
 namespace Crescendo::Vulkan::Create
 {
 	template<typename T = std::vector<VkSemaphore>, typename U = std::vector<uint32_t>, typename V = std::vector<VkCommandBuffer>, typename W = std::vector<VkSemaphore>>
-	constexpr VkSubmitInfo SubmitInfo(const T& waitSemaphores, const U& waitDstStageMask, const V& commandBuffers, const W& signalSemaphores)
+	inline constexpr VkSubmitInfo SubmitInfo(const T& waitSemaphores, const U& waitDstStageMask, const V& commandBuffers, const W& signalSemaphores)
 	{
 		VkSubmitInfo submitInfo = {};
 
@@ -27,7 +27,7 @@ namespace Crescendo::Vulkan::Create
 
 		return submitInfo;
 	}
-	constexpr VkSubmitInfo SubmitInfo(const VkSemaphore& waitSemaphore, const uint32_t& waitDstStageMask, const VkCommandBuffer& commandBuffer, const VkSemaphore& signalSemaphore)
+	inline constexpr VkSubmitInfo SubmitInfo(const VkSemaphore& waitSemaphore, const uint32_t& waitDstStageMask, const VkCommandBuffer& commandBuffer, const VkSemaphore& signalSemaphore)
 	{
 		VkSubmitInfo submitInfo = {};
 
@@ -286,11 +286,11 @@ namespace Crescendo::Vulkan::Create
 
 		return createInfo;
 	}
-	inline VkGraphicsPipelineCreateInfo GraphicsPipelineCreateInfo(const std::vector<VkPipelineShaderStageCreateInfo>& stages, const VkPipelineVertexInputStateCreateInfo* pVertexInputState, const VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState, const VkPipelineTessellationStateCreateInfo* pTessellationState, const VkPipelineViewportStateCreateInfo* pViewportState, const VkPipelineRasterizationStateCreateInfo* pRasterizationState, const VkPipelineMultisampleStateCreateInfo* pMultisampleState, const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState, const VkPipelineColorBlendStateCreateInfo* pColorBlendState, const VkPipelineDynamicStateCreateInfo* pDynamicState, VkPipelineLayout layout, VkRenderPass renderPass, uint32_t subpass, VkPipeline basePipelineHandle, int32_t basePipelineIndex)
+	inline constexpr VkGraphicsPipelineCreateInfo GraphicsPipelineCreateInfo(const std::vector<VkPipelineShaderStageCreateInfo>& stages, const VkPipelineVertexInputStateCreateInfo* pVertexInputState, const VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState, const VkPipelineTessellationStateCreateInfo* pTessellationState, const VkPipelineViewportStateCreateInfo* pViewportState, const VkPipelineRasterizationStateCreateInfo* pRasterizationState, const VkPipelineMultisampleStateCreateInfo* pMultisampleState, const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState, const VkPipelineColorBlendStateCreateInfo* pColorBlendState, const VkPipelineDynamicStateCreateInfo* pDynamicState, VkPipelineLayout layout, VkRenderPass renderPass, uint32_t subpass, VkPipeline basePipelineHandle, int32_t basePipelineIndex)
 	{
 		return GraphicsPipelineCreateInfo(static_cast<uint32_t>(stages.size()), stages.data(), pVertexInputState, pInputAssemblyState, pTessellationState, pViewportState, pRasterizationState, pMultisampleState, pDepthStencilState, pColorBlendState, pDynamicState, layout, renderPass, subpass, basePipelineHandle, basePipelineIndex);
 	}
-	inline VkShaderModuleCreateInfo ShaderModuleCreateInfo(const std::vector<uint8_t>& code)
+	inline	 VkShaderModuleCreateInfo ShaderModuleCreateInfo(const std::vector<uint8_t>& code)
 	{
 		VkShaderModuleCreateInfo createInfo = {};
 

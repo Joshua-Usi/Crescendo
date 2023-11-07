@@ -29,7 +29,7 @@ namespace cs_std
 		/// Add a new value to the queue
 		/// </summary>
 		/// <param name="value">Value to push</param>
-		inline void push(const T& value)
+		void push(const T& value)
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			this->queue.push(value);
@@ -39,7 +39,7 @@ namespace cs_std
 		/// Add a new value to the queue using move semantics
 		/// </summary>
 		/// <param name="value"></param>
-		inline void push(T&& value)
+		void push(T&& value)
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			this->queue.push(std::move(value));
@@ -49,7 +49,7 @@ namespace cs_std
 		/// Peek the front of the queue
 		/// </summary>
 		/// <returns>Front of the queue</returns>
-		inline T front() const
+		T front() const
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			return this->queue.front();
@@ -60,7 +60,7 @@ namespace cs_std
 		/// If the queue is empty when it is unlocked, then the return value will be default constructed
 		/// </summary>
 		/// <returns></returns>
-		inline std::optional<T> pop()
+		std::optional<T> pop()
 		{
 			std::unique_lock<std::mutex> lock(this->mutex);
 			this->condition.wait(lock, [this]() { return !this->queue.empty() || unlocked; });
@@ -71,7 +71,7 @@ namespace cs_std
 			this->queue.pop();
 			return value;
 		}
-		inline std::optional<T> try_pop()
+		std::optional<T> try_pop()
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			if (this->queue.empty()) return std::nullopt;
@@ -86,7 +86,7 @@ namespace cs_std
 		/// At any moment
 		/// </summary>
 		/// <returns>If the queue is empty</returns>
-		inline bool empty() const
+		bool empty() const
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			return this->queue.empty();
@@ -97,7 +97,7 @@ namespace cs_std
 		/// Use with caution
 		/// </summary>
 		/// <returns>If the queue is empty</returns>
-		inline bool empty_unsafe() const
+		bool empty_unsafe() const
 		{
 			return this->queue.empty();
 		}
@@ -107,7 +107,7 @@ namespace cs_std
 		/// At any moment
 		/// </summary>
 		/// <returns>Size of the queue</returns>
-		inline size_t size() const
+		size_t size() const
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			return this->queue.size();
@@ -118,14 +118,14 @@ namespace cs_std
 		/// Use with caution
 		/// </summary>
 		/// <returns></returns>
-		inline size_t size_unsafe() const
+		size_t size_unsafe() const
 		{
 			return this->queue.size();
 		}
 		/// <summary>
 		/// Unlock the queue and allow all threads to continue, all pop operations will return nullopts
 		/// </summary>
-		inline void unlock()
+		void unlock()
 		{
 			std::lock_guard<std::mutex> lock(this->mutex);
 			this->unlocked = true;

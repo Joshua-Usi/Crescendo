@@ -67,9 +67,9 @@ namespace Crescendo::Vulkan
 		void Submit(const std::vector<VkSemaphore>& waitSemaphores = {}, const std::vector<VkPipelineStageFlags>& waitStages = {}, const std::vector<VkSemaphore>& signalSemaphores = {}) const;
 		void Submit(VkSemaphore waitSemaphore, VkPipelineStageFlags waitStage, VkSemaphore signalSemaphore);
 	public:
-		inline VkDevice GetDevice() const { return device; }
-		inline VkQueue GetQueue() const { return queue; }
-		inline uint32_t GetQueueFamily() const { return queueFamily; }
+		VkDevice GetDevice() const { return device; }
+		VkQueue GetQueue() const { return queue; }
+		uint32_t GetQueueFamily() const { return queueFamily; }
 	};
 
 	class GraphicsCommandQueue : public BaseCommandQueue

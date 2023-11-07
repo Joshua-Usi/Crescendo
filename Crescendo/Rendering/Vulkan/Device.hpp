@@ -91,8 +91,8 @@ namespace Crescendo::Vulkan
 
 		void WaitIdle() const;
 
-		inline VkDescriptorSetLayout GetFragmentSamplerLayout() const { return fragmentSamplerSetLayout; }
+		VkDescriptorSetLayout GetFragmentSamplerLayout() const { return fragmentSamplerSetLayout; }
 	public:
-		inline operator VkDevice() const { return device; }
+		operator VkDevice() const { return device; }
 	};
 }

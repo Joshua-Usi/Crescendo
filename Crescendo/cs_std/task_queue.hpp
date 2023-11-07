@@ -47,18 +47,18 @@ namespace cs_std
 		/// <summary>
 		/// Non blocking that determines if the queue is empty and all threads are idle
 		/// </summary>
-		inline bool finished() const { return this->tasks.empty_unsafe() && this->activeThreads == 0; }
+		bool finished() const { return this->tasks.empty_unsafe() && this->activeThreads == 0; }
 		/// <summary>
 		/// Get the number of threads
 		/// </summary>
-		inline uint32_t thread_count() const { return this->threads.size(); }
+		uint32_t thread_count() const { return this->threads.size(); }
 		/// <summary>
 		/// Get the number of active threads (Thread executing tasks)
 		/// </summary>
-		inline uint32_t active_thread_count() const { return this->activeThreads; }
+		uint32_t active_thread_count() const { return this->activeThreads; }
 		/// <summary>
 		/// Gets the number of pending tasks in the queue
 		/// </summary>
-		inline uint32_t size() const { return this->tasks.size_unsafe(); }
+		uint32_t size() const { return this->tasks.size_unsafe(); }
 	};
 }

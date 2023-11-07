@@ -23,7 +23,7 @@ namespace cs_std::graphics
 		glm::vec3 min, max;
 
 		bounding_aabb() = default;
-		inline bounding_aabb(const glm::vec3& min, const glm::vec3& max) : min(min), max(max) {}
+		bounding_aabb(const glm::vec3& min, const glm::vec3& max) : min(min), max(max) {}
 		/// <summary>
 		/// Generate a bounding box based on a set of vertices
 		/// </summary>
@@ -41,10 +41,7 @@ namespace cs_std::graphics
 		/// Return the center of the AABB.
 		/// </summary>
 		/// <returns>Center of the AABB</returns>
-		inline glm::vec3 center() const
-		{
-			return (this->min + this->max) * 0.5f;
-		}
+		glm::vec3 center() const { return (this->min + this->max) * 0.5f; }
 	};
 
 	struct frustum

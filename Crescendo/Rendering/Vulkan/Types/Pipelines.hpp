@@ -25,13 +25,13 @@ namespace Crescendo::Vulkan
 			std::vector<Binding> bindings;
 			uint32_t set;
 			// Get the size of the set in bytes
-			inline uint32_t SetSize() const
+			uint32_t SetSize() const
 			{
 				uint32_t size = 0;
 				for (const auto& binding : bindings) size += binding.size;
 				return size;
 			}
-			inline uint32_t BindingOffset(uint32_t binding) const
+			uint32_t BindingOffset(uint32_t binding) const
 			{
 				uint32_t offset = 0;
 				for (uint32_t i = 0; i < binding; i++) offset += bindings[i].size;
@@ -44,14 +44,14 @@ namespace Crescendo::Vulkan
 			VkDescriptorSet set;
 
 			DescriptorSet() = default;
-			inline DescriptorSet(Crescendo::Vulkan::Buffer& buffer, VkDescriptorSet set) : buffer(std::move(buffer)), set(set) {}
+			DescriptorSet(Crescendo::Vulkan::Buffer& buffer, VkDescriptorSet set) : buffer(std::move(buffer)), set(set) {}
 			~DescriptorSet() = default;
 			// No copy
 			DescriptorSet(const DescriptorSet&) = delete;
 			DescriptorSet& operator=(const DescriptorSet&) = delete;
 			// Move
-			inline DescriptorSet(DescriptorSet&& other) noexcept : buffer(std::move(other.buffer)), set(other.set) { other.set = nullptr; }
-			inline DescriptorSet& operator=(DescriptorSet&& other) noexcept { if (this != &other) { buffer = std::move(other.buffer); set = other.set; other.set = nullptr; } return *this; }
+			DescriptorSet(DescriptorSet&& other) noexcept : buffer(std::move(other.buffer)), set(other.set) { other.set = nullptr; }
+			DescriptorSet& operator=(DescriptorSet&& other) noexcept { if (this != &other) { buffer = std::move(other.buffer); set = other.set; other.set = nullptr; } return *this; }
 		};
 	public:
 		std::vector<VkPipeline> pipelines;
@@ -81,7 +81,7 @@ namespace Crescendo::Vulkan
 		// Create multiple descriptor sets, Returns the index of the first set
 		uint32_t CreateDescriptorSets(uint32_t set, uint32_t count);
 		void UpdateDescriptorData(uint32_t idx, uint32_t set, uint32_t binding, const void* data, size_t size);
-		template<typename T> inline void UpdateDescriptorData(uint32_t idx, uint32_t set, uint32_t binding, const T& data) { UpdateDescriptorData(idx, set, binding, &data, sizeof(T)); }
+		template<typename T> void UpdateDescriptorData(uint32_t idx, uint32_t set, uint32_t binding, const T& data) { UpdateDescriptorData(idx, set, binding, &data, sizeof(T)); }
 	public:
 		operator VkPipelineLayout() const { return layout; }
 		VkPipeline operator [](uint32_t index) const { return pipelines[index]; }

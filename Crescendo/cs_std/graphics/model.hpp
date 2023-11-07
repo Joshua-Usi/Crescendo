@@ -48,7 +48,7 @@ namespace cs_std::graphics
 
 		// Constructor
 		mesh() = default;
-		inline mesh(const std::vector<shader_attribute>& attributes, const std::vector<uint32_t>& indices)
+		mesh(const std::vector<shader_attribute>& attributes, const std::vector<uint32_t>& indices)
 			: attributes(attributes), indices(indices) {}
 		// Destructor
 		~mesh() = default;
@@ -59,7 +59,7 @@ namespace cs_std::graphics
 		mesh(mesh&& other) noexcept = default;
 		mesh& operator=(mesh&& other) noexcept = default;
 
-		inline const shader_attribute& get_attribute(Attribute attribute) const
+		const shader_attribute& get_attribute(Attribute attribute) const
 		{
 			for (const shader_attribute& attr : this->attributes)
 			{
@@ -67,7 +67,7 @@ namespace cs_std::graphics
 			}
 			return this->attributes[0];
 		}
-		inline shader_attribute& get_attribute(Attribute attribute)
+		shader_attribute& get_attribute(Attribute attribute)
 		{
 			for (shader_attribute& attr : this->attributes)
 			{
@@ -75,7 +75,7 @@ namespace cs_std::graphics
 			}
 			return this->attributes[0];
 		}
-		inline bool has_attribute(Attribute attribute) const
+		bool has_attribute(Attribute attribute) const
 		{
 			for (const shader_attribute& attr : this->attributes)
 			{
@@ -84,7 +84,7 @@ namespace cs_std::graphics
 			return false;
 		}
 		// Insert in-place according to Attribute index
-		inline void add_attribute(Attribute attribute, const std::vector<float>& data)
+		void add_attribute(Attribute attribute, const std::vector<float>& data)
 		{
 			this->attributes.push_back({ data, attribute });
 			std::sort(this->attributes.begin(), this->attributes.end());
@@ -102,7 +102,7 @@ namespace cs_std::graphics
 
 		// Constructor
 		mesh_attributes() = default;
-		inline mesh_attributes(
+		mesh_attributes(
 			const std::filesystem::path& diffuse, const std::filesystem::path& normal, const std::filesystem::path& metallic,
 			const std::filesystem::path& roughness, const std::filesystem::path& metallicRoughness, const std::filesystem::path& emissive,
 			const std::filesystem::path& occlusion, const glm::mat4& transform, bool isDoubleSided, bool isTransparent)
@@ -128,7 +128,7 @@ namespace cs_std::graphics
 
 		// Constructor
 		model() = default;
-		inline model(const std::vector<mesh>& meshes, const std::vector<mesh_attributes>& meshTexturePaths)
+		model(const std::vector<mesh>& meshes, const std::vector<mesh_attributes>& meshTexturePaths)
 			: meshes(meshes), meshAttributes(meshAttributes) {}
 		// Destructor
 		~model() = default;

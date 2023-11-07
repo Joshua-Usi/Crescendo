@@ -16,7 +16,7 @@ namespace Crescendo::Engine
 		/// Returns true once for a given key, then never return true again until the key is released and then pressed again
 		/// Useful for one time key events
 		/// </summary>
-		inline static bool GetKeyDown(Key keyCode)
+		static bool GetKeyDown(Key keyCode)
 		{
 			return self->KeyDownImpl(keyCode);
 		}
@@ -24,7 +24,7 @@ namespace Crescendo::Engine
 		/// Returns true if a given key is down
 		/// </summary>
 		/// <param name="keyCode">Enumerated keycode</param>
-		inline static bool GetKeyPressed(Key keyCode)
+		static bool GetKeyPressed(Key keyCode)
 		{
 			return self->KeyPressedImpl(keyCode);
 		}
@@ -33,7 +33,7 @@ namespace Crescendo::Engine
 		/// Return the current mouse position x relative to the top-left of the window
 		/// </summary>
 		/// <returns>X position of mouse as a double</returns>
-		inline static double GetMouseX()
+		static double GetMouseX()
 		{
 			return self->MousePositionXImpl();
 		}
@@ -41,7 +41,7 @@ namespace Crescendo::Engine
 		/// Return the current mouse position y relative to the top-left of the window
 		/// </summary>
 		/// <returns>Y position of mouse as a double</returns>
-		inline static double GetMouseY()
+		static double GetMouseY()
 		{
 			return self->MousePositionYImpl();
 		}
@@ -52,7 +52,7 @@ namespace Crescendo::Engine
 		/// Useful for one time key events
 		/// </summary>
 		/// <param name="button">Enumerated mouse button</param>
-		inline static bool GetMouseButtonDown(MouseButton button)
+		static bool GetMouseButtonDown(MouseButton button)
 		{
 			return self->MouseButtonDownImpl(button);
 		}
@@ -60,7 +60,7 @@ namespace Crescendo::Engine
 		/// Returns true for a given mouse key
 		/// </summary>
 		/// <param name="button">Enumerated mouse button</param>
-		inline static bool GetMouseButtonPressed(MouseButton button)
+		static bool GetMouseButtonPressed(MouseButton button)
 		{
 			return self->MouseButtonPressedImpl(button);
 		}
@@ -68,7 +68,7 @@ namespace Crescendo::Engine
 		/// Poll for input events
 		/// Platform agnostic
 		/// </summary>
-		inline static void PollEvents()
+		static void PollEvents()
 		{
 			self->PollEventsImpl();
 		}
