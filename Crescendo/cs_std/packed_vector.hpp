@@ -5,7 +5,7 @@
 
 namespace cs_std
 {
-	// Vector like with log(n) deletion
+	// Vector like with log(n) insertion and deletion
 	template<typename T>
 	class packed_vector
 	{
@@ -20,24 +20,29 @@ namespace cs_std
 	private:
 		std::vector<T> vector;
 		std::set<free_block> free_blocks;
+	private:
+		size_t remove_first_empty_block()
+		{
+			auto it = free_blocks.begin();
+			size_t index = it->start;
+			if (it->length > 1)
+			{
+				free_block modifiedBlock(it->start + 1, it->length - 1);
+				free_blocks.erase(it);
+				free_blocks.insert(modifiedBlock);
+			}
+			else
+			{
+				free_blocks.erase(it);
+			}
+			return index;
+		}
 	public:
-		// O(1)
 		size_t insert(const T& item)
 		{
 			if (!free_blocks.empty())
 			{
-				auto it = free_blocks.begin();
-				size_t index = it->start;
-				if (it->length > 1)
-				{
-					free_block modifiedBlock(it->start + 1, it->length - 1);
-					free_blocks.erase(it);
-					free_blocks.insert(modifiedBlock);
-				}
-				else
-				{
-					free_blocks.erase(it);
-				}
+				size_t index = remove_first_empty_block();
 				vector[index] = item;
 				return index;
 			}
@@ -51,18 +56,7 @@ namespace cs_std
 		{
 			if (!free_blocks.empty())
 			{
-				auto it = free_blocks.begin();
-				size_t index = it->start;
-				if (it->length > 1)
-				{
-					free_block modifiedBlock(it->start + 1, it->length - 1);
-					free_blocks.erase(it);
-					free_blocks.insert(modifiedBlock);
-				}
-				else
-				{
-					free_blocks.erase(it);
-				}
+				size_t index = remove_first_empty_block();
 				vector[index] = std::move(item);
 				return index;
 			}
@@ -72,9 +66,15 @@ namespace cs_std
 				return vector.size() - 1;
 			}
 		}
+		void replace(size_t index, const T& item)
+		{
+			vector[index].~T();
+			vector[index] = item;
+		}
 		void erase(size_t index) {
 			// clear the value at the index.
 			// Could potentially be faster to just leave it as is.
+			vector[index].~T();
 			vector[index] = T();
 			auto next_it = free_blocks.lower_bound(free_block(index, 0));
 			auto prev_it = (next_it == free_blocks.begin()) ? free_blocks.end() : std::prev(next_it);

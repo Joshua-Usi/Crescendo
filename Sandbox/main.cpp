@@ -93,8 +93,9 @@ private:
 public:
 	void CreateSwapchain()
 	{
+		/* ---------------------------------------------------------------- 0. - Wait for resize finish ---------------------------------------------------------------- */
+
 		constexpr VkFormat DEFAULT_DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
-		constexpr VkFormat DEFAULT_SHADOW_FORMAT = VK_FORMAT_D16_UNORM;
 
 		this->device.WaitIdle();
 		// Get glfw window size
@@ -105,25 +106,25 @@ public:
 			glfwWaitEvents();
 		}
 
+		/* ---------------------------------------------------------------- 1. - Resource deletion ---------------------------------------------------------------- */
+
 		this->framebuffers.clear();
-		this->renderPasses.clear();
+		if (this->renderPasses.capacity() > 0) this->renderPasses.erase(0);
 		// Explicitly destroy swapchain and depth buffer
 		this->swapchain.~Swapchain();
 		this->depthBuffer.~Image();
+
+		/* ---------------------------------------------------------------- 2 - Swapchain framebuffers ---------------------------------------------------------------- */
 
 		this->swapchain = this->instance.CreateSwapchain(this->device, VK_PRESENT_MODE_MAILBOX_KHR, VkExtent2D(CVar::Get<int64_t>("ec_windowwidth"), CVar::Get<int64_t>("ec_windowheight")));
 		
 		// Create renderpasses
 		uint32_t drpIdx = this->renderPasses.insert(this->device.CreateDefaultRenderPass(this->swapchain.GetImageFormat(), DEFAULT_DEPTH_FORMAT));
-		uint32_t smrpIdx = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(DEFAULT_SHADOW_FORMAT));
+		CS_ASSERT(drpIdx == 0, "Render pass index is not 0!");
 		
 		// Create images
 		this->depthBuffer = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(
 			VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, this->swapchain.GetExtent3D(), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-		), VMA_MEMORY_USAGE_GPU_ONLY);
-
-		this->shadowMap.image = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(
-			VK_IMAGE_TYPE_2D, DEFAULT_SHADOW_FORMAT, Crescendo::Vulkan::Create::Extent3D(4096, 4096, 1), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
 		), VMA_MEMORY_USAGE_GPU_ONLY);
 
 		// Create the frame buffers
@@ -133,22 +134,6 @@ public:
 			attachments[0] = swapChainImage.imageView;
 			this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[drpIdx], attachments, this->swapchain.GetExtent(), true, true));
 		}
-
-		// Create shadow map frame buffer
-		this->shadowMapFramebuffer = this->device.CreateFramebuffer(this->renderPasses[smrpIdx], { this->shadowMap.image.imageView }, { 4096, 4096 }, false, true);
-
-		this->shadowMapSampler = this->device.CreateSampler(Crescendo::Vulkan::Create::SamplerCreateInfo(
-			VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-			1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
-		));
-		this->shadowMap.set = this->device.AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->device.GetFragmentSamplerLayout());
-		VkDescriptorImageInfo imageInfo = Crescendo::Vulkan::Create::DescriptorImageInfo(
-			this->shadowMapSampler, this->shadowMap.image.imageView, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-		);
-		VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(
-			this->shadowMap.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo, nullptr, nullptr
-		);
-		vkUpdateDescriptorSets(this->device, 1, &write, 0, nullptr);
 	}
 	Mesh UploadMesh(const cs_std::graphics::mesh& mesh)
 	{
@@ -346,6 +331,32 @@ public:
 			this->frameData.emplace_back(this->device.CreateGraphicsCommandQueue(), this->device.CreateSemaphore(), this->device.CreateSemaphore());
 		this->CreateSwapchain();
 
+		/* ---------------------------------------------------------------- 0.1 - Shadow map ---------------------------------------------------------------- */
+
+		constexpr VkFormat DEFAULT_SHADOW_FORMAT = VK_FORMAT_D16_UNORM;
+
+		uint32_t smrpIdx = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(DEFAULT_SHADOW_FORMAT));
+
+		this->shadowMap.image = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(
+			VK_IMAGE_TYPE_2D, DEFAULT_SHADOW_FORMAT, Crescendo::Vulkan::Create::Extent3D(4096, 4096, 1), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+		), VMA_MEMORY_USAGE_GPU_ONLY);
+
+		// Create shadow map frame buffer
+		this->shadowMapFramebuffer = this->device.CreateFramebuffer(this->renderPasses[smrpIdx], { this->shadowMap.image.imageView }, { 4096, 4096 }, false, true);
+
+		this->shadowMapSampler = this->device.CreateSampler(Crescendo::Vulkan::Create::SamplerCreateInfo(
+			VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+			1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
+		));
+		this->shadowMap.set = this->device.AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->device.GetFragmentSamplerLayout());
+		VkDescriptorImageInfo imageInfo = Crescendo::Vulkan::Create::DescriptorImageInfo(
+			this->shadowMapSampler, this->shadowMap.image.imageView, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+		);
+		VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(
+			this->shadowMap.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo, nullptr, nullptr
+		);
+		vkUpdateDescriptorSets(this->device, 1, &write, 0, nullptr);
+
 		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
 		struct Shader { std::string name; Crescendo::Vulkan::PipelineVariants variants; };
 
@@ -496,6 +507,8 @@ public:
 			}
 		}
 
+		/* ---------------------------------------------------------------- 1.3 - Texture Data ---------------------------------------------------------------- */
+
 		seenTextures.erase("");
 		std::vector<std::filesystem::path> textureStrings(seenTextures.size());
 		for (const auto& texture : seenTextures) textureStrings[texture.second] = texture.first;
@@ -519,44 +532,10 @@ public:
 		cs_std::console::raw('\n');
 		this->taskQueue.sleep();
 
-		 for (auto& image : images) this->textures.insert(this->UploadTexture(image, false));
-
-		/* ---------------------------------------------------------------- 1.3 - Texture Data ---------------------------------------------------------------- */
-
-		cs_std::console::log("All systems go!");
-
-		//std::map<std::filesystem::path, uint32_t> seenTexturesDiffuse, seenTexturesNormal;
-		//this->meshCount = 0;
-		//uint32_t i = 0, j = 0;
-		//double accumulatingTime = 0.0;
-		//for (auto& model : models)
-		//{
-		//	this->meshCount += model.meshes.size();
-		//	
-		//	for (auto& mesh : model.meshes)
-		//	{
-		//		if (!mesh.normal.empty() && seenTexturesNormal.find(mesh.normal) == seenTexturesNormal.end())
-		//		{
-		//			seenTexturesNormal[mesh.normal] = j;
-		//			j++;
-		//		}
-
-		//		this->modelData.emplace_back(
-		//			cs_std::graphics::bounding_aabb(mesh.meshData.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(mesh.transform),
-		//			seenTexturesDiffuse[mesh.diffuse], seenTexturesNormal[mesh.normal],
-		//			mesh.isTransparent, mesh.isDoubleSided, true
-		//		);
-
-		//		Entity entity = EntityManager::CreateEntity();
-		//		entity.AddComponent<Transform>(Transform(mesh.transform));
-		//	
-		//		this->entities.push_back(entity);
-		//	}
-		//}
+		for (auto& image : images) this->textures.insert(this->UploadTexture(image, true));
 	}
 	void OnUpdate(double dt)
 	{
-
 		/* ---------------------------------------------------------------- Game update ---------------------------------------------------------------- */
 
 		this->camera.Update();
@@ -604,33 +583,33 @@ public:
 			cmd.DynamicStateSetViewport(this->shadowMapFramebuffer.GetViewport());
 			cmd.DynamicStateSetScissor(this->shadowMapFramebuffer.GetScissor());
 			cmd.BeginRenderPass(this->shadowMapFramebuffer.renderPass, this->shadowMapFramebuffer, this->shadowMapFramebuffer.GetScissor(), { Crescendo::Vulkan::Create::DefaultDepthClear() });
-			cs_std::graphics::frustum frustum(this->shadowMapCamera.GetViewProjectionMatrix());
-			// Bind pipeline
-			cmd.BindPipeline(this->pipelines[shadowPipeline][0]);
-			// Bind data descriptor sets
-			cmd.BindDescriptorSets(this->pipelines[shadowPipeline], { this->pipelines[shadowPipeline].descriptorSets[0][frameIndex].set }, { 0 });
-			for (uint32_t i = 0; i < this->meshes.capacity() - 2; i++)
-			{
-				// If outside the frustum, skip
-				if (!frustum.intersects(this->modelData[i].bounds)) continue;
-				// Push the constants
-				cmd.PushConstants(this->pipelines[shadowPipeline], this->modelData[i].transform, VK_SHADER_STAGE_VERTEX_BIT);
-				// Bind vertex meshes
-				std::vector<VkBuffer> buffers;
-				for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < this->pipelines[shadowPipeline].vertexAttributes.size(); mvaf++)
+				cs_std::graphics::frustum frustum(this->shadowMapCamera.GetViewProjectionMatrix());
+				// Bind pipeline
+				cmd.BindPipeline(this->pipelines[shadowPipeline][0]);
+				// Bind data descriptor sets
+				cmd.BindDescriptorSets(this->pipelines[shadowPipeline], { this->pipelines[shadowPipeline].descriptorSets[0][frameIndex].set }, { 0 });
+				for (uint32_t i = 0; i < this->meshes.capacity() - 2; i++)
 				{
-					if (this->pipelines[shadowPipeline].vertexAttributes[cpvaf] == this->meshes[i].vertexAttributes[mvaf].attribute)
+					// If outside the frustum, skip
+					if (!frustum.intersects(this->modelData[i].bounds)) continue;
+					// Push the constants
+					cmd.PushConstants(this->pipelines[shadowPipeline], this->modelData[i].transform, VK_SHADER_STAGE_VERTEX_BIT);
+					// Bind vertex meshes
+					std::vector<VkBuffer> buffers;
+					for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < this->pipelines[shadowPipeline].vertexAttributes.size(); mvaf++)
 					{
-						buffers.push_back(this->meshes[i].vertexAttributes[mvaf].buffer);
-						cpvaf++;
+						if (this->pipelines[shadowPipeline].vertexAttributes[cpvaf] == this->meshes[i].vertexAttributes[mvaf].attribute)
+						{
+							buffers.push_back(this->meshes[i].vertexAttributes[mvaf].buffer);
+							cpvaf++;
+						}
 					}
+					CS_ASSERT(buffers.size() == this->pipelines[shadowPipeline].vertexAttributes.size(), "Not all vertex attributes are bound!");
+					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
+					cmd.BindVertexBuffers(buffers, bufferOffsets);
+					cmd.BindIndexBuffer(this->meshes[i].indexBuffer);
+					cmd.DrawIndexed(this->meshes[i].indexCount, 1, 0, 0, 0);
 				}
-				CS_ASSERT(buffers.size() == this->pipelines[shadowPipeline].vertexAttributes.size(), "Not all vertex attributes are bound!");
-				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
-				cmd.BindVertexBuffers(buffers, bufferOffsets);
-				cmd.BindIndexBuffer(this->meshes[i].indexBuffer);
-				cmd.DrawIndexed(this->meshes[i].indexCount, 1, 0, 0, 0);
-			}
 			cmd.EndRenderPass();
 			// Normal pass
 			cmd.DynamicStateSetViewport(framebuffer.GetViewport(true));
