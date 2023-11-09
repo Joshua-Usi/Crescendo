@@ -66,7 +66,7 @@ public:
 
 		this->shadowMapCamera = Graphics::OrthographicCamera(
 			glm::vec4(-30.0f, 30.0f, -30.0f, 30.0f),
-			glm::vec2(-250.0f, 250.0f)
+			glm::vec2(-100.0f, 100.0f)
 		);
 
 		/* ---------------------------------------------------------------- 0 - Vulkan setup ---------------------------------------------------------------- */
@@ -182,10 +182,10 @@ public:
 
 		std::vector<cs_std::graphics::model> models =
 		{
-			IO::LoadGLTF("./assets/tristan/TRISTANSEXY.gltf"),
+			//IO::LoadGLTF("./assets/tristan/TRISTANSEXY.gltf"),
 			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
 			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
-			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
+			IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
 			IO::LoadGLTF("./assets/tree/tree.gltf"),
@@ -267,8 +267,8 @@ public:
 
 		this->camera.Update();
 
-		float currentTime = this->GetTime<float>() / 5.0f;
-		this->shadowMapCamera.SetPosition(glm::vec3(std::sinf(currentTime) * 100.0f, std::cosf(currentTime) * 100.0f, 0.0f));
+		float currentTime = this->GetTime<float>() / 20.0f - 4.0f;
+		this->shadowMapCamera.SetPosition(glm::vec3(std::sinf(currentTime) * 75.0f, std::cosf(currentTime) * 75.0f, 0.0f));
 		this->shadowMapCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f));
 
 		/* ---------------------------------------------------------------- Render preparation ---------------------------------------------------------------- */
