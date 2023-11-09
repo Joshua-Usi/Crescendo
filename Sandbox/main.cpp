@@ -110,8 +110,8 @@ public:
 				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
 				Crescendo::Vulkan::PipelineVariants::CullMode::Back,
 				Crescendo::Vulkan::PipelineVariants::Multisamples::One,
-				Crescendo::Vulkan::PipelineVariants::DepthFunc::Less,
-				Crescendo::Vulkan::PipelineVariants::DepthTest::Disabled,
+				Crescendo::Vulkan::PipelineVariants::DepthFunc::LessEqual,
+				Crescendo::Vulkan::PipelineVariants::DepthTest::Enabled,
 				Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
 			)  },
 			{ "./shaders/compiled/shadow_map", Crescendo::Vulkan::PipelineVariants(
@@ -185,7 +185,7 @@ public:
 			//IO::LoadGLTF("./assets/tristan/TRISTANSEXY.gltf"),
 			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
 			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
-			IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
+			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
 			IO::LoadGLTF("./assets/tree/tree.gltf"),
@@ -267,7 +267,7 @@ public:
 
 		this->camera.Update();
 
-		float currentTime = this->GetTime<float>() / 20.0f - 4.0f;
+		float currentTime = this->GetTime<float>() / 20.0f - 2.0f;
 		this->shadowMapCamera.SetPosition(glm::vec3(std::sinf(currentTime) * 75.0f, std::cosf(currentTime) * 75.0f, 0.0f));
 		this->shadowMapCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f));
 
@@ -337,18 +337,7 @@ public:
 			cmd.DynamicStateSetViewport(framebuffer.GetViewport(true));
 			cmd.DynamicStateSetScissor(framebuffer.GetScissor());
 			cmd.BeginRenderPass(framebuffer.renderPass, framebuffer, framebuffer.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f }, Crescendo::Vulkan::Create::DefaultDepthClear() });
-				// Skybox			
-				{
-					cmd.BindPipeline(skyboxPipeline[0]);
-					cmd.BindDescriptorSets(skyboxPipeline, { skyboxPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
-					cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->modelData[this->renderer.meshes.capacity() - 2].textureID].set, 0, 1);
-					// Bind vertex meshes
-					std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 2]);
-					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
-					cmd.BindVertexBuffers(buffers, bufferOffsets);
-					cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 2].indexBuffer);
-					cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 2].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 2);
-				}
+				// Normal rendering
 				frustum = cs_std::graphics::frustum(this->camera.camera.GetViewProjectionMatrix());
 				for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 2; i++)
 				{
@@ -370,6 +359,18 @@ public:
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
 					cmd.BindIndexBuffer(mesh.indexBuffer);
 					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
+				}
+				// Skybox rendering
+				{
+					cmd.BindPipeline(skyboxPipeline[0]);
+					cmd.BindDescriptorSets(skyboxPipeline, { skyboxPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
+					cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->modelData[this->renderer.meshes.capacity() - 2].textureID].set, 0, 1);
+					// Bind vertex meshes
+					std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 2]);
+					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
+					cmd.BindVertexBuffers(buffers, bufferOffsets);
+					cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 2].indexBuffer);
+					cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 2].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 2);
 				}
 			cmd.EndRenderPass();
 		cmd.End();
