@@ -15,17 +15,24 @@ namespace Crescendo::IO
 		stbi_uc* pixels = stbi_load(path.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
 		CS_ASSERT(pixels != nullptr, "Failed to load image: " + path.string());
 
-		// Optional downsampling code
-		// Nearest neighbour downsampling
-		constexpr uint32_t scaleFactor = 2;
+		constexpr uint32_t scaleFactor = 1;
 		std::vector<uint8_t> newPixels(width * height * FIXED_CHANNELS / (scaleFactor * scaleFactor));
-		for (uint32_t i = 0; i < height / scaleFactor; i++)
+		if (scaleFactor == 1)
 		{
-			for (uint32_t j = 0; j < width / scaleFactor; j++)
+			memcpy(newPixels.data(), pixels, width * height * FIXED_CHANNELS);
+		}
+		else
+		{
+			// Optional downsampling code
+			// Nearest neighbour downsampling
+			for (uint32_t i = 0; i < height / scaleFactor; i++)
 			{
-				for (uint32_t k = 0; k < FIXED_CHANNELS; k++)
+				for (uint32_t j = 0; j < width / scaleFactor; j++)
 				{
-					newPixels[(i * width / scaleFactor + j) * FIXED_CHANNELS + k] = pixels[((i * width + j) * scaleFactor) * FIXED_CHANNELS + k];
+					for (uint32_t k = 0; k < FIXED_CHANNELS; k++)
+					{
+						newPixels[(i * width / scaleFactor + j) * FIXED_CHANNELS + k] = pixels[((i * width + j) * scaleFactor) * FIXED_CHANNELS + k];
+					}
 				}
 			}
 		}

@@ -1,14 +1,14 @@
-#version 450
+#version 460
 layout (location = 0) in vec3 iPosition;
 layout (location = 1) in vec2 iTexCoord;
 
 layout (location = 0) out vec2 oTexCoord;
 
-layout(set = 0, binding = 0) uniform uniformBuffer {
+layout(set = 0, binding = 0) uniform ViewProjection {
 	mat4 viewProjection;
 };
 
-layout(push_constant, std430) uniform pushConstants {
+layout (push_constant) uniform PushConstant {
 	mat4 model;
 };
 

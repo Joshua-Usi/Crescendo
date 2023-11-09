@@ -86,7 +86,11 @@ namespace Crescendo::Vulkan
 	}
 	Device Instance::CreateDevice(uint32_t descriptorSetsPerPool)
 	{
-		const vkb::Device deviceResult = vkb::DeviceBuilder(this->vkbPhysicalDevice).build().value();
+		VkPhysicalDeviceShaderDrawParametersFeatures drawParametersFeatures = {};
+		drawParametersFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+		drawParametersFeatures.shaderDrawParameters = VK_TRUE;
+
+		const vkb::Device deviceResult = vkb::DeviceBuilder(this->vkbPhysicalDevice).add_pNext(&drawParametersFeatures).build().value();
 		volkLoadDevice(deviceResult.device);
 		return Device(deviceResult, this->instance, descriptorSetsPerPool, this->GetPhysicalDeviceProperties().limits.minUniformBufferOffsetAlignment);
 	}

@@ -1,4 +1,4 @@
-#version 450
+#version 460
 layout (location = 0) in vec3 iPosition;
 layout (location = 1) in vec3 iNormal;
 layout (location = 2) in vec4 iTangent;
@@ -11,18 +11,18 @@ layout (location = 3) out vec3 oTanLightPos;
 layout (location = 4) out vec3 oTanViewPos;
 layout (location = 5) out vec4 oFragPosLightSpace;
 
-layout(set = 0, binding = 0) uniform uniformBuffer {
+layout(set = 0, binding = 0) uniform ViewProjection {
 	mat4 viewProjection;
 	mat4 lightSpaceMatrix;
 };
 
-layout(set = 0, binding = 1) uniform blinnPhongLightingData {
+layout(set = 0, binding = 1) uniform LightData {
 	vec4 lightPosition;
 	vec4 viewPosition;
 };
 
-layout(push_constant, std430) uniform pushConstants {
-	mat4 model;
+layout(std140, set = 2, binding = 0) readonly buffer ShaderStorage {
+	mat4 modelBuffer[];
 };
 
 const mat4 bias = mat4( 
@@ -35,6 +35,8 @@ const mat4 bias = mat4(
 void main()
 {
 	oTexCoord = iTexCoord;
+
+	const mat4 model = modelBuffer[gl_InstanceIndex];
 
 	mat3 normalMatrix = transpose(inverse(mat3(model)));
 	vec3 T = normalize(normalMatrix * iTangent.xyz);

@@ -8,22 +8,19 @@
 namespace cs_std
 {
     /// <summary>
-    /// Given 2 vectors, return a new vector with the contents of both vectors
+    /// Concatenate any number of vectors into a new vector.
     /// </summary>
     /// <typeparam name="T">Underlying type</typeparam>
-    /// <param name="v1">Vector 1, it's content is first</param>
-    /// <param name="v2">Vector 2, it's content is second</param>
-    /// <returns></returns>
-    template <typename T>
-    std::vector<T> combine(const std::vector<T>& v1, const std::vector<T>& v2) {
-        if (v1.empty() && v2.empty()) return {};
-
+    /// <typeparam name="...Vectors">Variadic template for multiple vector arguments</typeparam>
+    /// <param name="vectors">A variadic number of vectors to be combined</param>
+    /// <returns>A new vector with the contents of all given vectors</returns>
+    template <typename T, typename... Vectors>
+    std::vector<T> combine(const std::vector<T>& first, const Vectors&... vectors) {
         std::vector<T> result;
+        result.reserve((first.size() + ... + vectors.size()));
 
-        result.reserve(v1.size() + v2.size());
-
-        result.insert(result.end(), v1.begin(), v1.end());
-        result.insert(result.end(), v2.begin(), v2.end());
+        result.insert(result.end(), first.begin(), first.end());
+        (result.insert(result.end(), vectors.begin(), vectors.end()), ...);
 
         return result;
     }

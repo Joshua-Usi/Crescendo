@@ -19,12 +19,14 @@ namespace Crescendo::Vulkan
 	{
 		// Create universal descriptor sets
 		this->fragmentSamplerSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT));
+		this->ssboSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT));
 	}
 	Device::~Device()
 	{
 		if (this->device == nullptr) return;
 		vkDeviceWaitIdle(this->device);
 		vkDestroyDescriptorSetLayout(this->device, this->fragmentSamplerSetLayout, nullptr);
+		vkDestroyDescriptorSetLayout(this->device, this->ssboSetLayout, nullptr);
 		this->allocator.Destroy();
 		this->descriptorManager.Destroy();
 		vkDestroyDevice(this->device, nullptr);
@@ -32,11 +34,12 @@ namespace Crescendo::Vulkan
 	Device::Device(Device&& other) noexcept
 		: allocator(std::move(other.allocator)), descriptorManager(std::move(other.descriptorManager)),
 		device(other.device), queues(other.queues),
-		fragmentSamplerSetLayout(fragmentSamplerSetLayout),
+		fragmentSamplerSetLayout(fragmentSamplerSetLayout), ssboSetLayout(ssboSetLayout),
 		minUniformBufferOffsetAlignment(other.minUniformBufferOffsetAlignment)
 	{
 		other.device = nullptr;
 		other.fragmentSamplerSetLayout = nullptr;
+		other.ssboSetLayout = nullptr;
 	}
 	Device& Device::operator=(Device&& other) noexcept
 	{
@@ -46,8 +49,9 @@ namespace Crescendo::Vulkan
 			this->descriptorManager = std::move(other.descriptorManager);
 			this->device = other.device; other.device = nullptr;
 			this->queues = other.queues;
-			this->fragmentSamplerSetLayout = other.fragmentSamplerSetLayout;
-			this->minUniformBufferOffsetAlignment = other.minUniformBufferOffsetAlignment; other.fragmentSamplerSetLayout = nullptr;
+			this->fragmentSamplerSetLayout = other.fragmentSamplerSetLayout; other.fragmentSamplerSetLayout = nullptr;
+			this->ssboSetLayout = other.ssboSetLayout; other.ssboSetLayout = nullptr;
+			this->minUniformBufferOffsetAlignment = other.minUniformBufferOffsetAlignment;
 		}
 		return *this;
 	}
@@ -247,9 +251,16 @@ namespace Crescendo::Vulkan
 			setData.emplace_back(bindings, set.set);
 		}
 
-		/* ---------------------------------------------------------------- 1.1 - Sampler descriptor sets ---------------------------------------------------------------- */
+		/* ---------------------------------------------------------------- 1.1 - Shader storage descriptor sets ---------------------------------------------------------------- */
 
-		uint32_t fragmentSamplerCount = fragmentReflection.GetDescriptorSetLayouts(ShaderReflection::DescriptorType::Sampler).size();
+		uint32_t vertexStorageCount = vertexReflection.GetDescriptorSetLayoutCount(ShaderReflection::DescriptorType::Storage);
+
+		// A set layout is independent of the sets themselves, hence, SSBOs will just use the same layouts
+		std::vector<VkDescriptorSetLayout> storageLayouts(vertexStorageCount, this->ssboSetLayout);
+
+		/* ---------------------------------------------------------------- 1.2 - Sampler descriptor sets ---------------------------------------------------------------- */
+
+		uint32_t fragmentSamplerCount = fragmentReflection.GetDescriptorSetLayoutCount(ShaderReflection::DescriptorType::Sampler);
 
 		// A set layout is independent of the sets themselves, hence, samplers will just use the same layouts
 		std::vector<VkDescriptorSetLayout> samplerLayouts(fragmentSamplerCount, this->fragmentSamplerSetLayout);
@@ -266,8 +277,10 @@ namespace Crescendo::Vulkan
 			fragmentReflection.GetPushConstantRanges(VK_SHADER_STAGE_FRAGMENT_BIT)
 		);
 
+		const std::vector<VkDescriptorSetLayout> descriptorSetLayouts = cs_std::combine(dataLayouts, storageLayouts, samplerLayouts);
+
 		// Create the pipeline layout
-		const VkPipelineLayout pipelineLayout = this->CreatePipelineLayout(cs_std::combine(dataLayouts, samplerLayouts), pushConstantRanges);
+		const VkPipelineLayout pipelineLayout = this->CreatePipelineLayout(descriptorSetLayouts, pushConstantRanges);
 
 		// Generate each pipeline
 		std::vector<VkPipeline> pipelines;

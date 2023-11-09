@@ -12,7 +12,7 @@ namespace Crescendo::Vulkan
 	{
 	public:
 		// We only ever use block and sampler descriptors
-		enum class DescriptorType : uint32_t { Unknown = 0, Block, Sampler, All };
+		enum class DescriptorType : uint32_t { Unknown = 0, Block, Sampler, Storage};
 		struct InterfaceVariable { std::string name;  uint32_t location, size; };
 		struct BlockMember { uint32_t offset, size; };
 		struct DescriptorSetBinding
@@ -26,7 +26,6 @@ namespace Crescendo::Vulkan
 				for (const auto& member : members) size += member.size;
 				return size;
 			}
-			uint32_t IsSampler() const { return type == DescriptorType::Sampler; }
 		};
 		struct DescriptorSetLayout
 		{
@@ -51,7 +50,8 @@ namespace Crescendo::Vulkan
 	public:
 		ShaderReflection(const std::vector<uint8_t>& code);
 	public:
-		std::vector<DescriptorSetLayout> GetDescriptorSetLayouts(DescriptorType descriptorType = DescriptorType::All) const;
+		std::vector<DescriptorSetLayout> GetDescriptorSetLayouts(DescriptorType descriptorType) const;
+		size_t GetDescriptorSetLayoutCount(DescriptorType descriptorType) const;
 
 		std::vector<std::vector<VkDescriptorSetLayoutBinding>> GetDescriptorSetLayoutBindings(DescriptorType descriptorType, uint32_t shaderStage) const;
 		std::vector<VkVertexInputBindingDescription> GetVertexBindings() const;

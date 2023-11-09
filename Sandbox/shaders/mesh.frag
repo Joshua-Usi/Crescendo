@@ -1,4 +1,4 @@
-#version 450
+#version 460
 layout (location = 0) in vec2 iTexCoord;
 layout (location = 1) in vec3 iNormal;
 layout (location = 2) in vec3 iTanFragPos;
@@ -8,15 +8,15 @@ layout (location = 5) in vec4 iFragPosLightSpace;
 
 layout (location = 0) out vec4 oColor;
 
-layout(set = 1, binding = 0) uniform blinnPhongLightingIntensities {
+layout(set = 1, binding = 0) uniform LightIntensities {
 	float ambient;
 	float diffuse;
 	float specular;
 } bpli;
 
-layout(set = 2, binding = 0) uniform sampler2D diffuseTex;
-layout(set = 3, binding = 0) uniform sampler2D normalTex;
-layout(set = 4, binding = 0) uniform sampler2D shadowTex;
+layout(set = 3, binding = 0) uniform sampler2D diffuseTex;
+layout(set = 4, binding = 0) uniform sampler2D normalTex;
+layout(set = 5, binding = 0) uniform sampler2D shadowTex;
 
 float textureProj(vec4 shadowCoord)
 {

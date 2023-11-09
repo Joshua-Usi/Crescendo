@@ -32,6 +32,7 @@ namespace Crescendo::Vulkan
 
 		// Universally shared resources
 		VkDescriptorSetLayout fragmentSamplerSetLayout;
+		VkDescriptorSetLayout ssboSetLayout;
 
 		// Device properties
 		uint32_t minUniformBufferOffsetAlignment;
@@ -92,6 +93,7 @@ namespace Crescendo::Vulkan
 		void WaitIdle() const;
 
 		VkDescriptorSetLayout GetFragmentSamplerLayout() const { return fragmentSamplerSetLayout; }
+		VkDescriptorSetLayout GetSSBOLayout() const { return ssboSetLayout; }
 	public:
 		operator VkDevice() const { return device; }
 	};

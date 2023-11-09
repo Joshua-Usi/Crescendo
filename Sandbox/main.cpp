@@ -27,7 +27,6 @@ namespace IO = Crescendo::IO;
 //
 struct ModelData
 {
-	glm::mat4 transform;
 	cs_std::graphics::bounding_aabb bounds;
 	uint32_t textureID, normalID;
 	bool isTransparent, isDoubleSided, isShadowCasting;
@@ -65,6 +64,12 @@ private:
 		VkDescriptorSet set;
 	};
 
+	struct SSBO
+	{
+		Crescendo::Vulkan::Buffer buffer;
+		VkDescriptorSet set;
+	};
+
 	int frame = 0;
 	double lastTime = 0.0;
 	
@@ -74,8 +79,9 @@ private:
 	Crescendo::Vulkan::TransferCommandQueue transferQueue;
 
 	// Variable setup
-	int frameIndex = 0;
+	uint8_t frameIndex = 0;
 	std::vector<Crescendo::Vulkan::Frame> frameData;
+	std::vector<SSBO> ssbo;
 	Crescendo::Vulkan::Swapchain swapchain;
 
 	// Resources
@@ -207,6 +213,8 @@ public:
 	}
 	Texture UploadTexture(const cs_std::image& image, bool generateMipmaps)
 	{
+		/* ----------------------------------------------------------------  0 - Dynamic sampler creation ---------------------------------------------------------------- */
+		
 		// For now every image uses the same format. This can be very wasteful, at least until variable formats are implemented
 		// Or we have texture compression
 		constexpr VkFormat DEFAULT_FORMAT = VK_FORMAT_R8G8B8A8_SRGB;
@@ -226,6 +234,8 @@ public:
 			this->samplers.push_back(this->device.CreateSampler(samplerInfo));
 		}
 
+		/* ----------------------------------------------------------------  1 - Staging ---------------------------------------------------------------- */
+
 		// Stage the image data
 		Crescendo::Vulkan::Buffer staging = this->device.CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY).Fill(0, image.data.data(), imageSize);
 	
@@ -237,6 +247,8 @@ public:
 			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
 		), VMA_MEMORY_USAGE_GPU_ONLY);
+
+		/* ----------------------------------------------------------------  2 - Generate mipmaps ---------------------------------------------------------------- */
 
 		this->transferQueue.InstantSubmit([&](const Crescendo::Vulkan::TransferCommandQueue& cmd) {
 			// Transition to blit compatible
@@ -290,6 +302,8 @@ public:
 			cmd.ResourceBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
 		});
 
+		/* ----------------------------------------------------------------  3 - Create descriptor set ---------------------------------------------------------------- */
+
 		VkDescriptorSet descriptorSet = this->device.AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->device.GetFragmentSamplerLayout());
 		VkDescriptorImageInfo imageInfo = Crescendo::Vulkan::Create::DescriptorImageInfo(this->samplers[mipLevels - 1], texture.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(descriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo, nullptr, nullptr);
@@ -311,7 +325,7 @@ public:
 		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
 
 		this->shadowMapCamera = Graphics::OrthographicCamera(
-			glm::vec4(-25.0f, 25.0f, -25.0f, 25.0f),
+			glm::vec4(-30.0f, 30.0f, -30.0f, 30.0f),
 			glm::vec2(-250.0f, 250.0f)
 		);
 
@@ -327,12 +341,31 @@ public:
 		this->device = this->instance.CreateDevice(CVar::Get<int64_t>("rc_descriptorsetsperpool"));
 		this->transferQueue = this->device.CreateTransferCommandQueue();
 
-		for (uint32_t i = 0, fif = CVar::Get<int64_t>("rc_framesinflight"); i < fif; i++)
+		uint32_t fif = fif = CVar::Get<int64_t>("rc_framesinflight");
+		for (uint32_t i = 0; i < fif; i++)
 			this->frameData.emplace_back(this->device.CreateGraphicsCommandQueue(), this->device.CreateSemaphore(), this->device.CreateSemaphore());
 		this->CreateSwapchain();
 
-		/* ---------------------------------------------------------------- 0.1 - Shadow map ---------------------------------------------------------------- */
+		for (uint32_t i = 0; i < fif; i++)
+		{
 
+			SSBO ssbo(
+				this->device.CreateBuffer(sizeof(glm::mat4) * 8192, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU),
+				this->device.AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->device.GetSSBOLayout())
+			);
+
+			VkDescriptorBufferInfo bufferInfo = Crescendo::Vulkan::Create::DescriptorBufferInfo(ssbo.buffer, 0, sizeof(glm::mat4) * 8192);
+
+			VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(
+				ssbo.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &bufferInfo, nullptr
+			);
+
+			vkUpdateDescriptorSets(this->device, 1, &write, 0, nullptr);
+			this->ssbo.push_back(std::move(ssbo));
+		}
+
+		/* ---------------------------------------------------------------- 0.1 - Shadow map ---------------------------------------------------------------- */
+		
 		constexpr VkFormat DEFAULT_SHADOW_FORMAT = VK_FORMAT_D16_UNORM;
 
 		uint32_t smrpIdx = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(DEFAULT_SHADOW_FORMAT));
@@ -473,7 +506,8 @@ public:
 			quadModel
 		};
 
-		int textureIndex = 0;
+		uint32_t modelIndex = 0;
+		uint32_t textureIndex = 0;
 		std::map<std::filesystem::path, uint32_t> seenTextures;
 
 		for (auto& model : models)
@@ -499,11 +533,18 @@ public:
 				}
 
 				this->modelData.emplace_back(
-					attributes.transform,
 					cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform),
 					seenTextures[attributes.diffuse], seenTextures[attributes.normal],
 					attributes.isTransparent, attributes.isDoubleSided, true
 				);
+
+				// Fill the model matrix buffer
+				for (uint32_t j = 0; j < 3; j++)
+				{
+					memcpy(static_cast<char*>(this->ssbo[j].buffer.mPtr) + sizeof(glm::mat4) * modelIndex, &attributes.transform, sizeof(glm::mat4));
+				}
+
+				modelIndex++;
 			}
 		}
 
@@ -540,15 +581,15 @@ public:
 
 		this->camera.Update();
 
-		float currentTime = this->GetTime<float>() / 2.0f;
+		float currentTime = this->GetTime<float>() / 5.0f;
 		this->shadowMapCamera.SetPosition(glm::vec3(std::sinf(currentTime) * 100.0f, std::cosf(currentTime) * 100.0f, 0.0f));
 		this->shadowMapCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f));
 
 		/* ---------------------------------------------------------------- Render preparation ---------------------------------------------------------------- */
 
 		// Render prep
-		const glm::mat4 projections[2] = { this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
-		const glm::vec4 lightingPositions[2] = { glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f), glm::vec4(this->camera.camera.GetPosition(), 1.0f) };
+		const glm::mat4 projections[2] { this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
+		const glm::vec4 lightingPositions[2] { glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f), glm::vec4(this->camera.camera.GetPosition(), 1.0f) };
 
 		// Arguments in order: set index, set, binding, data
 		this->pipelines[0].UpdateDescriptorData(frameIndex, 0, 0, projections);
@@ -588,12 +629,12 @@ public:
 				cmd.BindPipeline(this->pipelines[shadowPipeline][0]);
 				// Bind data descriptor sets
 				cmd.BindDescriptorSets(this->pipelines[shadowPipeline], { this->pipelines[shadowPipeline].descriptorSets[0][frameIndex].set }, { 0 });
+				// Bind storage descriptor sets
+				cmd.BindDescriptorSet(this->pipelines[shadowPipeline], this->ssbo[frameIndex].set, 0, 1);
 				for (uint32_t i = 0; i < this->meshes.capacity() - 2; i++)
 				{
 					// If outside the frustum, skip
 					if (!frustum.intersects(this->modelData[i].bounds)) continue;
-					// Push the constants
-					cmd.PushConstants(this->pipelines[shadowPipeline], this->modelData[i].transform, VK_SHADER_STAGE_VERTEX_BIT);
 					// Bind vertex meshes
 					std::vector<VkBuffer> buffers;
 					for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < this->pipelines[shadowPipeline].vertexAttributes.size(); mvaf++)
@@ -608,7 +649,7 @@ public:
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
 					cmd.BindIndexBuffer(this->meshes[i].indexBuffer);
-					cmd.DrawIndexed(this->meshes[i].indexCount, 1, 0, 0, 0);
+					cmd.DrawIndexed(this->meshes[i].indexCount, 1, 0, 0, i);
 				}
 			cmd.EndRenderPass();
 			// Normal pass
@@ -635,7 +676,7 @@ public:
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
 					cmd.BindIndexBuffer(this->meshes[this->meshes.capacity() - 2].indexBuffer);
-					cmd.DrawIndexed(this->meshes[this->meshes.capacity() - 2].indexCount, 1, 0, 0, 0);
+					cmd.DrawIndexed(this->meshes[this->meshes.capacity() - 2].indexCount, 1, 0, 0, this->meshes.capacity() - 2);
 				}
 				frustum = cs_std::graphics::frustum(this->camera.camera.GetViewProjectionMatrix());
 				for (uint32_t i = 0; i < this->meshes.capacity() - 2; i++)
@@ -648,11 +689,13 @@ public:
 					if ( this->modelData[i].isDoubleSided && !this->modelData[i].isTransparent) cmd.BindPipeline(this->pipelines[usePipeline][2]);
 					if ( this->modelData[i].isDoubleSided &&  this->modelData[i].isTransparent) cmd.BindPipeline(this->pipelines[usePipeline][3]);
 					// Push the constants
-					cmd.PushConstants(this->pipelines[usePipeline], this->modelData[i].transform, VK_SHADER_STAGE_VERTEX_BIT);
+					//cmd.PushConstants(this->pipelines[usePipeline], this->modelData[i].transform, VK_SHADER_STAGE_VERTEX_BIT);
 					// Bind data descriptor sets
 					cmd.BindDescriptorSets(this->pipelines[usePipeline], { this->pipelines[usePipeline].descriptorSets[0][frameIndex].set, this->pipelines[usePipeline].descriptorSets[1][0].set }, { 0, 0, 0 });
+					// Bind storage descriptor sets
+					cmd.BindDescriptorSet(this->pipelines[usePipeline], this->ssbo[frameIndex].set, 0, 2);
 					// Bind texture descriptor sets
-					cmd.BindDescriptorSets(this->pipelines[usePipeline], { this->textures[this->modelData[i].textureID].set, this->textures[this->modelData[i].normalID].set, this->shadowMap.set }, {}, 2);
+					cmd.BindDescriptorSets(this->pipelines[usePipeline], { this->textures[this->modelData[i].textureID].set, this->textures[this->modelData[i].normalID].set, this->shadowMap.set }, {}, 3);
 					// Bind vertex meshes
 					std::vector<VkBuffer> buffers;
 					for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < this->pipelines[usePipeline].vertexAttributes.size(); mvaf++)
@@ -667,7 +710,7 @@ public:
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
 					cmd.BindIndexBuffer(this->meshes[i].indexBuffer);
-					cmd.DrawIndexed(this->meshes[i].indexCount, 1, 0, 0, 0);
+					cmd.DrawIndexed(this->meshes[i].indexCount, 1, 0, 0, i);
 				}
 			cmd.EndRenderPass();
 		cmd.End();

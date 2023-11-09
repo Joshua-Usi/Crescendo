@@ -31,9 +31,22 @@ namespace Crescendo::Vulkan
 		{
 		case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return ShaderReflection::DescriptorType::Sampler;
 		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER: return ShaderReflection::DescriptorType::Block;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: return ShaderReflection::DescriptorType::Block;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER: return ShaderReflection::DescriptorType::Storage;
 		}
 		CS_ASSERT(false, "Unsupported / Unknown descriptor type");
 		return ShaderReflection::DescriptorType::Unknown;
+	}
+	VkDescriptorType GetType(ShaderReflection::DescriptorType type)
+	{
+		switch (type)
+		{
+		case ShaderReflection::DescriptorType::Sampler: return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		case ShaderReflection::DescriptorType::Block: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		case ShaderReflection::DescriptorType::Storage: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		}
+		CS_ASSERT(false, "Unsupported / Unknown descriptor type");
+		return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 	}
 	std::vector<std::vector<VkDescriptorSetLayoutBinding>> ShaderReflection::GetDescriptorSetLayoutBindings(ShaderReflection::DescriptorType descriptorType, uint32_t shaderStage) const
 	{
@@ -43,10 +56,8 @@ namespace Crescendo::Vulkan
 			std::vector<VkDescriptorSetLayoutBinding> setBindings;
 			for (const auto& binding : setLayout.bindings)
 			{
-				if (descriptorType != ShaderReflection::DescriptorType::All && binding.type != descriptorType) break;
-				VkDescriptorType descriptorType = binding.IsSampler()
-												? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-												: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+				if (binding.type != descriptorType) break;
+				VkDescriptorType descriptorType = GetType(binding.type);
 				setBindings.emplace_back(binding.binding, descriptorType, 1, shaderStage, nullptr);
 			}
 			if (setBindings.size() > 0) bindings.push_back(setBindings);
@@ -106,6 +117,11 @@ namespace Crescendo::Vulkan
 					ShaderReflection::DescriptorSetBinding bindingSet;
 					bindingSet.binding = binding->binding;
 					bindingSet.type = GetType(binding->descriptor_type);
+					
+					if (bindingSet.type == ShaderReflection::DescriptorType::Storage)
+					{
+						cs_std::console::log("Type is storage");
+					}
 
 					for (uint32_t k = 0; k < binding->block.member_count; k++)
 					{
@@ -146,10 +162,19 @@ namespace Crescendo::Vulkan
 		std::vector<ShaderReflection::DescriptorSetLayout> layouts;
 		for (const auto& setLayout : this->descriptorSetLayouts)
 		{
-			if (descriptorType != ShaderReflection::DescriptorType::All && setLayout.bindings.front().type != descriptorType) continue;
+			if (setLayout.bindings.front().type != descriptorType) continue;
 			layouts.push_back(setLayout);
 		}
 		return layouts;
+	}
+	size_t ShaderReflection::GetDescriptorSetLayoutCount(DescriptorType descriptorType) const
+	{
+		size_t count = 0;
+		for (const auto& setLayout : this->descriptorSetLayouts)
+		{
+			if (setLayout.bindings.front().type == descriptorType) count++;
+		}
+		return count;
 	}
 	std::vector<VkVertexInputBindingDescription> ShaderReflection::GetVertexBindings() const
 	{
