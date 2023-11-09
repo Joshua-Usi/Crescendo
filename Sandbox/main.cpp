@@ -409,6 +409,7 @@ public:
 			if (this->GetWindow()->IsCursorLocked()) this->GetWindow()->SetCursorLock(false);
 			else this->Exit();
 		}
+		if (Input::GetKeyPressed(Key::ControlLeft) && Input::GetKeyPressed(Key::F5)) this->Restart();
 	}
 	void OnExit()
 	{

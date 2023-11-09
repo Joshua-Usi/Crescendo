@@ -54,7 +54,7 @@ namespace Crescendo::Engine
 		/// Load a Cvar xml configuration file
 		/// </summary>
 		/// <param name="path">Path to config file</param>
-		static void LoadConfigXML(const std::string& path);
+		static void LoadConfigXML(const std::string& path, bool clearRegistry = true);
 		/// <summary>
 		/// Serialize the configuration as an XML compatible string
 		/// </summary>

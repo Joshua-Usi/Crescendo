@@ -8,7 +8,7 @@ namespace Crescendo::Engine
 	// Assign self and null as no instance exists yet
 	Application* Application::self = nullptr;
 	Application::Application()
-		: taskQueue(cs_std::task_queue()), timeManager(cs_std::time_manager()), layerManager(LayerStack()), window(Window::Create())
+		: isRunning(true), shouldRestart(false), taskQueue(cs_std::task_queue()), timeManager(cs_std::time_manager()), layerManager(LayerStack()), window(Window::Create())
 	{
 		CS_ASSERT(self == nullptr, "Application instance already exists!");
 		self = this;

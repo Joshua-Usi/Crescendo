@@ -14,12 +14,14 @@ namespace Crescendo::Engine
 	class Application
 	{
 	private:
+		static Application* self;
+
 		shared<Window> window;
 
 		LayerStack layerManager;
 		cs_std::time_manager timeManager;
 
-		static Application* self;
+		bool isRunning, shouldRestart;
 	protected:
 		cs_std::task_queue taskQueue;
 	public:
@@ -29,12 +31,31 @@ namespace Crescendo::Engine
 		/// <summary>
 		/// Close the application
 		/// </summary>
-		void Exit() { this->window->Close(); };
+		void Exit()
+		{
+			this->window->Close();
+			this->isRunning = false;
+			this->shouldRestart = false;
+		};
 		/// <summary>
-		/// Returns the current running state of the application. This is usually tied to the state of the window
+		/// Close the application, then signal that it should restart
+		/// </summary>
+		void Restart() {
+			this->window->Close();
+			this->isRunning = false;
+			this->shouldRestart = true;
+			self = nullptr;
+		};
+		/// <summary>
+		/// Returns the current running state of the application
 		/// </summary>
 		/// <returns>Really?</returns>
-		bool IsRunning() const { return this->window->IsOpen(); };
+		bool IsRunning() const { return this->isRunning; };
+		/// <summary>
+		/// Returns if the current application should restart
+		/// </summary>
+		/// <returns>Really?</returns>
+		bool ShouldRestart() const { return this->shouldRestart; };
 		/// <summary>
 		/// Returns the time since the application has started up. Nanosecond precision
 		/// </summary>

@@ -7,9 +7,12 @@
 int main(int argc, char** argv)
 {
 	// TODO Handle command line arguments
-
-	unique<Crescendo::Engine::Application> app = Crescendo::Engine::CreateApplication();
-	app->Run();
+	unique<Crescendo::Engine::Application> app;
+	do
+	{
+		app = Crescendo::Engine::CreateApplication();
+		app->Run();
+	} while (app->ShouldRestart());
 	return 0;
 }
 #else

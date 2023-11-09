@@ -47,8 +47,10 @@ namespace Crescendo::Engine
 		}
 		return names;
 	}
-	void CVar::LoadConfigXML(const std::string& path)
+	void CVar::LoadConfigXML(const std::string& path, bool clearRegistry)
 	{
+		if (clearRegistry) { data.clear(); }
+
 		cs_std::xml::document document = cs_std::xml::parse_file(path);
 
 		for (uint32_t i = 0, childCount = document.root->GetChildCount(); i < childCount; i++)
