@@ -15,17 +15,8 @@ namespace cs_std
 	public:
 		// Constructors
 		constexpr stack_vector() : array(), curSize(0) {}
+		// Copy constructors
 		constexpr stack_vector(const stack_vector& other) : array(other.array), curSize(other.curSize) {}
-		constexpr stack_vector& operator=(const stack_vector& other)
-		{
-			if (this != &other)
-			{
-				this->array = other.array;
-				this->curSize = other.curSize;
-			}
-			return *this;
-		}
-		constexpr stack_vector(stack_vector&& other) : array(std::move(other.array)), curSize(other.curSize) {}
 		constexpr stack_vector& operator=(stack_vector&& other)
 		{
 			if (this != &other)
@@ -35,6 +26,7 @@ namespace cs_std
 			}
 			return *this;
 		}
+		// Initlizer list constructors
 		constexpr stack_vector(std::initializer_list<T> init) : array(), curSize(0)
 		{
 			for (auto& item : init)
@@ -43,6 +35,7 @@ namespace cs_std
 				this->curSize++;
 			}
 		}
+		// Range constructors
 		template<typename InputIt>
 		constexpr stack_vector(InputIt first, InputIt last) : array(), curSize(0)
 		{
@@ -54,9 +47,6 @@ namespace cs_std
 		}
 		// Destructors
 		~stack_vector() = default;
-
-		// TODO define copy and move operators
-
 		// Element access
 		constexpr T& at(size_t pos)
 		{

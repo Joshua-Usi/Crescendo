@@ -17,6 +17,8 @@ namespace IO = Crescendo::IO;
 
 #include "glfw/glfw3.h"
 
+#include "Rendering/VulkanInstance/VulkanInstance.hpp"
+
 //struct Transform
 //{
 //	glm::mat4 transform;
@@ -28,7 +30,9 @@ namespace IO = Crescendo::IO;
 struct ModelData
 {
 	cs_std::graphics::bounding_aabb bounds;
-	uint32_t textureID, normalID;
+	// textureID and normalID is the index of the texture in the textures array
+	// meshID is the index of the mesh to read from the SSBO
+	uint32_t textureID, normalID; /*meshID*/
 	bool isTransparent, isDoubleSided, isShadowCasting;
 };
 
@@ -42,275 +46,11 @@ private:
 	std::vector<ModelData> modelData;
 	//std::vector<Entity> entities;
 
-	/// <summary>
-	/// Describes gpu mesh metadata
-	/// </summary>
-	struct Mesh
-	{
-		struct Attribute
-		{
-			Crescendo::Vulkan::Buffer buffer;
-			uint32_t elements;
-			cs_std::graphics::Attribute attribute;
-		};
-		Crescendo::Vulkan::Buffer indexBuffer;
-		uint32_t indexCount;
-		std::vector<Attribute> vertexAttributes;
-	};
-
-	struct Texture
-	{
-		Crescendo::Vulkan::Image image;
-		VkDescriptorSet set;
-	};
-
-	struct SSBO
-	{
-		Crescendo::Vulkan::Buffer buffer;
-		VkDescriptorSet set;
-	};
-
 	int frame = 0;
 	double lastTime = 0.0;
-	
-	// Fixed setup
-	Crescendo::Vulkan::Instance instance;
-	Crescendo::Vulkan::Device device;
-	Crescendo::Vulkan::TransferCommandQueue transferQueue;
 
-	// Variable setup
-	uint8_t frameIndex = 0;
-	std::vector<Crescendo::Vulkan::Frame> frameData;
-	std::vector<SSBO> ssbo;
-	Crescendo::Vulkan::Swapchain swapchain;
-
-	// Resources
-	cs_std::packed_vector<Crescendo::Vulkan::RenderPass> renderPasses;
-	cs_std::packed_vector<Crescendo::Vulkan::Framebuffer> framebuffers;
-	cs_std::packed_vector<Crescendo::Vulkan::Pipelines> pipelines;
-	cs_std::packed_vector<Mesh> meshes;
-	cs_std::packed_vector<Texture> textures;
-	std::vector<VkSampler> samplers;
-
-	Crescendo::Vulkan::Image depthBuffer;
-	Texture shadowMap;
-	VkSampler shadowMapSampler;
-	Crescendo::Vulkan::Framebuffer shadowMapFramebuffer;
+	Crescendo::VulkanInstance renderer;
 public:
-	void CreateSwapchain()
-	{
-		/* ---------------------------------------------------------------- 0. - Wait for resize finish ---------------------------------------------------------------- */
-
-		constexpr VkFormat DEFAULT_DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
-
-		this->device.WaitIdle();
-		// Get glfw window size
-		int width = 0, height = 0;
-		while (width == 0 || height == 0)
-		{
-			glfwGetFramebufferSize(static_cast<GLFWwindow*>(this->instance.GetWindow()), &width, &height);
-			glfwWaitEvents();
-		}
-
-		/* ---------------------------------------------------------------- 1. - Resource deletion ---------------------------------------------------------------- */
-
-		this->framebuffers.clear();
-		if (this->renderPasses.capacity() > 0) this->renderPasses.erase(0);
-		// Explicitly destroy swapchain and depth buffer
-		this->swapchain.~Swapchain();
-		this->depthBuffer.~Image();
-
-		/* ---------------------------------------------------------------- 2 - Swapchain framebuffers ---------------------------------------------------------------- */
-
-		this->swapchain = this->instance.CreateSwapchain(this->device, VK_PRESENT_MODE_MAILBOX_KHR, VkExtent2D(CVar::Get<int64_t>("ec_windowwidth"), CVar::Get<int64_t>("ec_windowheight")));
-		
-		// Create renderpasses
-		uint32_t drpIdx = this->renderPasses.insert(this->device.CreateDefaultRenderPass(this->swapchain.GetImageFormat(), DEFAULT_DEPTH_FORMAT));
-		CS_ASSERT(drpIdx == 0, "Render pass index is not 0!");
-		
-		// Create images
-		this->depthBuffer = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(
-			VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, this->swapchain.GetExtent3D(), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-		), VMA_MEMORY_USAGE_GPU_ONLY);
-
-		// Create the frame buffers
-		std::vector<VkImageView> attachments { nullptr, this->depthBuffer.imageView };
-		for (const auto& swapChainImage : this->swapchain)
-		{
-			attachments[0] = swapChainImage.imageView;
-			this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[drpIdx], attachments, this->swapchain.GetExtent(), true, true));
-		}
-	}
-	Mesh UploadMesh(const cs_std::graphics::mesh& mesh)
-	{
-		/* ---------------------------------------------------------------- 0 - Mesh validation ---------------------------------------------------------------- */
-
-		constexpr size_t ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(cs_std::graphics::Attribute::ATTRIBUTE_COUNT)]{
-			3, // POSITION
-			3, // NORMAL
-			4, // TANGENT
-			2, // TEXCOORD0
-			2, // TEXCOORD1
-			4, // COLOR0
-			4, // JOINTS0
-			4  // WEIGHTS0
-		};
-		for (const auto& attribute : mesh.attributes) CS_ASSERT(attribute.data.size() % ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(attribute.attribute)] == 0, "Invalid mesh data! mesh has " + std::to_string(attribute.data.size()) + " elements! but expected a multiple of " + std::to_string(ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(attribute.attribute)]) + "!");
-		CS_ASSERT(mesh.indices.size() % 3 == 0, "Invalid mesh data! mesh has " + std::to_string(mesh.indices.size()) + " indices! but expected a multiple of 3!");
-		// TODO assert for potential buffer overflows
-
-		/* ---------------------------------------------------------------- 1 - Create GPU buffers ---------------------------------------------------------------- */
-
-		Mesh gpuMesh = {};
-		gpuMesh.indexCount = static_cast<uint32_t>(mesh.indices.size());
-		gpuMesh.indexBuffer = this->device.CreateBuffer(
-			sizeof(uint32_t) * mesh.indices.size(),
-			VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			VMA_MEMORY_USAGE_GPU_ONLY
-		);
-		for (const auto& attribute : mesh.attributes)
-		{
-			gpuMesh.vertexAttributes.emplace_back(
-				this->device.CreateBuffer(
-					sizeof(float) * attribute.data.size(),
-					VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-					VMA_MEMORY_USAGE_GPU_ONLY
-				), static_cast<uint32_t>(attribute.data.size()), attribute.attribute
-			);
-		}
-
-		/* ---------------------------------------------------------------- 2 - Staging ---------------------------------------------------------------- */
-
-		// Determine the buffer offsets
-		std::vector<uint32_t> bufferOffsets(1, 0);
-		bufferOffsets.push_back(bufferOffsets.back() + mesh.indices.size() * sizeof(uint32_t));
-		for (const auto& attribute : mesh.attributes) bufferOffsets.push_back(bufferOffsets.back() + attribute.data.size() * sizeof(float));
-
-		// Stage all data into one buffer, reduces allocations
-		Crescendo::Vulkan::Buffer staging = this->device.CreateBuffer(bufferOffsets.back(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-		staging.Fill(0, mesh.indices.data(), mesh.indices.size() * sizeof(uint32_t));
-		for (size_t i = 0; i < mesh.attributes.size(); i++) staging.Fill(bufferOffsets[i + 1], mesh.attributes[i].data.data(), mesh.attributes[i].data.size() * sizeof(float));
-	
-		/* ---------------------------------------------------------------- 2 - Transfer ---------------------------------------------------------------- */
-
-		// Upload data to the GPU
-		this->transferQueue.InstantSubmit([&](const Crescendo::Vulkan::TransferCommandQueue& cmd) {
-			// Copy index data
-			VkBufferCopy copy = Crescendo::Vulkan::Create::BufferCopy(0, 0, mesh.indices.size() * sizeof(uint32_t));
-			cmd.CopyBuffer(staging.buffer, gpuMesh.indexBuffer, copy);
-
-			// Copy other vertex attributes
-			uint32_t offset = 1;
-			for (const auto& attribute : gpuMesh.vertexAttributes)
-			{
-				VkBufferCopy copy = Crescendo::Vulkan::Create::BufferCopy(bufferOffsets[offset], 0, attribute.elements * sizeof(float));
-				cmd.CopyBuffer(staging.buffer, attribute.buffer, copy);
-				offset++;
-			}
-		});
-
-		return gpuMesh;
-	}
-	Texture UploadTexture(const cs_std::image& image, bool generateMipmaps)
-	{
-		/* ----------------------------------------------------------------  0 - Dynamic sampler creation ---------------------------------------------------------------- */
-		
-		// For now every image uses the same format. This can be very wasteful, at least until variable formats are implemented
-		// Or we have texture compression
-		constexpr VkFormat DEFAULT_FORMAT = VK_FORMAT_R8G8B8A8_SRGB;
-
-		const size_t imageSize = static_cast<size_t>(image.width) * static_cast<size_t>(image.height) * static_cast<size_t>(image.channels);
-		const uint8_t mipLevels = 1 + generateMipmaps ? static_cast<uint8_t>(std::log2(std::max(image.width, image.height))) : 0;
-
-		// Create samplers dynamically as required for mip levels
-		// TODO add anisotropy
-		VkSamplerCreateInfo samplerInfo = Crescendo::Vulkan::Create::SamplerCreateInfo(
-			VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
-			1.0f, 1.0f
-		);
-		for (uint8_t i = static_cast<uint8_t>(samplers.size()); i < mipLevels; i++)
-		{
-			samplerInfo.maxLod = static_cast<float>(i);
-			this->samplers.push_back(this->device.CreateSampler(samplerInfo));
-		}
-
-		/* ----------------------------------------------------------------  1 - Staging ---------------------------------------------------------------- */
-
-		// Stage the image data
-		Crescendo::Vulkan::Buffer staging = this->device.CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY).Fill(0, image.data.data(), imageSize);
-	
-		// Create the image
-		const VkExtent3D extent = Crescendo::Vulkan::Create::Extent3D(image.width, image.height, 1);
-		Crescendo::Vulkan::Image texture = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(
-			VK_IMAGE_TYPE_2D, DEFAULT_FORMAT, extent,
-			mipLevels, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
-			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-			VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED
-		), VMA_MEMORY_USAGE_GPU_ONLY);
-
-		/* ----------------------------------------------------------------  2 - Generate mipmaps ---------------------------------------------------------------- */
-
-		this->transferQueue.InstantSubmit([&](const Crescendo::Vulkan::TransferCommandQueue& cmd) {
-			// Transition to blit compatible
-			VkImageMemoryBarrier barrier = Crescendo::Vulkan::Create::ImageMemoryBarrier(
-				0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, texture.image,
-				Crescendo::Vulkan::Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
-			);
-			cmd.ResourceBarrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, barrier);
-			// Copy buffer to image
-			const VkBufferImageCopy region = Crescendo::Vulkan::Create::BufferImageCopy(
-				0, 0, 0, Crescendo::Vulkan::Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1), Crescendo::Vulkan::Create::Offset3D(0, 0, 0), extent
-			);
-			cmd.CopyBufferToImage(staging.buffer, texture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region);
-			// Transition the image to a transfer destination
-			barrier = Crescendo::Vulkan::Create::ImageMemoryBarrier(
-				0, 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_UNDEFINED,
-				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, texture.image,
-				Crescendo::Vulkan::Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
-			);
-			// Generate each of the mips
-			uint32_t mipWidth = image.width, mipHeight = image.height;
-			for (uint32_t i = 1; i < mipLevels; i++)
-			{
-				barrier.subresourceRange.baseMipLevel = i - 1;
-				barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-				barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-				barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-				barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-				cmd.ResourceBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, barrier);
-				const VkImageBlit blit = Crescendo::Vulkan::Create::ImageBlit(
-					Crescendo::Vulkan::Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i - 1, 0, 1),
-					Crescendo::Vulkan::Create::Offset3D(0, 0, 0), Crescendo::Vulkan::Create::Offset3D(static_cast<int32_t>(mipWidth), static_cast<int32_t>(mipHeight), 1),
-					Crescendo::Vulkan::Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i, 0, 1),
-					Crescendo::Vulkan::Create::Offset3D(0, 0, 0), Crescendo::Vulkan::Create::Offset3D(static_cast<int32_t>(std::max(mipWidth / 2, 1u)), static_cast<int32_t>(std::max(mipHeight / 2, 1u)), 1)
-				);
-				cmd.BlitImage(texture.image, texture.image, blit);
-				barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-				barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-				barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-				cmd.ResourceBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
-				mipWidth = std::max(mipWidth / 2, 1u);
-				mipHeight = std::max(mipHeight / 2, 1u);
-			}
-			barrier.subresourceRange.baseMipLevel = mipLevels - 1;
-			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-			cmd.ResourceBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
-		});
-
-		/* ----------------------------------------------------------------  3 - Create descriptor set ---------------------------------------------------------------- */
-
-		VkDescriptorSet descriptorSet = this->device.AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->device.GetFragmentSamplerLayout());
-		VkDescriptorImageInfo imageInfo = Crescendo::Vulkan::Create::DescriptorImageInfo(this->samplers[mipLevels - 1], texture.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(descriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo, nullptr, nullptr);
-		this->device.WriteDescriptorSet(write);
-
-		return Texture(std::move(texture), descriptorSet);
-	}
 	void OnStartup()
 	{
 		this->GetWindow()->SetCursorLock(true);
@@ -331,64 +71,18 @@ public:
 
 		/* ---------------------------------------------------------------- 0 - Vulkan setup ---------------------------------------------------------------- */
 
-		// Instance setup
-		this->instance = Crescendo::Vulkan::Instance(
-			CVar::Get<bool>("rc_validationlayers"),
-			CVar::Get<std::string>("rc_appname"),
-			CVar::Get<std::string>("rc_enginename"),
-			this->GetWindow()->GetNative()
-		);
-		this->device = this->instance.CreateDevice(CVar::Get<int64_t>("rc_descriptorsetsperpool"));
-		this->transferQueue = this->device.CreateTransferCommandQueue();
+		Crescendo::VulkanInstanceSpecification spec {
+			.enableValidationLayers = CVar::Get<bool>("rc_validationlayers"),
+			.appName = CVar::Get<std::string>("rc_appname"),
+			.engineName = CVar::Get<std::string>("rc_enginename"),
+			.window = this->GetWindow()->GetNative(),
+			.descriptorSetsPerPool = static_cast<uint32_t>(CVar::Get<int64_t>("rc_descriptorsetsperpool")),
+			.framesInFlight = static_cast<uint32_t>(CVar::Get<int64_t>("rc_framesinflight")),
+			.anisotropicSamples = static_cast<uint32_t>(CVar::Get<int64_t>("rc_anisotropicsamples")),
+			.multisamples = static_cast<uint32_t>(CVar::Get<int64_t>("rc_multisamples"))
+		};
 
-		uint32_t fif = fif = CVar::Get<int64_t>("rc_framesinflight");
-		for (uint32_t i = 0; i < fif; i++)
-			this->frameData.emplace_back(this->device.CreateGraphicsCommandQueue(), this->device.CreateSemaphore(), this->device.CreateSemaphore());
-		this->CreateSwapchain();
-
-		for (uint32_t i = 0; i < fif; i++)
-		{
-
-			SSBO ssbo(
-				this->device.CreateBuffer(sizeof(glm::mat4) * 8192, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU),
-				this->device.AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->device.GetSSBOLayout())
-			);
-
-			VkDescriptorBufferInfo bufferInfo = Crescendo::Vulkan::Create::DescriptorBufferInfo(ssbo.buffer, 0, sizeof(glm::mat4) * 8192);
-
-			VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(
-				ssbo.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, &bufferInfo, nullptr
-			);
-
-			vkUpdateDescriptorSets(this->device, 1, &write, 0, nullptr);
-			this->ssbo.push_back(std::move(ssbo));
-		}
-
-		/* ---------------------------------------------------------------- 0.1 - Shadow map ---------------------------------------------------------------- */
-		
-		constexpr VkFormat DEFAULT_SHADOW_FORMAT = VK_FORMAT_D16_UNORM;
-
-		uint32_t smrpIdx = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(DEFAULT_SHADOW_FORMAT));
-
-		this->shadowMap.image = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(
-			VK_IMAGE_TYPE_2D, DEFAULT_SHADOW_FORMAT, Crescendo::Vulkan::Create::Extent3D(4096, 4096, 1), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
-		), VMA_MEMORY_USAGE_GPU_ONLY);
-
-		// Create shadow map frame buffer
-		this->shadowMapFramebuffer = this->device.CreateFramebuffer(this->renderPasses[smrpIdx], { this->shadowMap.image.imageView }, { 4096, 4096 }, false, true);
-
-		this->shadowMapSampler = this->device.CreateSampler(Crescendo::Vulkan::Create::SamplerCreateInfo(
-			VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-			1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
-		));
-		this->shadowMap.set = this->device.AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->device.GetFragmentSamplerLayout());
-		VkDescriptorImageInfo imageInfo = Crescendo::Vulkan::Create::DescriptorImageInfo(
-			this->shadowMapSampler, this->shadowMap.image.imageView, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-		);
-		VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(
-			this->shadowMap.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo, nullptr, nullptr
-		);
-		vkUpdateDescriptorSets(this->device, 1, &write, 0, nullptr);
+		this->renderer = Crescendo::VulkanInstance(spec);
 
 		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
 		struct Shader { std::string name; Crescendo::Vulkan::PipelineVariants variants; };
@@ -399,7 +93,7 @@ public:
 		// Non-Transparent, two-sided
 		// Transparent, two-sided
 		const Crescendo::Vulkan::PipelineVariants defaultVariant = Crescendo::Vulkan::PipelineVariants(
-			this->renderPasses[0],
+			this->renderer.renderPasses[0],
 			Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
 			Crescendo::Vulkan::PipelineVariants::CullMode::Back | Crescendo::Vulkan::PipelineVariants::CullMode::None,
 			Crescendo::Vulkan::PipelineVariants::Multisamples::One,
@@ -412,7 +106,7 @@ public:
 			{ "./shaders/compiled/mesh", defaultVariant },
 			{ "./shaders/compiled/mesh-unlit", defaultVariant},
 			{ "./shaders/compiled/skybox", Crescendo::Vulkan::PipelineVariants(
-				this->renderPasses[0],
+				this->renderer.renderPasses[0],
 				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
 				Crescendo::Vulkan::PipelineVariants::CullMode::Back,
 				Crescendo::Vulkan::PipelineVariants::Multisamples::One,
@@ -421,7 +115,7 @@ public:
 				Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
 			)  },
 			{ "./shaders/compiled/shadow_map", Crescendo::Vulkan::PipelineVariants(
-				this->renderPasses[1],
+				this->renderer.renderPasses[1],
 				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
 				Crescendo::Vulkan::PipelineVariants::CullMode::None,
 				Crescendo::Vulkan::PipelineVariants::Multisamples::One,
@@ -430,7 +124,7 @@ public:
 				Crescendo::Vulkan::PipelineVariants::DepthWrite::Enabled
 			) },
 			{ "./shaders/compiled/ui", Crescendo::Vulkan::PipelineVariants(
-				this->renderPasses[0],
+				this->renderer.renderPasses[0],
 				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
 				Crescendo::Vulkan::PipelineVariants::CullMode::None,
 				Crescendo::Vulkan::PipelineVariants::Multisamples::One,
@@ -441,7 +135,7 @@ public:
 		};
 		for (const auto& shader : shaderList)
 		{
-			this->pipelines.insert(this->device.CreatePipelines(
+			this->renderer.pipelines.insert(this->renderer.device.CreatePipelines(
 				cs_std::binary_file(shader.name + ".vert.spv").open().read(),
 				cs_std::binary_file(shader.name + ".frag.spv").open().read(),
 				shader.variants
@@ -450,20 +144,14 @@ public:
 
 		/* ---------------------------------------------------------------- 1.1 - Descriptor Data ---------------------------------------------------------------- */
 
-		// Lit meshes
-		// Creates 1 set for all bindings, no need to specify the bindings anymore
-		uint32_t litMesh0 = this->pipelines[0].CreateDescriptorSets(0, 3); // One per frame in flight (fif)
-		uint32_t litMesh1 = this->pipelines[0].CreateDescriptorSet(1);
-		// Unlit meshes
-		uint32_t unlitMesh0 = this->pipelines[1].CreateDescriptorSets(0, 3); // One per fif
-		// Skybox
-		uint32_t skybox0 = this->pipelines[2].CreateDescriptorSets(0, 3); // One per fif
-		// Shadow map
-		uint32_t shadowMap0 = this->pipelines[3].CreateDescriptorSets(0, 3); // One per fif
-		// UI
-		uint32_t ui0 = this->pipelines[4].CreateDescriptorSets(0, 3); // One per fif
+		this->renderer.pipelines[0].CreateDescriptorSets(0, 3); // One per frame in flight (fif)
+		this->renderer.pipelines[0].CreateDescriptorSet(1);
+		this->renderer.pipelines[1].CreateDescriptorSets(0, 3); // One per fif
+		this->renderer.pipelines[2].CreateDescriptorSets(0, 3); // One per fif
+		this->renderer.pipelines[3].CreateDescriptorSets(0, 3); // One per fif
+		this->renderer.pipelines[4].CreateDescriptorSets(0, 3); // One per fif
 
-		this->pipelines[0].UpdateDescriptorData(litMesh1, 1, 0, glm::vec3(0.3f, 0.4f, 0.3f));
+		this->renderer.pipelines[0].UpdateDescriptorData(0, 1, 0, glm::vec3(0.3f, 0.4f, 0.3f));
 
 		/* ---------------------------------------------------------------- 1.2 - Mesh data ---------------------------------------------------------------- */
 
@@ -494,7 +182,7 @@ public:
 
 		std::vector<cs_std::graphics::model> models =
 		{
-			//IO::LoadGLTF("./assets/tristan/TRISTANSEXY.gltf"),
+			IO::LoadGLTF("./assets/tristan/TRISTANSEXY.gltf"),
 			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
 			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
 			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
@@ -518,8 +206,7 @@ public:
 				auto& attributes = model.meshAttributes[i];
 
 				if (!mesh.has_attribute(cs_std::graphics::Attribute::TANGENT)) cs_std::graphics::generate_tangents(mesh);
-
-				this->meshes.insert(this->UploadMesh(mesh));
+				this->renderer.meshes.insert(this->renderer.UploadMesh(mesh));
 
 				if (!attributes.diffuse.empty() && seenTextures.find(attributes.diffuse) == seenTextures.end())
 				{
@@ -539,11 +226,10 @@ public:
 				);
 
 				// Fill the model matrix buffer
-				for (uint32_t j = 0; j < 3; j++)
+				for (uint32_t j = 0; j < this->renderer.specs.framesInFlight; j++)
 				{
-					memcpy(static_cast<char*>(this->ssbo[j].buffer.mPtr) + sizeof(glm::mat4) * modelIndex, &attributes.transform, sizeof(glm::mat4));
+					memcpy(static_cast<char*>(this->renderer.ssbo[j].buffer.mPtr) + sizeof(glm::mat4) * modelIndex, &attributes.transform, sizeof(glm::mat4));
 				}
-
 				modelIndex++;
 			}
 		}
@@ -573,7 +259,7 @@ public:
 		cs_std::console::raw('\n');
 		this->taskQueue.sleep();
 
-		for (auto& image : images) this->textures.insert(this->UploadTexture(image, true));
+		for (auto& image : images) this->renderer.textures.insert(this->renderer.UploadTexture(image, true));
 	}
 	void OnUpdate(double dt)
 	{
@@ -592,64 +278,59 @@ public:
 		const glm::vec4 lightingPositions[2] { glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f), glm::vec4(this->camera.camera.GetPosition(), 1.0f) };
 
 		// Arguments in order: set index, set, binding, data
-		this->pipelines[0].UpdateDescriptorData(frameIndex, 0, 0, projections);
-		this->pipelines[0].UpdateDescriptorData(frameIndex, 0, 1, lightingPositions);
-		this->pipelines[1].UpdateDescriptorData(frameIndex, 0, 0, projections[0]);
-		this->pipelines[2].UpdateDescriptorData(frameIndex, 0, 0, projections[0]);
-		this->pipelines[3].UpdateDescriptorData(frameIndex, 0, 0, projections[1]);
-		this->pipelines[4].UpdateDescriptorData(frameIndex, 0, 0, this->UICamera.GetViewProjectionMatrix());
+		this->renderer.pipelines[0].UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections);
+		this->renderer.pipelines[0].UpdateDescriptorData(this->renderer.frameIndex, 0, 1, lightingPositions);
+		this->renderer.pipelines[1].UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[0]);
+		this->renderer.pipelines[2].UpdateDescriptorData(this->renderer.frameIndex, 0, 0, glm::translate(this->camera.camera.GetViewProjectionMatrix(), this->camera.camera.GetPosition()));
+		this->renderer.pipelines[3].UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[1]);
+		this->renderer.pipelines[4].UpdateDescriptorData(this->renderer.frameIndex, 0, 0, this->UICamera.GetViewProjectionMatrix());
 
 		/* ---------------------------------------------------------------- Render commands ---------------------------------------------------------------- */
 
-		Crescendo::Vulkan::Frame& cur = this->frameData[this->frameIndex];
+		Crescendo::Vulkan::Frame& cur = this->renderer.frameData[this->renderer.frameIndex];
 		Crescendo::Vulkan::GraphicsCommandQueue& cmd = cur.cmd;
 
 		cmd.WaitCompletion();
 		cmd.Reset();
 
-		uint32_t currentImage = this->swapchain.AcquireNextImage(cur.presentReady);
-		if (this->swapchain.NeedsRecreation())
+		uint32_t currentImage = this->renderer.swapchain.AcquireNextImage(cur.presentReady);
+		if (this->renderer.swapchain.NeedsRecreation())
 		{
-			this->CreateSwapchain();
-			currentImage = this->swapchain.AcquireNextImage(cur.presentReady);
+			this->renderer.CreateSwapchain();
+			currentImage = this->renderer.swapchain.AcquireNextImage(cur.presentReady);
 		}
-		const Crescendo::Vulkan::Framebuffer& framebuffer = this->framebuffers[currentImage];
+		const Crescendo::Vulkan::Framebuffer& framebuffer = this->renderer.framebuffers[currentImage];
+		const Crescendo::Vulkan::Framebuffer& shadowFramebuffer = this->renderer.shadowMapFramebuffer;
 
-		const uint32_t usePipeline = 0;
-		const uint32_t skyboxPipeline = 2;
-		const uint32_t shadowPipeline = 3;
+		const Crescendo::Vulkan::Pipelines& defaultPipeline = this->renderer.pipelines[0];
+		const Crescendo::Vulkan::Pipelines& unlitPipeline = this->renderer.pipelines[1];
+		const Crescendo::Vulkan::Pipelines& skyboxPipeline = this->renderer.pipelines[2];
+		const Crescendo::Vulkan::Pipelines& shadowPipeline = this->renderer.pipelines[3];
+		const Crescendo::Vulkan::Pipelines& uiPipeline = this->renderer.pipelines[4];
 
 		cmd.Begin();
 			// Shadowmap pass
-			cmd.DynamicStateSetViewport(this->shadowMapFramebuffer.GetViewport());
-			cmd.DynamicStateSetScissor(this->shadowMapFramebuffer.GetScissor());
-			cmd.BeginRenderPass(this->shadowMapFramebuffer.renderPass, this->shadowMapFramebuffer, this->shadowMapFramebuffer.GetScissor(), { Crescendo::Vulkan::Create::DefaultDepthClear() });
+			cmd.DynamicStateSetViewport(shadowFramebuffer.GetViewport());
+			cmd.DynamicStateSetScissor(shadowFramebuffer.GetScissor());
+			cmd.BeginRenderPass(shadowFramebuffer.renderPass, shadowFramebuffer, shadowFramebuffer.GetScissor(), { Crescendo::Vulkan::Create::DefaultDepthClear() });
 				cs_std::graphics::frustum frustum(this->shadowMapCamera.GetViewProjectionMatrix());
 				// Bind pipeline
-				cmd.BindPipeline(this->pipelines[shadowPipeline][0]);
+				cmd.BindPipeline(shadowPipeline[0]);
 				// Bind data descriptor sets
-				cmd.BindDescriptorSets(this->pipelines[shadowPipeline], { this->pipelines[shadowPipeline].descriptorSets[0][frameIndex].set }, { 0 });
+				cmd.BindDescriptorSets(shadowPipeline, { shadowPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
 				// Bind storage descriptor sets
-				cmd.BindDescriptorSet(this->pipelines[shadowPipeline], this->ssbo[frameIndex].set, 0, 1);
-				for (uint32_t i = 0; i < this->meshes.capacity() - 2; i++)
+				cmd.BindDescriptorSet(shadowPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
+				for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 2; i++)
 				{
+					const Crescendo::Vulkan::Mesh& mesh = this->renderer.meshes[i];
 					// If outside the frustum, skip
 					if (!frustum.intersects(this->modelData[i].bounds)) continue;
 					// Bind vertex meshes
-					std::vector<VkBuffer> buffers;
-					for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < this->pipelines[shadowPipeline].vertexAttributes.size(); mvaf++)
-					{
-						if (this->pipelines[shadowPipeline].vertexAttributes[cpvaf] == this->meshes[i].vertexAttributes[mvaf].attribute)
-						{
-							buffers.push_back(this->meshes[i].vertexAttributes[mvaf].buffer);
-							cpvaf++;
-						}
-					}
-					CS_ASSERT(buffers.size() == this->pipelines[shadowPipeline].vertexAttributes.size(), "Not all vertex attributes are bound!");
+					std::vector<VkBuffer> buffers = shadowPipeline.GetMatchingBuffers(mesh);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
-					cmd.BindIndexBuffer(this->meshes[i].indexBuffer);
-					cmd.DrawIndexed(this->meshes[i].indexCount, 1, 0, 0, i);
+					cmd.BindIndexBuffer(mesh.indexBuffer);
+					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
 				}
 			cmd.EndRenderPass();
 			// Normal pass
@@ -658,59 +339,37 @@ public:
 			cmd.BeginRenderPass(framebuffer.renderPass, framebuffer, framebuffer.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f }, Crescendo::Vulkan::Create::DefaultDepthClear() });
 				// Skybox			
 				{
-					cmd.BindPipeline(this->pipelines[skyboxPipeline][0]);
-					cmd.PushConstants(this->pipelines[skyboxPipeline], glm::translate(glm::mat4(1.0f), this->camera.camera.GetPosition()), VK_SHADER_STAGE_VERTEX_BIT);
-					cmd.BindDescriptorSets(this->pipelines[skyboxPipeline], { this->pipelines[skyboxPipeline].descriptorSets[0][frameIndex].set }, { 0 });
-					cmd.BindDescriptorSet(this->pipelines[skyboxPipeline], this->textures[this->modelData[this->meshes.capacity() - 2].textureID].set, 0, 1);
+					cmd.BindPipeline(skyboxPipeline[0]);
+					cmd.BindDescriptorSets(skyboxPipeline, { skyboxPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
+					cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->modelData[this->renderer.meshes.capacity() - 2].textureID].set, 0, 1);
 					// Bind vertex meshes
-					std::vector<VkBuffer> buffers;
-					for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < this->pipelines[2].vertexAttributes.size(); mvaf++)
-					{
-						if (this->pipelines[skyboxPipeline].vertexAttributes[cpvaf] == this->meshes[this->meshes.capacity() - 2].vertexAttributes[mvaf].attribute)
-						{
-							buffers.push_back(this->meshes[this->meshes.capacity() - 2].vertexAttributes[mvaf].buffer);
-							cpvaf++;
-						}
-					}
-					CS_ASSERT(buffers.size() == this->pipelines[skyboxPipeline].vertexAttributes.size(), "Not all vertex attributes are bound!");
+					std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 2]);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
-					cmd.BindIndexBuffer(this->meshes[this->meshes.capacity() - 2].indexBuffer);
-					cmd.DrawIndexed(this->meshes[this->meshes.capacity() - 2].indexCount, 1, 0, 0, this->meshes.capacity() - 2);
+					cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 2].indexBuffer);
+					cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 2].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 2);
 				}
 				frustum = cs_std::graphics::frustum(this->camera.camera.GetViewProjectionMatrix());
-				for (uint32_t i = 0; i < this->meshes.capacity() - 2; i++)
+				for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 2; i++)
 				{
+					const Crescendo::Vulkan::Mesh& mesh = this->renderer.meshes[i];
 					// If outside the frustum, skip
 					if (!frustum.intersects(this->modelData[i].bounds)) continue;
 					// Select the correct pipeline
-					if (!this->modelData[i].isDoubleSided && !this->modelData[i].isTransparent) cmd.BindPipeline(this->pipelines[usePipeline][0]);
-					if (!this->modelData[i].isDoubleSided &&  this->modelData[i].isTransparent) cmd.BindPipeline(this->pipelines[usePipeline][1]);
-					if ( this->modelData[i].isDoubleSided && !this->modelData[i].isTransparent) cmd.BindPipeline(this->pipelines[usePipeline][2]);
-					if ( this->modelData[i].isDoubleSided &&  this->modelData[i].isTransparent) cmd.BindPipeline(this->pipelines[usePipeline][3]);
-					// Push the constants
-					//cmd.PushConstants(this->pipelines[usePipeline], this->modelData[i].transform, VK_SHADER_STAGE_VERTEX_BIT);
+					int index = (this->modelData[i].isDoubleSided << 1) | this->modelData[i].isTransparent;
+					cmd.BindPipeline(defaultPipeline[index]);
 					// Bind data descriptor sets
-					cmd.BindDescriptorSets(this->pipelines[usePipeline], { this->pipelines[usePipeline].descriptorSets[0][frameIndex].set, this->pipelines[usePipeline].descriptorSets[1][0].set }, { 0, 0, 0 });
+					cmd.BindDescriptorSets(defaultPipeline, { defaultPipeline.descriptorSets[0][this->renderer.frameIndex].set, defaultPipeline.descriptorSets[1][0].set }, { 0, 0, 0 });
 					// Bind storage descriptor sets
-					cmd.BindDescriptorSet(this->pipelines[usePipeline], this->ssbo[frameIndex].set, 0, 2);
+					cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
 					// Bind texture descriptor sets
-					cmd.BindDescriptorSets(this->pipelines[usePipeline], { this->textures[this->modelData[i].textureID].set, this->textures[this->modelData[i].normalID].set, this->shadowMap.set }, {}, 3);
+					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[this->modelData[i].textureID].set, this->renderer.textures[this->modelData[i].normalID].set, this->renderer.shadowMap.set }, {}, 3);
 					// Bind vertex meshes
-					std::vector<VkBuffer> buffers;
-					for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < this->pipelines[usePipeline].vertexAttributes.size(); mvaf++)
-					{
-						if (this->pipelines[usePipeline].vertexAttributes[cpvaf] == this->meshes[i].vertexAttributes[mvaf].attribute)
-						{
-							buffers.push_back(this->meshes[i].vertexAttributes[mvaf].buffer);
-							cpvaf++;
-						}
-					}
-					CS_ASSERT(buffers.size() == this->pipelines[usePipeline].vertexAttributes.size(), "Not all vertex attributes are bound!");
+					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(mesh);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
-					cmd.BindIndexBuffer(this->meshes[i].indexBuffer);
-					cmd.DrawIndexed(this->meshes[i].indexCount, 1, 0, 0, i);
+					cmd.BindIndexBuffer(mesh.indexBuffer);
+					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
 				}
 			cmd.EndRenderPass();
 		cmd.End();
@@ -718,9 +377,8 @@ public:
 
 		/* ---------------------------------------------------------------- Post-render and present ---------------------------------------------------------------- */
 
-		cmd.Present(this->swapchain, currentImage, cur.renderFinish);
-
-		this->frameIndex = (this->frameIndex + 1) % this->frameData.size();
+		cmd.Present(this->renderer.swapchain, currentImage, cur.renderFinish);
+		this->renderer.frameIndex = (this->renderer.frameIndex + 1) % this->renderer.specs.framesInFlight;
 
 		//	// Anything UI related
 		//	this->renderer.renderer.CmdBindPipeline(2 * 4 + 2);
@@ -734,8 +392,7 @@ public:
 
 		//	this->renderer.renderer.CmdDraw(this->meshCount - 1);
 		//	actualDrawCount++;
-		// 
-		// 
+		
 		// Frame counter
 		frame++;
 		if (this->GetTime() - this->lastTime >= 1.0)
@@ -755,10 +412,7 @@ public:
 	}
 	void OnExit()
 	{
-		this->device.WaitIdle();
-		// Destroy samplers
-		for (auto& sampler : this->samplers) vkDestroySampler(this->device, sampler, nullptr);
-		vkDestroySampler(this->device, this->shadowMapSampler, nullptr);
+
 	}
 };
 

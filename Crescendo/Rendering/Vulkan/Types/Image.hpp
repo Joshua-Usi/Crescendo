@@ -16,7 +16,7 @@ namespace Crescendo::Vulkan
 		VkImageView imageView;
 	public:
 		// Constructors
-		Image() = default;
+		Image() : image(nullptr), imageView(nullptr), device(nullptr), allocator(nullptr), allocation(nullptr) {}
 		Image(VkImage image, VkImageView imageView, VkDevice device, VmaAllocator allocator = nullptr, VmaAllocation allocation = nullptr) :
 			image(image), imageView(imageView), device(device), allocator(allocator), allocation(allocation) {}
 		// Destructors

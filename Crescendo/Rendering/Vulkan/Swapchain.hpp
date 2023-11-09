@@ -20,7 +20,7 @@ namespace Crescendo::Vulkan
 		std::vector<Image> images;
 		bool needsRecreation;
 	public:
-		Swapchain() = default;
+		Swapchain() : device(nullptr), swapchain(nullptr), imageFormat(VK_FORMAT_UNDEFINED), extent({ 0, 0 }), images(), needsRecreation(false) {}
 		Swapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkPresentModeKHR presentMode, VkExtent2D windowExtent);
 		~Swapchain();
 		// No copy

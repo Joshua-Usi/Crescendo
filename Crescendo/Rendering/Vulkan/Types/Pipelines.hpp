@@ -8,6 +8,7 @@
 #include "cs_std/graphics/model.hpp"
 
 #include "Buffer.hpp"
+#include "Types.hpp"
 #include "PipelineVariants.hpp"
 
 namespace Crescendo::Vulkan
@@ -82,6 +83,7 @@ namespace Crescendo::Vulkan
 		uint32_t CreateDescriptorSets(uint32_t set, uint32_t count);
 		void UpdateDescriptorData(uint32_t idx, uint32_t set, uint32_t binding, const void* data, size_t size);
 		template<typename T> void UpdateDescriptorData(uint32_t idx, uint32_t set, uint32_t binding, const T& data) { UpdateDescriptorData(idx, set, binding, &data, sizeof(T)); }
+		std::vector<VkBuffer> GetMatchingBuffers(const Crescendo::Vulkan::Mesh& mesh) const;
 	public:
 		operator VkPipelineLayout() const { return layout; }
 		VkPipeline operator [](uint32_t index) const { return pipelines[index]; }

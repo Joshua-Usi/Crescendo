@@ -118,10 +118,6 @@ namespace Crescendo::Vulkan
 					bindingSet.binding = binding->binding;
 					bindingSet.type = GetType(binding->descriptor_type);
 					
-					if (bindingSet.type == ShaderReflection::DescriptorType::Storage)
-					{
-						cs_std::console::log("Type is storage");
-					}
 
 					for (uint32_t k = 0; k < binding->block.member_count; k++)
 					{

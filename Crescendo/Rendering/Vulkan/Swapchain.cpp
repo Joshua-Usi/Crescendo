@@ -31,9 +31,8 @@ namespace Crescendo::Vulkan
 	}
 	Swapchain::Swapchain(Swapchain&& other) noexcept : device(other.device), swapchain(other.swapchain), imageFormat(other.imageFormat), extent(other.extent), images(std::move(other.images)), needsRecreation(other.needsRecreation)
 	{
-		other.swapchain = VK_NULL_HANDLE;
-		other.imageFormat = VK_FORMAT_UNDEFINED;
-		other.extent = { 0, 0 };
+		other.swapchain = nullptr;
+		other.images.clear();
 	}
 	Swapchain& Swapchain::operator=(Swapchain&& other) noexcept
 	{

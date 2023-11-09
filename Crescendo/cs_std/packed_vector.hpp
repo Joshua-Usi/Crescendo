@@ -71,6 +71,11 @@ namespace cs_std
 			vector[index].~T();
 			vector[index] = item;
 		}
+		void replace(size_t index, T&& item)
+		{
+			vector[index].~T();
+			vector[index] = std::move(item);
+		}
 		void erase(size_t index) {
 			// clear the value at the index.
 			// Could potentially be faster to just leave it as is.

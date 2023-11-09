@@ -600,6 +600,18 @@ namespace Crescendo::Vulkan::Create
 
 		return descriptorSet;
 	}
+	inline constexpr VkWriteDescriptorSet WriteDescriptorSet(VkDescriptorSet dstSet, uint32_t dstBinding, uint32_t dstArrayElement, uint32_t descriptorCount, VkDescriptorType descriptorType, const VkDescriptorImageInfo* pImageInfo)
+	{
+		return WriteDescriptorSet(dstSet, dstBinding, dstArrayElement, descriptorCount, descriptorType, pImageInfo, nullptr, nullptr);
+	}
+	inline constexpr VkWriteDescriptorSet WriteDescriptorSet(VkDescriptorSet dstSet, uint32_t dstBinding, uint32_t dstArrayElement, uint32_t descriptorCount, VkDescriptorType descriptorType, const VkDescriptorBufferInfo* pBufferInfo)
+	{
+		return WriteDescriptorSet(dstSet, dstBinding, dstArrayElement, descriptorCount, descriptorType, nullptr, pBufferInfo, nullptr);
+	}
+	inline constexpr VkWriteDescriptorSet WriteDescriptorSet(VkDescriptorSet dstSet, uint32_t dstBinding, uint32_t dstArrayElement, uint32_t descriptorCount, VkDescriptorType descriptorType, const VkBufferView* pTexelBufferView)
+	{
+		return WriteDescriptorSet(dstSet, dstBinding, dstArrayElement, descriptorCount, descriptorType, nullptr, nullptr, pTexelBufferView);
+	}
 	inline constexpr VkDescriptorSetLayoutBinding DescriptorSetLayoutBinding(uint32_t binding, VkDescriptorType descriptorType, uint32_t descriptorCount, VkShaderStageFlags stageFlags, const VkSampler* pImmutableSamplers = nullptr)
 	{
 		VkDescriptorSetLayoutBinding layoutBinding = {};

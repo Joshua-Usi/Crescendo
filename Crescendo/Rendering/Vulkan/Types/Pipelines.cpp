@@ -69,4 +69,19 @@ namespace Crescendo::Vulkan
 		const uint32_t offset = setMetadata[set].BindingOffset(binding);
 		memcpy(static_cast<char*>(descriptorSets[set][idx].buffer.mPtr) + offset, data, size);
 	}
+	std::vector<VkBuffer> Pipelines::GetMatchingBuffers(const Crescendo::Vulkan::Mesh& mesh) const
+	{
+		std::vector<VkBuffer> buffers;
+		for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < this->vertexAttributes.size(); mvaf++)
+		{
+			if (this->vertexAttributes[cpvaf] == mesh.vertexAttributes[mvaf].attribute)
+			{
+				buffers.push_back(mesh.vertexAttributes[mvaf].buffer);
+				cpvaf++;
+			}
+		}
+		// Return an empty array if not all attributes were found, this is an error
+		// Otherwise it could lead to subtle bugs
+		return (buffers.size() == this->vertexAttributes.size()) ? buffers : std::vector<VkBuffer>();
+	}
 }

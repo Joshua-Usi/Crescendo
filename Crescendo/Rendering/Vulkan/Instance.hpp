@@ -43,11 +43,10 @@ namespace Crescendo::Vulkan
 		// Create a new swapchain, the swapchain will destroy itself implicitly
 		Swapchain CreateSwapchain(VkDevice device, VkPresentModeKHR presentMode, VkExtent2D extent);
 
-		VkInstance GetInstance() const { return instance; }
 		VkSurfaceKHR GetSurface() const { return surface; }
 		VkPhysicalDevice GetPhysicalDevice() const { return vkbPhysicalDevice.physical_device; }
 		void* GetWindow() const { return windowPtr; }
-		operator VkInstance() const { return GetInstance(); }
+		operator VkInstance() const { return instance; }
 
 		const VkPhysicalDeviceProperties& GetPhysicalDeviceProperties() const { return vkbPhysicalDevice.properties; }
 	};
