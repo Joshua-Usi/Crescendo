@@ -13,7 +13,11 @@ namespace Crescendo::IO
 		int width, height, channels;
 		// Force 4 channel RGBA
 		stbi_uc* pixels = stbi_load(path.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
-		CS_ASSERT(pixels != nullptr, "Failed to load image: " + path.string());
+		if (pixels == nullptr)
+		{
+			cs_std::console::error("Failed to load image: " + path.string());
+			return cs_std::image();
+		}
 
 		constexpr uint32_t scaleFactor = 1;
 		std::vector<uint8_t> newPixels(width * height * FIXED_CHANNELS / (scaleFactor * scaleFactor));
