@@ -2,7 +2,7 @@
 
 namespace cs_std
 {
-	bool console::enableThreadSafety = false;
+	bool console::enableThreadSafety = true;
 	std::mutex console::threadMutex;
 	console::severity console::displayedSeverities =
 		static_cast<uint8_t>(console::severity_bits::info) |

@@ -27,7 +27,6 @@ namespace cs_std
 		};
 	private:
 		static constexpr const char* const SEVERITY_STRINGS[6] { "Verbose", "Info", "Log", "Warn", "Error", "Critical" };
-		// By default is not thread safe, as it is a performance hit
 		static bool enableThreadSafety;
 		static std::mutex threadMutex;
 		static severity displayedSeverities;
@@ -36,16 +35,25 @@ namespace cs_std
 		template<typename... Ts>
 		static void base_log(severity_bits severity, Ts&&... args)
 		{
+			if (enableThreadSafety)
+			{
+				std::scoped_lock lock(threadMutex);
+				internal_log(severity, std::forward<Ts>(args)...);
+			}
+			else internal_log(severity, std::forward<Ts>(args)...);
+		}
+
+		template<typename... Ts>
+		static void internal_log(severity_bits severity, Ts&&... args)
+		{
 			if ((displayedSeverities & static_cast<uint8_t>(severity)) == 0) return;
-			if (enableThreadSafety) std::scoped_lock lock(threadMutex);
 			if (printTimestamp)
 			{
 				int64_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-				// %T is the format hh:mm:ss
 				std::cout << '[' << std::put_time(std::localtime(&time), "%T") << "] ";
 			}
 			if (printSeverity) std::cout << '[' << SEVERITY_STRINGS[static_cast<size_t>(std::log2(static_cast<double>(severity)))] << "] ";
-			([&] { std::cout << args << ' '; } (), ...);
+			(std::cout << ... << args) << ' ';
 			std::cout << "\n";
 		}
 	public:
