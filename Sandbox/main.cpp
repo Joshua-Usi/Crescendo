@@ -96,15 +96,15 @@ public:
 			this->renderer.renderPasses[0],
 			Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
 			Crescendo::Vulkan::PipelineVariants::CullMode::Back | Crescendo::Vulkan::PipelineVariants::CullMode::None,
-			Crescendo::Vulkan::PipelineVariants::Multisamples::One,
+			Crescendo::Vulkan::PipelineVariants::ConvertSamplesToVariant(this->renderer.specs.multisamples),
 			Crescendo::Vulkan::PipelineVariants::DepthFunc::Less,
 			Crescendo::Vulkan::PipelineVariants::DepthTest::Enabled,
 			Crescendo::Vulkan::PipelineVariants::DepthWrite::Enabled | Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
 		);
 
 		std::vector<Shader> shaderList {
-			{ "./shaders/compiled/mesh", defaultVariant },
-			{ "./shaders/compiled/mesh-unlit", defaultVariant},
+			{ "./shaders/compiled/mesh", defaultVariant }, // This is the shader that usually changes
+			{ "./shaders/compiled/mesh-unlit", defaultVariant}, // This doesn't really change
 			{ "./shaders/compiled/skybox", Crescendo::Vulkan::PipelineVariants(
 				this->renderer.renderPasses[0],
 				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
@@ -113,7 +113,7 @@ public:
 				Crescendo::Vulkan::PipelineVariants::DepthFunc::LessEqual,
 				Crescendo::Vulkan::PipelineVariants::DepthTest::Enabled,
 				Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
-			)  },
+			)  }, // This doesn't really change
 			{ "./shaders/compiled/shadow_map", Crescendo::Vulkan::PipelineVariants(
 				this->renderer.renderPasses[1],
 				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
@@ -122,16 +122,16 @@ public:
 				Crescendo::Vulkan::PipelineVariants::DepthFunc::Less,
 				Crescendo::Vulkan::PipelineVariants::DepthTest::Enabled,
 				Crescendo::Vulkan::PipelineVariants::DepthWrite::Enabled
-			) },
+			) }, // This doesn't really change
 			{ "./shaders/compiled/ui", Crescendo::Vulkan::PipelineVariants(
 				this->renderer.renderPasses[0],
 				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
 				Crescendo::Vulkan::PipelineVariants::CullMode::None,
-				Crescendo::Vulkan::PipelineVariants::Multisamples::One,
+				Crescendo::Vulkan::PipelineVariants::ConvertSamplesToVariant(this->renderer.specs.multisamples),
 				Crescendo::Vulkan::PipelineVariants::DepthFunc::Less,
-				Crescendo::Vulkan::PipelineVariants::DepthTest::Enabled,
+				Crescendo::Vulkan::PipelineVariants::DepthTest::Disabled,
 				Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
-			) }
+			) } // This doesn't really change
 		};
 		for (const auto& shader : shaderList)
 		{
@@ -164,6 +164,7 @@ public:
 			skyboxMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
 			cs_std::graphics::mesh_attributes skyboxAttributes {};
 			skyboxAttributes.diffuse = "./assets/skybox.png";
+
 			skyboxModel.meshes.push_back(skyboxMesh);
 			skyboxModel.meshAttributes.push_back(skyboxAttributes);
 		}
@@ -176,6 +177,13 @@ public:
 			quadMesh.add_attribute(cs_std::graphics::Attribute::POSITION, quad.vertices);
 			quadMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, quad.textureUVs);
 			cs_std::graphics::mesh_attributes quadAttributes {};
+
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, glm::vec3(0.0, 0.0f, 0.0f));
+			model = glm::scale(model, glm::vec3(200.0f, 200.0f, 1.0f));
+
+			quadAttributes.transform = model;
+
 			quadModel.meshes.push_back(quadMesh);
 			quadModel.meshAttributes.push_back(quadAttributes);
 		}
@@ -186,9 +194,10 @@ public:
 			IO::LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
 			IO::LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
 			//IO::LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
+			//IO::LoadGLTF("./assets/sponza-candles/sponza-candles.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
-			IO::LoadGLTF("./assets/tree/tree.gltf"),
+			//IO::LoadGLTF("./assets/tree/tree.gltf"),
 			//IO::LoadGLTF("./assets/chair/chair.gltf"),
 			skyboxModel,
 			quadModel
@@ -221,7 +230,7 @@ public:
 
 				this->modelData.emplace_back(
 					cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform),
-					seenTextures[attributes.diffuse], seenTextures[attributes.normal],
+					seenTextures[attributes.diffuse] + 1, seenTextures[attributes.normal] + 1,
 					attributes.isTransparent, attributes.isDoubleSided, true
 				);
 
@@ -242,24 +251,22 @@ public:
 
 		std::vector<cs_std::image> images(textureStrings.size());
 
-		std::atomic<uint32_t> finishedTasks = 0;
 		uint32_t last = 0;
-
 		for (uint32_t i = 0; i < textureStrings.size(); i++)
 		{
-			this->taskQueue.push_back([&images, &textureStrings, i, &finishedTasks]() { images[i] = IO::LoadImage(textureStrings[i]); finishedTasks++; });
+			this->taskQueue.push_back([&images, &textureStrings, i]() { images[i] = IO::LoadImage(textureStrings[i]); });
 		}
 		
 		while (!this->taskQueue.finished())
 		{
-			uint32_t local = finishedTasks;
+			uint32_t local = textureStrings.size() - this->taskQueue.size();
 			for (uint32_t i = 0; i < local - last; i++) cs_std::console::raw("#");
 			last = local;
 		}
 		cs_std::console::raw('\n');
 		this->taskQueue.sleep();
 
-		for (auto& image : images) this->renderer.textures.insert(this->renderer.UploadTexture(image, true));
+		for (auto& image : images) this->renderer.textures.insert(this->renderer.UploadTexture(image, false));
 	}
 	void OnUpdate(double dt)
 	{
@@ -273,17 +280,23 @@ public:
 
 		/* ---------------------------------------------------------------- Render preparation ---------------------------------------------------------------- */
 
+		Crescendo::Vulkan::Pipelines& defaultPipeline = this->renderer.pipelines[0];
+		Crescendo::Vulkan::Pipelines& unlitPipeline = this->renderer.pipelines[1];
+		Crescendo::Vulkan::Pipelines& skyboxPipeline = this->renderer.pipelines[2];
+		Crescendo::Vulkan::Pipelines& shadowPipeline = this->renderer.pipelines[3];
+		Crescendo::Vulkan::Pipelines& uiPipeline = this->renderer.pipelines[4];
+
 		// Render prep
 		const glm::mat4 projections[2] { this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
 		const glm::vec4 lightingPositions[2] { glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f), glm::vec4(this->camera.camera.GetPosition(), 1.0f) };
 
 		// Arguments in order: set index, set, binding, data
-		this->renderer.pipelines[0].UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections);
-		this->renderer.pipelines[0].UpdateDescriptorData(this->renderer.frameIndex, 0, 1, lightingPositions);
-		this->renderer.pipelines[1].UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[0]);
-		this->renderer.pipelines[2].UpdateDescriptorData(this->renderer.frameIndex, 0, 0, glm::translate(this->camera.camera.GetViewProjectionMatrix(), this->camera.camera.GetPosition()));
-		this->renderer.pipelines[3].UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[1]);
-		this->renderer.pipelines[4].UpdateDescriptorData(this->renderer.frameIndex, 0, 0, this->UICamera.GetViewProjectionMatrix());
+		defaultPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections);
+		defaultPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 1, lightingPositions);
+		unlitPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[0]);
+		skyboxPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, glm::translate(this->camera.camera.GetViewProjectionMatrix(), this->camera.camera.GetPosition()));
+		shadowPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[1]);
+		uiPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, this->UICamera.GetViewProjectionMatrix());
 
 		/* ---------------------------------------------------------------- Render commands ---------------------------------------------------------------- */
 
@@ -300,13 +313,7 @@ public:
 			currentImage = this->renderer.swapchain.AcquireNextImage(cur.presentReady);
 		}
 		const Crescendo::Vulkan::Framebuffer& framebuffer = this->renderer.framebuffers[currentImage];
-		const Crescendo::Vulkan::Framebuffer& shadowFramebuffer = this->renderer.shadowMapFramebuffer;
-
-		const Crescendo::Vulkan::Pipelines& defaultPipeline = this->renderer.pipelines[0];
-		const Crescendo::Vulkan::Pipelines& unlitPipeline = this->renderer.pipelines[1];
-		const Crescendo::Vulkan::Pipelines& skyboxPipeline = this->renderer.pipelines[2];
-		const Crescendo::Vulkan::Pipelines& shadowPipeline = this->renderer.pipelines[3];
-		const Crescendo::Vulkan::Pipelines& uiPipeline = this->renderer.pipelines[4];
+		const Crescendo::Vulkan::Framebuffer& shadowFramebuffer = this->renderer.framebuffers[this->renderer.shadowMap.framebufferIndex];
 
 		cmd.Begin();
 			// Shadowmap pass
@@ -352,7 +359,7 @@ public:
 					// Bind storage descriptor sets
 					cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
 					// Bind texture descriptor sets
-					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[this->modelData[i].textureID].set, this->renderer.textures[this->modelData[i].normalID].set, this->renderer.shadowMap.set }, {}, 3);
+					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[this->modelData[i].textureID].set, this->renderer.textures[this->modelData[i].normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndex].set }, {}, 3);
 					// Bind vertex meshes
 					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(mesh);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
@@ -363,7 +370,9 @@ public:
 				// Skybox rendering
 				{
 					cmd.BindPipeline(skyboxPipeline[0]);
+					// Bind data descriptor sets
 					cmd.BindDescriptorSets(skyboxPipeline, { skyboxPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
+					// Bind texture descriptor sets
 					cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->modelData[this->renderer.meshes.capacity() - 2].textureID].set, 0, 1);
 					// Bind vertex meshes
 					std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 2]);
@@ -371,6 +380,22 @@ public:
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
 					cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 2].indexBuffer);
 					cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 2].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 2);
+				}
+				// UI rendering
+				{
+					cmd.BindPipeline(uiPipeline[0]);
+					// Bind data descriptor sets
+					cmd.BindDescriptorSets(uiPipeline, { uiPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
+					// Bind storage descriptor sets
+					cmd.BindDescriptorSet(uiPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
+					// Bind texture descriptor sets
+					cmd.BindDescriptorSet(uiPipeline, this->renderer.textures[this->renderer.shadowMap.textureIndex].set, 0, 2);
+					// Bind vertex meshes
+					std::vector<VkBuffer> buffers = uiPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 1]);
+					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
+					cmd.BindVertexBuffers(buffers, bufferOffsets);
+					cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexBuffer);
+					cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 1);
 				}
 			cmd.EndRenderPass();
 		cmd.End();
@@ -380,19 +405,6 @@ public:
 
 		cmd.Present(this->renderer.swapchain, currentImage, cur.renderFinish);
 		this->renderer.frameIndex = (this->renderer.frameIndex + 1) % this->renderer.specs.framesInFlight;
-
-		//	// Anything UI related
-		//	this->renderer.renderer.CmdBindPipeline(2 * 4 + 2);
-
-		//	glm::mat4 model = glm::mat4(1.0f);
-		//	model = glm::translate(model, glm::vec3(200.0f, -200.0f, 0.0f));
-		//	model = glm::scale(model, glm::vec3(400.0f, 400.0f, 1.0f));
-
-		//	this->renderer.renderer.CmdUpdatePushConstant(Renderer::ShaderStage::Vertex, model);
-		//	this->renderer.renderer.CmdBindTexture(1, Renderer::SHADOW_MAP_ID);
-
-		//	this->renderer.renderer.CmdDraw(this->meshCount - 1);
-		//	actualDrawCount++;
 		
 		// Frame counter
 		frame++;
@@ -414,7 +426,8 @@ public:
 	}
 	void OnExit()
 	{
-
+		std::string xml = CVar::SerializeConfigXML();
+		cs_std::console::log(xml);
 	}
 };
 

@@ -7,66 +7,27 @@ namespace Crescendo
 {
 	VulkanInstance::VulkanInstance(const VulkanInstanceSpecification& spec)
 	{
+		const size_t SSBO_OBJECT_COUNT = 8192;
+		constexpr VkFormat SHADOW_MAP_FORMAT = VK_FORMAT_D16_UNORM;
+		constexpr uint32_t SHADOW_MAP_RES = 4096;
+
 		this->specs.framesInFlight = spec.framesInFlight;
 		this->specs.anisotropicSamples = spec.anisotropicSamples;
 		this->specs.multisamples = spec.multisamples;
 
-		/* ---------------------------------------------------------------- 0 - Vulkan setup ---------------------------------------------------------------- */
-
-		this->instance = Vulkan::Instance(
-			spec.enableValidationLayers,
-			spec.appName,
-			spec.engineName,
-			static_cast<GLFWwindow*>(spec.window)
-		);
+		this->instance = Vulkan::Instance(spec.enableValidationLayers, spec.appName, spec.engineName, static_cast<GLFWwindow*>(spec.window));
 		this->device = this->instance.CreateDevice(spec.descriptorSetsPerPool);
 		this->transferQueue = this->device.CreateTransferCommandQueue();
 
 		for (uint32_t i = 0; i < spec.framesInFlight; i++)
 		{
 			this->frameData.emplace_back(this->device.CreateGraphicsCommandQueue(), this->device.CreateSemaphore(), this->device.CreateSemaphore());
+			this->ssbo.emplace_back(this->device.CreateSSBO(sizeof(glm::mat4) * SSBO_OBJECT_COUNT, VMA_MEMORY_USAGE_CPU_TO_GPU));
 		}
 		this->CreateSwapchain();
 
-		/* ---------------------------------------------------------------- 0.1 - SSBOs ---------------------------------------------------------------- */
-
-		for (uint32_t i = 0; i < spec.framesInFlight; i++)
-		{
-			Vulkan::SSBO ssbo(
-				this->device.CreateBuffer(sizeof(glm::mat4) * 8192, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU),
-				this->device.AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->device.GetSSBOLayout())
-			);
-			VkDescriptorBufferInfo bufferInfo = Crescendo::Vulkan::Create::DescriptorBufferInfo(ssbo.buffer, 0, sizeof(glm::mat4) * 8192);
-			VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(ssbo.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
-			this->device.WriteDescriptorSet(write);
-			this->ssbo.push_back(std::move(ssbo));
-		}
-
-		/* ---------------------------------------------------------------- 0.2 - Shadow map ---------------------------------------------------------------- */
-
-		constexpr VkFormat DEFAULT_SHADOW_FORMAT = VK_FORMAT_D16_UNORM;
-
-		uint32_t smrpIdx = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(DEFAULT_SHADOW_FORMAT));
-
-		this->shadowMap.image = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(
-			VK_IMAGE_TYPE_2D, DEFAULT_SHADOW_FORMAT, Crescendo::Vulkan::Create::Extent3D(4096, 4096, 1), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
-		), VMA_MEMORY_USAGE_GPU_ONLY);
-
-		// Create shadow map frame buffer
-		this->shadowMapFramebuffer = this->device.CreateFramebuffer(this->renderPasses[smrpIdx], { this->shadowMap.image.imageView }, { 4096, 4096 }, false, true);
-
-		this->shadowMapSampler = this->device.CreateSampler(Crescendo::Vulkan::Create::SamplerCreateInfo(
-			VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-			1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
-		));
-		this->shadowMap.set = this->device.AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->device.GetFragmentSamplerLayout());
-		VkDescriptorImageInfo imageInfo = Crescendo::Vulkan::Create::DescriptorImageInfo(
-			this->shadowMapSampler, this->shadowMap.image.imageView, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-		);
-		VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(
-			this->shadowMap.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo
-		);
-		vkUpdateDescriptorSets(this->device, 1, &write, 0, nullptr);
+		const uint32_t smrpi = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(SHADOW_MAP_FORMAT));
+		this->shadowMap = this->CreateShadowMap(this->renderPasses[smrpi], SHADOW_MAP_FORMAT, SHADOW_MAP_RES, SHADOW_MAP_RES);
 	}
 	VulkanInstance::~VulkanInstance()
 	{
@@ -74,7 +35,6 @@ namespace Crescendo
 		this->device.WaitIdle();
 		// Destroy samplers
 		for (auto& sampler : this->samplers) vkDestroySampler(this->device, sampler, nullptr);
-		vkDestroySampler(this->device, this->shadowMapSampler, nullptr);
 	}
 	void VulkanInstance::CreateSwapchain()
 	{
@@ -119,6 +79,19 @@ namespace Crescendo
 			attachments[0] = swapChainImage.imageView;
 			this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[drpIdx], attachments, this->swapchain.GetExtent(), true, true));
 		}
+	}
+	ShadowMap VulkanInstance::CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height)
+	{
+		ShadowMap map {};
+
+		Vulkan::Texture shadowTexture{};
+		shadowTexture.image = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, format, Crescendo::Vulkan::Create::Extent3D(width, height, 1), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
+		shadowTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetDirectionalShadowMapSampler(), shadowTexture.image, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+		map.textureIndex = this->textures.insert(std::move(shadowTexture));
+
+		map.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(renderPass, { this->textures[map.textureIndex].image.imageView }, { width, height}, false, true));
+	
+		return map;
 	}
 	Vulkan::Mesh VulkanInstance::UploadMesh(const cs_std::graphics::mesh& mesh)
 	{
@@ -279,15 +252,11 @@ namespace Crescendo
 			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 			cmd.ResourceBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, barrier);
-			});
+		});
 
 		/* ----------------------------------------------------------------  3 - Create descriptor set ---------------------------------------------------------------- */
 
-		VkDescriptorSet descriptorSet = this->device.AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->device.GetFragmentSamplerLayout());
-		VkDescriptorImageInfo imageInfo = Crescendo::Vulkan::Create::DescriptorImageInfo(this->samplers[mipLevels - 1], texture.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(descriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo);
-		this->device.WriteDescriptorSet(write);
-
+		VkDescriptorSet descriptorSet = this->device.CreateTextureDescriptorSet(this->samplers[mipLevels - 1], texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		return Vulkan::Texture(std::move(texture), descriptorSet);
 	}
 }

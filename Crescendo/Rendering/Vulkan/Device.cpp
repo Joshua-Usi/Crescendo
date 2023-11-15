@@ -20,13 +20,17 @@ namespace Crescendo::Vulkan
 		// Create universal descriptor sets
 		this->fragmentSamplerSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT));
 		this->ssboSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT));
+		this->directionalShadowMapSampler = this->CreateSampler(Crescendo::Vulkan::Create::SamplerCreateInfo(VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE));;
 	}
 	Device::~Device()
 	{
 		if (this->device == nullptr) return;
 		vkDeviceWaitIdle(this->device);
+		// Destroy universal resources
 		vkDestroyDescriptorSetLayout(this->device, this->fragmentSamplerSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(this->device, this->ssboSetLayout, nullptr);
+		vkDestroySampler(this->device, this->directionalShadowMapSampler, nullptr);
+
 		this->allocator.Destroy();
 		this->descriptorManager.Destroy();
 		vkDestroyDevice(this->device, nullptr);
@@ -34,12 +38,13 @@ namespace Crescendo::Vulkan
 	Device::Device(Device&& other) noexcept
 		: allocator(std::move(other.allocator)), descriptorManager(std::move(other.descriptorManager)),
 		device(other.device), queues(other.queues),
-		fragmentSamplerSetLayout(fragmentSamplerSetLayout), ssboSetLayout(ssboSetLayout),
+		fragmentSamplerSetLayout(fragmentSamplerSetLayout), ssboSetLayout(ssboSetLayout), directionalShadowMapSampler(directionalShadowMapSampler),
 		minUniformBufferOffsetAlignment(other.minUniformBufferOffsetAlignment)
 	{
 		other.device = nullptr;
 		other.fragmentSamplerSetLayout = nullptr;
 		other.ssboSetLayout = nullptr;
+		other.directionalShadowMapSampler = nullptr;
 	}
 	Device& Device::operator=(Device&& other) noexcept
 	{
@@ -51,6 +56,7 @@ namespace Crescendo::Vulkan
 			this->queues = other.queues;
 			this->fragmentSamplerSetLayout = other.fragmentSamplerSetLayout; other.fragmentSamplerSetLayout = nullptr;
 			this->ssboSetLayout = other.ssboSetLayout; other.ssboSetLayout = nullptr;
+			this->directionalShadowMapSampler = other.directionalShadowMapSampler; other.directionalShadowMapSampler = nullptr;
 			this->minUniformBufferOffsetAlignment = other.minUniformBufferOffsetAlignment;
 		}
 		return *this;
@@ -325,6 +331,27 @@ namespace Crescendo::Vulkan
 			dataLayouts, setData, vertexAttributes,
 			variant, pipelineLayout
 		);
+	}
+	SSBO Device::CreateSSBO(size_t allocationSize, VmaMemoryUsage memoryUsage)
+	{
+		Vulkan::SSBO ssbo(
+			this->CreateBuffer(allocationSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU),
+			this->AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->GetSSBOLayout())
+		);
+		VkDescriptorBufferInfo bufferInfo = Crescendo::Vulkan::Create::DescriptorBufferInfo(ssbo.buffer, 0, allocationSize);
+		VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(ssbo.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
+		this->WriteDescriptorSet(write);
+
+		return std::move(ssbo);
+	}
+	VkDescriptorSet Device::CreateTextureDescriptorSet(VkSampler sampler, const Vulkan::Image& image, VkImageLayout layout)
+	{
+		const VkDescriptorSet set = this->AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->GetFragmentSamplerLayout());
+		const VkDescriptorImageInfo imageInfo = Crescendo::Vulkan::Create::DescriptorImageInfo(sampler, image.imageView, layout);
+		const VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(set, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo);
+		this->WriteDescriptorSet(write);
+
+		return set;
 	}
 	VkCommandPool Device::CreateCommandPool(uint32_t queueFamilyIndex)
 	{

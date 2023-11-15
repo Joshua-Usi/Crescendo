@@ -33,6 +33,7 @@ namespace Crescendo::Vulkan
 		// Universally shared resources
 		VkDescriptorSetLayout fragmentSamplerSetLayout;
 		VkDescriptorSetLayout ssboSetLayout;
+		VkSampler directionalShadowMapSampler;
 
 		// Device properties
 		uint32_t minUniformBufferOffsetAlignment;
@@ -64,6 +65,7 @@ namespace Crescendo::Vulkan
 		Device(Device&& other) noexcept;
 		Device& operator=(Device&& other) noexcept;
 	public:
+		// Specialized functions
 		Buffer CreateBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 		Image CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage);
 		GraphicsCommandQueue CreateGraphicsCommandQueue();
@@ -75,7 +77,12 @@ namespace Crescendo::Vulkan
 		ShaderModule CreateShaderModule(const std::vector<uint8_t>& code);
 		ShaderReflection CreateShaderReflection(const std::vector<uint8_t>& code);
 		Pipelines CreatePipelines(const std::vector<uint8_t>& vertexCode, const std::vector<uint8_t>& fragmentCode, const PipelineVariants& variant);
+		SSBO CreateSSBO(size_t allocationSize, VmaMemoryUsage memoryUsage);
 
+		// Creates a set writes the texture
+		VkDescriptorSet CreateTextureDescriptorSet(VkSampler sampler, const Vulkan::Image& image, VkImageLayout layout);
+		
+		// Low-level vulkan primitives
 		VkCommandPool CreateCommandPool(uint32_t queueFamilyIndex);
 		VkCommandBuffer AllocateCommandBuffer(VkCommandPool commandPool, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 		VkFence CreateFence(bool signaled = false);
@@ -94,6 +101,7 @@ namespace Crescendo::Vulkan
 
 		VkDescriptorSetLayout GetFragmentSamplerLayout() const { return fragmentSamplerSetLayout; }
 		VkDescriptorSetLayout GetSSBOLayout() const { return ssboSetLayout; }
+		VkSampler GetDirectionalShadowMapSampler() const { return directionalShadowMapSampler; }
 	public:
 		operator VkDevice() const { return device; }
 	};

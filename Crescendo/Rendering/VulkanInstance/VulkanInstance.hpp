@@ -8,29 +8,12 @@
 
 namespace Crescendo
 {
-	class Texture
-	{
-	private:
-		uint32_t id;
-	};
-
-	class Mesh
-	{
-	private:
-		uint32_t id;
-	};
-
-	class Model
-	{
-	private:
-		std::vector<Mesh> meshes;
-	};
-
-	class Pipeline
-	{
-	private:
-		uint32_t id;
-	};
+	class Texture { private: uint32_t id; };
+	class Mesh { private: uint32_t id; };
+	class Model { private: std::vector<Mesh> meshes; };
+	class Pipeline { private: uint32_t id; };
+	class Framebuffer { private: uint32_t id; };
+	class RenderPass { private: uint32_t id; };
 
 	struct VulkanInstanceSpecification
 	{
@@ -42,6 +25,18 @@ namespace Crescendo
 		uint32_t framesInFlight;
 		uint32_t anisotropicSamples;
 		uint32_t multisamples;
+	};
+
+	class VulkanResourceStorage
+	{
+
+	};
+
+	struct ShadowMap
+	{
+		VkSampler sampler;
+		uint32_t textureIndex;
+		uint32_t framebufferIndex;
 	};
 
 	class VulkanInstance
@@ -68,9 +63,8 @@ namespace Crescendo
 		std::vector<Vulkan::SSBO> ssbo;
 
 		Vulkan::Image depthBuffer;
-		Vulkan::Texture shadowMap;
-		VkSampler shadowMapSampler;
-		Vulkan::Framebuffer shadowMapFramebuffer;
+
+		ShadowMap shadowMap;
 
 		struct Specifications
 		{
@@ -92,6 +86,7 @@ namespace Crescendo
 		~VulkanInstance();
 	public:
 		void CreateSwapchain();
+		ShadowMap CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height);
 
 		Vulkan::Mesh UploadMesh(const cs_std::graphics::mesh& mesh);
 		Vulkan::Texture UploadTexture(const cs_std::image& image, bool generateMipmaps);

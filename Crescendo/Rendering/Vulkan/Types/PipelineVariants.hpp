@@ -208,6 +208,10 @@ namespace Crescendo::Vulkan
 			// TODO assert or quietly assert
 			return VK_FALSE;
 		}
+		static Multisamples ConvertSamplesToVariant(uint32_t samples)
+		{
+			return static_cast<Multisamples>(1 << (samples - 1));
+		}
 	public:
 		PipelineVariants operator[](uint32_t index) const { return GetVariant(index); }
 	};
