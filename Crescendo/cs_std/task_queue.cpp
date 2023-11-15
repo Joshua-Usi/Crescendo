@@ -47,7 +47,7 @@ namespace cs_std
 			});
 		}
 	}
-	void task_queue::push_back(const std::function<void()> function)
+	void task_queue::push_back(const std::function<void()>& function)
 	{
 		this->tasks.push(function);
 	}

@@ -39,7 +39,7 @@ namespace cs_std
 		/// Add a task to the queue, will immediately be consumed by a thread when availiable
 		/// </summary>
 		/// <param name="function">Function to execute</param>
-		void push_back(const std::function<void()> function);
+		void push_back(const std::function<void()>& function);
 		/// <summary>
 		/// Block the main thread until all tasks have been completed
 		/// </summary>
