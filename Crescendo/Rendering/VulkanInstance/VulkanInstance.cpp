@@ -5,19 +5,15 @@
 
 namespace Crescendo
 {
-	VulkanInstance::VulkanInstance(const VulkanInstanceSpecification& spec)
+	VulkanInstance::VulkanInstance(const VulkanInstanceSpecification& spec) : specs(spec)
 	{
 		const size_t SSBO_OBJECT_COUNT = 8192;
 
-		this->specs.framesInFlight = spec.framesInFlight;
-		this->specs.anisotropicSamples = spec.anisotropicSamples;
-		this->specs.multisamples = spec.multisamples;
-
-		this->instance = Vulkan::Instance(spec.enableValidationLayers, spec.appName, spec.engineName, static_cast<GLFWwindow*>(spec.window));
-		this->device = this->instance.CreateDevice(spec.descriptorSetsPerPool);
+		this->instance = Vulkan::Instance(specs.enableValidationLayers, specs.appName, specs.engineName, static_cast<GLFWwindow*>(specs.window));
+		this->device = this->instance.CreateDevice(specs.descriptorSetsPerPool);
 		this->transferQueue = this->device.CreateTransferCommandQueue();
 
-		for (uint32_t i = 0; i < spec.framesInFlight; i++)
+		for (uint32_t i = 0; i < specs.framesInFlight; i++)
 		{
 			this->renderCommandQueues.emplace_back(this->device.CreateGraphicsCommandQueue(), this->device.CreateSemaphore(), this->device.CreateSemaphore());
 			this->ssbo.emplace_back(this->device.CreateSSBO(sizeof(glm::mat4) * SSBO_OBJECT_COUNT, VMA_MEMORY_USAGE_CPU_TO_GPU));
@@ -38,7 +34,7 @@ namespace Crescendo
 		constexpr VkFormat DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
 		constexpr VkFormat OFFSCREEN_FORMAT = VK_FORMAT_R16G16B16A16_SFLOAT; // For HDR
 		constexpr VkFormat SHADOW_MAP_FORMAT = VK_FORMAT_D16_UNORM;
-		constexpr uint32_t SHADOW_MAP_RES = 16384;
+		constexpr uint32_t SHADOW_MAP_RES = 4096;
 
 		this->device.WaitIdle();
 		// Get glfw window size
@@ -65,25 +61,29 @@ namespace Crescendo
 		// Create renderpasses
 		uint32_t drpIdx = this->renderPasses.insert(this->device.CreateDefaultRenderPass(OFFSCREEN_FORMAT, DEPTH_FORMAT));
 		uint32_t pprpIdx = this->renderPasses.insert(this->device.CreatePostProcessingRenderPass(this->swapchain.GetImageFormat()));
+		const uint32_t smrpi = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(SHADOW_MAP_FORMAT));
 
-		// Create images
-		Vulkan::Texture offscreenTexture{};
-		offscreenTexture.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, OFFSCREEN_FORMAT, this->swapchain.GetExtent3D(), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
-		offscreenTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetPostProcessingSampler(), offscreenTexture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-		this->offscreenDepth = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, DEPTH_FORMAT, this->swapchain.GetExtent3D(), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
-
-		// Create the frame buffers
+		// Create the swapchain frame buffers
 		for (const auto& swapChainImage : this->swapchain)
 		{
 			this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[pprpIdx], { swapChainImage.imageView }, this->swapchain.GetExtent(), true, false));
 		}
 
+		// Create offscreen images and framebuffers
+		VkExtent3D offscreenExtent = this->swapchain.GetExtent3D();
+		offscreenExtent.width = static_cast<uint32_t>(static_cast<float>(offscreenExtent.width) * specs.renderScale);
+		offscreenExtent.height = static_cast<uint32_t>(static_cast<float>(offscreenExtent.height) * specs.renderScale);
+
+		Vulkan::Texture offscreenTexture{};
+		offscreenTexture.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, OFFSCREEN_FORMAT, offscreenExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
+		offscreenTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetPostProcessingSampler(), offscreenTexture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		this->offscreenDepth = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, DEPTH_FORMAT, offscreenExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
 		this->offscreen.sampler = this->device.GetPostProcessingSampler();
-		this->offscreen.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[drpIdx], { offscreenTexture.image.imageView, this->offscreenDepth.imageView }, this->swapchain.GetExtent(), true, true));
+		this->offscreen.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[drpIdx], { offscreenTexture.image.imageView, this->offscreenDepth.imageView }, { offscreenExtent.width, offscreenExtent.height }, true, true));
 		this->offscreen.textureIndex = this->textures.insert(std::move(offscreenTexture));
 
-		const uint32_t smrpi = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(SHADOW_MAP_FORMAT));
+		// Create shadow map
 		this->shadowMap = this->CreateShadowMap(this->renderPasses[smrpi], SHADOW_MAP_FORMAT, SHADOW_MAP_RES, SHADOW_MAP_RES);
 	}
 	ShadowMap VulkanInstance::CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height)

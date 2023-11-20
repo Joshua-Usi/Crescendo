@@ -213,6 +213,29 @@ namespace Crescendo::Vulkan
 			return static_cast<Multisamples>(1 << (samples - 1));
 		}
 	public:
+		// Generate optimised pipelines for specific use cases
+		// Generates pipelines for double-sided and transparent objects
+		static PipelineVariants GetDefaultVariant(VkRenderPass pass)
+		{
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Back | CullMode::None, Multisamples::One, DepthFunc::Less, DepthTest::Enabled, DepthWrite::Enabled | DepthWrite::Disabled);
+		}
+		static PipelineVariants GetSkyboxVariant(VkRenderPass pass)
+		{
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Back, Multisamples::One, DepthFunc::LessEqual, DepthTest::Enabled, DepthWrite::Disabled);
+		}
+		static PipelineVariants GetShadowVariant(VkRenderPass pass)
+		{
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Front, Multisamples::One, DepthFunc::Less, DepthTest::Enabled, DepthWrite::Enabled);
+		}
+		static PipelineVariants GetUIVariant(VkRenderPass pass)
+		{
+			return PipelineVariants(pass, FillMode::Solid, CullMode::None, Multisamples::One, DepthFunc::Never, DepthTest::Disabled, DepthWrite::Disabled);
+		}
+		static PipelineVariants GetPostProcessingVariant(VkRenderPass pass)
+		{
+			return PipelineVariants(pass, FillMode::Solid, CullMode::None, Multisamples::One, DepthFunc::Always, DepthTest::Disabled, DepthWrite::Disabled);
+		}
+	public:
 		PipelineVariants operator[](uint32_t index) const { return GetVariant(index); }
 	};
 }

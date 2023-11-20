@@ -25,6 +25,7 @@ namespace Crescendo
 		uint32_t framesInFlight;
 		uint32_t anisotropicSamples;
 		uint32_t multisamples;
+		float renderScale;
 	};
 
 	class VulkanResourceStorage
@@ -77,12 +78,7 @@ namespace Crescendo
 		ShadowMap shadowMap;
 		Offscreen offscreen;
 
-		struct Specifications
-		{
-			uint32_t framesInFlight;
-			uint32_t anisotropicSamples;
-			uint32_t multisamples;
-		} specs;
+		 VulkanInstanceSpecification specs;
 	public:
 		// Constructors
 		VulkanInstance() = default;

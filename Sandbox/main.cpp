@@ -65,7 +65,7 @@ public:
 		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
 
 		this->shadowMapCamera = Graphics::OrthographicCamera(
-			glm::vec4(-30.0f, 30.0f, -30.0f, 30.0f),
+			glm::vec4(-27.5f, 27.5f, -27.5f, 27.5f),
 			glm::vec2(0.0f, 100.0f)
 		);
 
@@ -79,7 +79,8 @@ public:
 			.descriptorSetsPerPool = static_cast<uint32_t>(CVar::Get<int64_t>("rc_descriptorsetsperpool")),
 			.framesInFlight = static_cast<uint32_t>(CVar::Get<int64_t>("rc_framesinflight")),
 			.anisotropicSamples = static_cast<uint32_t>(CVar::Get<int64_t>("rc_anisotropicsamples")),
-			.multisamples = static_cast<uint32_t>(CVar::Get<int64_t>("rc_multisamples"))
+			.multisamples = static_cast<uint32_t>(CVar::Get<int64_t>("rc_multisamples")),
+			.renderScale = CVar::Get<float>("rc_renderscale")
 		};
 
 		this->renderer = Crescendo::VulkanInstance(spec);
@@ -87,61 +88,15 @@ public:
 		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
 		struct Shader { std::string name; Crescendo::Vulkan::PipelineVariants variants; };
 
-		// Generates 4, pipelines for
-		// Non-Transparent, one-sided
-		// Transparent, one-sided
-		// Non-Transparent, two-sided
-		// Transparent, two-sided
-		const Crescendo::Vulkan::PipelineVariants defaultVariant = Crescendo::Vulkan::PipelineVariants(
-			this->renderer.renderPasses[0],
-			Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
-			Crescendo::Vulkan::PipelineVariants::CullMode::Back | Crescendo::Vulkan::PipelineVariants::CullMode::None,
-			Crescendo::Vulkan::PipelineVariants::ConvertSamplesToVariant(this->renderer.specs.multisamples),
-			Crescendo::Vulkan::PipelineVariants::DepthFunc::Less,
-			Crescendo::Vulkan::PipelineVariants::DepthTest::Enabled,
-			Crescendo::Vulkan::PipelineVariants::DepthWrite::Enabled | Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
-		);
-
 		std::vector<Shader> shaderList {
-			{ "./shaders/compiled/mesh", defaultVariant }, // This is the shader that usually changes
-			{ "./shaders/compiled/mesh-unlit", defaultVariant}, // This doesn't really change
-			{ "./shaders/compiled/skybox", Crescendo::Vulkan::PipelineVariants(
-				this->renderer.renderPasses[0],
-				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
-				Crescendo::Vulkan::PipelineVariants::CullMode::Back,
-				Crescendo::Vulkan::PipelineVariants::Multisamples::One,
-				Crescendo::Vulkan::PipelineVariants::DepthFunc::LessEqual,
-				Crescendo::Vulkan::PipelineVariants::DepthTest::Enabled,
-				Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
-			)  }, // This doesn't really change
-			{ "./shaders/compiled/shadow_map", Crescendo::Vulkan::PipelineVariants(
-				this->renderer.renderPasses[2],
-				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
-				Crescendo::Vulkan::PipelineVariants::CullMode::None,
-				Crescendo::Vulkan::PipelineVariants::Multisamples::One,
-				Crescendo::Vulkan::PipelineVariants::DepthFunc::Less,
-				Crescendo::Vulkan::PipelineVariants::DepthTest::Enabled,
-				Crescendo::Vulkan::PipelineVariants::DepthWrite::Enabled
-			) }, // This doesn't really change
-			{ "./shaders/compiled/ui", Crescendo::Vulkan::PipelineVariants(
-				this->renderer.renderPasses[0],
-				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
-				Crescendo::Vulkan::PipelineVariants::CullMode::None,
-				Crescendo::Vulkan::PipelineVariants::ConvertSamplesToVariant(this->renderer.specs.multisamples),
-				Crescendo::Vulkan::PipelineVariants::DepthFunc::Less,
-				Crescendo::Vulkan::PipelineVariants::DepthTest::Disabled,
-				Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
-			) }, // This doesn't really change
-			{ "./shaders/compiled/post_processing", Crescendo::Vulkan::PipelineVariants(
-				this->renderer.renderPasses[1],
-				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
-				Crescendo::Vulkan::PipelineVariants::CullMode::None,
-				Crescendo::Vulkan::PipelineVariants::Multisamples::One,
-				Crescendo::Vulkan::PipelineVariants::DepthFunc::Always,
-				Crescendo::Vulkan::PipelineVariants::DepthTest::Disabled,
-				Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
-			) } // This doesn't really change
+			{ "./shaders/compiled/mesh", Crescendo::Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0]) },
+			{ "./shaders/compiled/mesh-unlit", Crescendo::Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0])},
+			{ "./shaders/compiled/skybox", Crescendo::Vulkan::PipelineVariants::GetSkyboxVariant(this->renderer.renderPasses[0]) },
+			{ "./shaders/compiled/shadow_map", Crescendo::Vulkan::PipelineVariants::GetShadowVariant(this->renderer.renderPasses[2]) },
+			{ "./shaders/compiled/ui", Crescendo::Vulkan::PipelineVariants::GetUIVariant(this->renderer.renderPasses[0]) },
+			{ "./shaders/compiled/post_processing", Crescendo::Vulkan::PipelineVariants::GetPostProcessingVariant(this->renderer.renderPasses[1]) }
 		};
+
 		for (const auto& shader : shaderList)
 		{
 			this->renderer.pipelines.insert(this->renderer.device.CreatePipelines(
@@ -216,6 +171,8 @@ public:
 		uint32_t textureIndex = 0;
 		std::map<std::filesystem::path, uint32_t> seenTextures;
 
+		uint32_t indexCount = 0;
+
 		for (auto& model : models)
 		{
 			for (uint32_t i = 0; i < model.meshes.size(); i++)
@@ -224,6 +181,9 @@ public:
 				auto& attributes = model.meshAttributes[i];
 
 				if (!mesh.has_attribute(cs_std::graphics::Attribute::TANGENT)) cs_std::graphics::generate_tangents(mesh);
+
+				indexCount += mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data.size();
+
 				this->renderer.meshes.insert(this->renderer.UploadMesh(mesh));
 
 				if (!attributes.diffuse.empty() && seenTextures.find(attributes.diffuse) == seenTextures.end())
@@ -251,6 +211,8 @@ public:
 				modelIndex++;
 			}
 		}
+
+		cs_std::console::log("Total scene indices:", indexCount);
 
 		/* ---------------------------------------------------------------- 1.3 - Texture Data ---------------------------------------------------------------- */
 
