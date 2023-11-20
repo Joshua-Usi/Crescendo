@@ -6,18 +6,28 @@ layout(location = 0) out vec4 oColor;
 
 layout(set = 0, binding = 0) uniform sampler2D image;
 
+vec3 ACESFilm(vec3 x) {
+    const float a = 2.51f, b = 0.03f, c = 2.43f, d = 0.59f, e = 0.14f;
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0f, 1.0f);
+}
+
 void main()
 {
+	vec3 hdrColor = texture(image, iTexCoord).rgb;
+
+	// Tonemapped with ACES
+	oColor = vec4(ACESFilm(hdrColor), 1.0f);
+
 	// Unmodified
-	// oColor = vec4(texture(image, iTexCoord).rgb, 1.0f);
+	oColor = vec4(texture(image, iTexCoord).rgb, 1.0f);
 	
 	// Inverted
-	// oColor = vec4(1.0f - texture(image, iTexCoord).rgb, 1.0f);
+	// oColor = vec4(1.0f - pow(texture(image, iTexCoord).rgb, vec3(1.0f / 2.2f)), 1.0f);
 
-	// Get the texture color
-	vec3 color = texture(image, iTexCoord).rgb;
-	if (iTexCoord.x < 0.5f) oColor = vec4(color, 1.0f);
-	else oColor = vec4(1.0f - pow(color, vec3(1.0f / 2.2f)), 1.0f);
+	// Half unmodified, half inverted
+	// vec3 color = texture(image, iTexCoord).rgb;
+	// if (iTexCoord.x < 0.5f) oColor = vec4(color, 1.0f);
+	// else oColor = vec4(1.0f - pow(color, vec3(1.0f / 2.2f)), 1.0f);
 
 	// Grayscale
 	// vec4 col = texture(image, iTexCoord);

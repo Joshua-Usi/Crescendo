@@ -8,8 +8,6 @@ namespace Crescendo
 	VulkanInstance::VulkanInstance(const VulkanInstanceSpecification& spec)
 	{
 		const size_t SSBO_OBJECT_COUNT = 8192;
-		constexpr VkFormat SHADOW_MAP_FORMAT = VK_FORMAT_D16_UNORM;
-		constexpr uint32_t SHADOW_MAP_RES = 4096;
 
 		this->specs.framesInFlight = spec.framesInFlight;
 		this->specs.anisotropicSamples = spec.anisotropicSamples;
@@ -25,9 +23,6 @@ namespace Crescendo
 			this->ssbo.emplace_back(this->device.CreateSSBO(sizeof(glm::mat4) * SSBO_OBJECT_COUNT, VMA_MEMORY_USAGE_CPU_TO_GPU));
 		}
 		this->CreateSwapchain();
-
-		const uint32_t smrpi = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(SHADOW_MAP_FORMAT));
-		this->shadowMap = this->CreateShadowMap(this->renderPasses[smrpi], SHADOW_MAP_FORMAT, SHADOW_MAP_RES, SHADOW_MAP_RES);
 	}
 	VulkanInstance::~VulkanInstance()
 	{
@@ -41,7 +36,9 @@ namespace Crescendo
 		/* ---------------------------------------------------------------- 0. - Wait for resize finish ---------------------------------------------------------------- */
 
 		constexpr VkFormat DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
-		constexpr VkFormat OFFSCREEN_FORMAT = VK_FORMAT_R8G8B8A8_UNORM;
+		constexpr VkFormat OFFSCREEN_FORMAT = VK_FORMAT_R16G16B16A16_SFLOAT; // For HDR
+		constexpr VkFormat SHADOW_MAP_FORMAT = VK_FORMAT_D16_UNORM;
+		constexpr uint32_t SHADOW_MAP_RES = 16384;
 
 		this->device.WaitIdle();
 		// Get glfw window size
@@ -85,6 +82,9 @@ namespace Crescendo
 		this->offscreen.sampler = this->device.GetPostProcessingSampler();
 		this->offscreen.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[drpIdx], { offscreenTexture.image.imageView, this->offscreenDepth.imageView }, this->swapchain.GetExtent(), true, true));
 		this->offscreen.textureIndex = this->textures.insert(std::move(offscreenTexture));
+
+		const uint32_t smrpi = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(SHADOW_MAP_FORMAT));
+		this->shadowMap = this->CreateShadowMap(this->renderPasses[smrpi], SHADOW_MAP_FORMAT, SHADOW_MAP_RES, SHADOW_MAP_RES);
 	}
 	ShadowMap VulkanInstance::CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height)
 	{

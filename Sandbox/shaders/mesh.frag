@@ -20,7 +20,7 @@ layout(set = 5, binding = 0) uniform sampler2D shadowTex;
 
 float textureProj(vec4 shadowCoord)
 {
-    float shadow = 1.0;
+    float shadow = 10.0;
     float dist = texture(shadowTex, shadowCoord.xy).r;
 
     float condition = step(0.0, shadowCoord.w) * step(shadowCoord.z - 0.002f, dist);
