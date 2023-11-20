@@ -53,7 +53,7 @@ namespace cs_std
 				std::cout << '[' << std::put_time(std::localtime(&time), "%T") << "] ";
 			}
 			if (printSeverity) std::cout << '[' << SEVERITY_STRINGS[static_cast<size_t>(std::log2(static_cast<double>(severity)))] << "] ";
-			(std::cout << ... << args) << ' ';
+			([&] { std::cout << args << ' '; } (), ...);
 			std::cout << "\n";
 		}
 	public:

@@ -2,6 +2,12 @@
 
 namespace cs_std
 {
+	static const int desync_io = []() {
+		std::ios::sync_with_stdio(false);
+		std::cin.tie(nullptr);
+		return 0;
+	}();
+
 	bool console::enableThreadSafety = true;
 	std::mutex console::threadMutex;
 	console::severity console::displayedSeverities =
