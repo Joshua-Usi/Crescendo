@@ -38,7 +38,7 @@ namespace cs_std
 			return index;
 		}
 	public:
-		size_t insert(const T& item)
+		[[nodiscard]] size_t insert(const T& item)
 		{
 			if (!free_blocks.empty())
 			{
@@ -52,7 +52,7 @@ namespace cs_std
 				return vector.size() - 1;
 			}
 		}
-		size_t insert(T&& item)
+		[[nodiscard]] size_t insert(T&& item)
 		{
 			if (!free_blocks.empty())
 			{
