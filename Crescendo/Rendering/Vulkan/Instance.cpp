@@ -9,6 +9,8 @@ namespace Crescendo::Vulkan
 
 	Instance::Instance(bool useValidationLayers, const std::string& appName, const std::string& engineName, void* windowPtr) : windowPtr(windowPtr)
 	{
+		constexpr uint32_t CS_VK_MAJOR = 1, CS_VK_MINOR = 3, CS_VK_PATCH = 0;
+
 		if (!isVolkInitialised)
 		{
 			const VkResult result = volkInitialize();
@@ -17,20 +19,19 @@ namespace Crescendo::Vulkan
 		}
 
 		// Create instance and debug messenger
-		vkb::Instance instance = vkb::InstanceBuilder(vkGetInstanceProcAddr)
-			.set_app_name(appName.c_str())
-			.set_engine_name(engineName.c_str())
-			.request_validation_layers(useValidationLayers)
-			.require_api_version(1, 3, 0) // Using 1.3 at minimum
-			.use_default_debug_messenger()
-			.build().value();
+		const vkb::Result<vkb::Instance> instanceResult = vkb::InstanceBuilder(vkGetInstanceProcAddr)
+			.set_app_name(appName.c_str()).set_engine_name(engineName.c_str())
+			.request_validation_layers(useValidationLayers).require_api_version(CS_VK_MAJOR, CS_VK_MINOR, CS_VK_PATCH)
+			.use_default_debug_messenger().build();
+		if (!instanceResult) cs_std::console::fatal("Failed to create Vulkan instance!", instanceResult.error().message());
+		
+		const vkb::Instance instance = instanceResult.value();
 		this->instance = instance.instance;
 		this->debugMessenger = instance.debug_messenger;
-
 		volkLoadInstance(this->instance);
 
 		// Create surface
-		CS_ASSERT(glfwCreateWindowSurface(this->instance, static_cast<GLFWwindow*>(windowPtr), nullptr, &this->surface) == VK_SUCCESS, "Failed to create window surface!");
+		if (glfwCreateWindowSurface(this->instance, static_cast<GLFWwindow*>(windowPtr), nullptr, &this->surface) != VK_SUCCESS) cs_std::console::fatal("Failed to create window surface!");
 
 		// Device features
 		VkPhysicalDeviceFeatures deviceFeatures = {};
@@ -39,23 +40,16 @@ namespace Crescendo::Vulkan
 		deviceFeatures.sampleRateShading = VK_TRUE;
 
 		// Select physical device
-		this->vkbPhysicalDevice = vkb::PhysicalDeviceSelector(instance)
-			.set_minimum_version(1, 3) // We use bindless, since we are using 1.3 we don't need to enable it
-			.prefer_gpu_device_type(vkb::PreferredDeviceType::discrete)
-			.set_surface(this->surface)
-			.set_required_features(deviceFeatures)
-			.select().value();
-
-		// Push to deletion queue
-		this->deletionQueue.push([&]() {
-			vkDestroySurfaceKHR(this->instance, this->surface, nullptr);
-			vkb::destroy_debug_utils_messenger(this->instance, this->debugMessenger);
-			vkDestroyInstance(this->instance, nullptr);
-		});
+		const vkb::Result<vkb::PhysicalDevice> physicalDeviceResult = vkb::PhysicalDeviceSelector(instance).set_minimum_version(CS_VK_MAJOR, CS_VK_MINOR).set_surface(this->surface).set_required_features(deviceFeatures).select();
+		if (!physicalDeviceResult) cs_std::console::fatal("Failed to select Vulkan physical device!", physicalDeviceResult.error().message());
+		this->vkbPhysicalDevice = physicalDeviceResult.value();
 	}
 	Instance::~Instance()
 	{
-		this->deletionQueue.flush();
+		if (this->instance == nullptr) return;
+		vkDestroySurfaceKHR(this->instance, this->surface, nullptr);
+		vkb::destroy_debug_utils_messenger(this->instance, this->debugMessenger);
+		vkDestroyInstance(this->instance, nullptr);
 	}
 	Instance::Instance(Instance&& other) noexcept
 		: vkbPhysicalDevice(other.vkbPhysicalDevice), instance(other.instance), debugMessenger(other.debugMessenger), surface(other.surface), windowPtr(other.windowPtr)
@@ -64,7 +58,6 @@ namespace Crescendo::Vulkan
 		other.debugMessenger = nullptr;
 		other.surface = nullptr;
 		other.windowPtr = nullptr;
-		other.deletionQueue.clear();
 	}
 	Instance& Instance::operator=(Instance&& other) noexcept
 	{
@@ -80,7 +73,6 @@ namespace Crescendo::Vulkan
 			other.debugMessenger = nullptr;
 			other.surface = nullptr;
 			other.windowPtr = nullptr;
-			other.deletionQueue.clear();
 		}
 		return *this;
 	}

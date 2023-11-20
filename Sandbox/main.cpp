@@ -115,7 +115,7 @@ public:
 				Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
 			)  }, // This doesn't really change
 			{ "./shaders/compiled/shadow_map", Crescendo::Vulkan::PipelineVariants(
-				this->renderer.renderPasses[1],
+				this->renderer.renderPasses[2],
 				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
 				Crescendo::Vulkan::PipelineVariants::CullMode::None,
 				Crescendo::Vulkan::PipelineVariants::Multisamples::One,
@@ -129,6 +129,15 @@ public:
 				Crescendo::Vulkan::PipelineVariants::CullMode::None,
 				Crescendo::Vulkan::PipelineVariants::ConvertSamplesToVariant(this->renderer.specs.multisamples),
 				Crescendo::Vulkan::PipelineVariants::DepthFunc::Less,
+				Crescendo::Vulkan::PipelineVariants::DepthTest::Disabled,
+				Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
+			) }, // This doesn't really change
+			{ "./shaders/compiled/post_processing", Crescendo::Vulkan::PipelineVariants(
+				this->renderer.renderPasses[1],
+				Crescendo::Vulkan::PipelineVariants::FillMode::Solid,
+				Crescendo::Vulkan::PipelineVariants::CullMode::None,
+				Crescendo::Vulkan::PipelineVariants::Multisamples::One,
+				Crescendo::Vulkan::PipelineVariants::DepthFunc::Always,
 				Crescendo::Vulkan::PipelineVariants::DepthTest::Disabled,
 				Crescendo::Vulkan::PipelineVariants::DepthWrite::Disabled
 			) } // This doesn't really change
@@ -179,7 +188,7 @@ public:
 			cs_std::graphics::mesh_attributes quadAttributes {};
 
 			glm::mat4 model = glm::mat4(1.0f);
-			model = glm::translate(model, glm::vec3(0.0, 0.0f, 0.0f));
+			model = glm::translate(model, glm::vec3(100.0f, -100.0f, 0.0f));
 			model = glm::scale(model, glm::vec3(200.0f, 200.0f, 1.0f));
 
 			quadAttributes.transform = model;
@@ -197,7 +206,7 @@ public:
 			//IO::LoadGLTF("./assets/sponza-candles/sponza-candles.gltf"),
 			//IO::LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			//IO::LoadGLTF("./assets/companion-cube/scene.gltf"),
-			//IO::LoadGLTF("./assets/tree/tree.gltf"),
+			IO::LoadGLTF("./assets/tree/tree.gltf"),
 			//IO::LoadGLTF("./assets/chair/chair.gltf"),
 			skyboxModel,
 			quadModel
@@ -230,7 +239,7 @@ public:
 
 				this->modelData.emplace_back(
 					cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform),
-					seenTextures[attributes.diffuse] + 1, seenTextures[attributes.normal] + 1,
+					seenTextures[attributes.diffuse] + 2, seenTextures[attributes.normal] + 2,
 					attributes.isTransparent, attributes.isDoubleSided, true
 				);
 
@@ -285,6 +294,7 @@ public:
 		Crescendo::Vulkan::Pipelines& skyboxPipeline = this->renderer.pipelines[2];
 		Crescendo::Vulkan::Pipelines& shadowPipeline = this->renderer.pipelines[3];
 		Crescendo::Vulkan::Pipelines& uiPipeline = this->renderer.pipelines[4];
+		Crescendo::Vulkan::Pipelines & postProcessingPipeline = this->renderer.pipelines[5];
 
 		// Render prep
 		const glm::mat4 projections[2] { this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
@@ -300,7 +310,7 @@ public:
 
 		/* ---------------------------------------------------------------- Render commands ---------------------------------------------------------------- */
 
-		Crescendo::Vulkan::Frame& cur = this->renderer.frameData[this->renderer.frameIndex];
+		Crescendo::Vulkan::RenderCommandQueue& cur = this->renderer.GetCurrentRenderCommandQueue();
 		Crescendo::Vulkan::GraphicsCommandQueue& cmd = cur.cmd;
 
 		cmd.WaitCompletion();
@@ -313,6 +323,7 @@ public:
 			currentImage = this->renderer.swapchain.AcquireNextImage(cur.presentReady);
 		}
 		const Crescendo::Vulkan::Framebuffer& framebuffer = this->renderer.framebuffers[currentImage];
+		const Crescendo::Vulkan::Framebuffer& offScreen = this->renderer.framebuffers[this->renderer.offscreen.framebufferIndex];
 		const Crescendo::Vulkan::Framebuffer& shadowFramebuffer = this->renderer.framebuffers[this->renderer.shadowMap.framebufferIndex];
 
 		cmd.Begin();
@@ -320,6 +331,7 @@ public:
 			cmd.DynamicStateSetViewport(shadowFramebuffer.GetViewport());
 			cmd.DynamicStateSetScissor(shadowFramebuffer.GetScissor());
 			cmd.BeginRenderPass(shadowFramebuffer.renderPass, shadowFramebuffer, shadowFramebuffer.GetScissor(), { Crescendo::Vulkan::Create::DefaultDepthClear() });
+			{
 				cs_std::graphics::frustum frustum(this->shadowMapCamera.GetViewProjectionMatrix());
 				// Bind pipeline
 				cmd.BindPipeline(shadowPipeline[0]);
@@ -339,13 +351,15 @@ public:
 					cmd.BindIndexBuffer(mesh.indexBuffer);
 					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
 				}
+			}
 			cmd.EndRenderPass();
 			// Normal pass
-			cmd.DynamicStateSetViewport(framebuffer.GetViewport(true));
-			cmd.DynamicStateSetScissor(framebuffer.GetScissor());
-			cmd.BeginRenderPass(framebuffer.renderPass, framebuffer, framebuffer.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f }, Crescendo::Vulkan::Create::DefaultDepthClear() });
+			cmd.DynamicStateSetViewport(offScreen.GetViewport(true));
+			cmd.DynamicStateSetScissor(offScreen.GetScissor());
+			cmd.BeginRenderPass(offScreen.renderPass, offScreen, offScreen.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f }, Crescendo::Vulkan::Create::DefaultDepthClear() });
+			{
 				// Normal rendering
-				frustum = cs_std::graphics::frustum(this->camera.camera.GetViewProjectionMatrix());
+				cs_std::graphics::frustum frustum = cs_std::graphics::frustum(this->camera.camera.GetViewProjectionMatrix());
 				for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 2; i++)
 				{
 					const Crescendo::Vulkan::Mesh& mesh = this->renderer.meshes[i];
@@ -397,6 +411,18 @@ public:
 					cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexBuffer);
 					cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 1);
 				}
+			}
+			cmd.EndRenderPass();
+			// Post-processing step
+			cmd.DynamicStateSetViewport(framebuffer.GetViewport(false));
+			cmd.DynamicStateSetScissor(framebuffer.GetScissor());
+			cmd.BeginRenderPass(framebuffer.renderPass, framebuffer, framebuffer.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f } });
+			{
+				cmd.BindPipeline(postProcessingPipeline[0]);
+				// Bind texture
+				cmd.BindDescriptorSet(postProcessingPipeline, this->renderer.textures[this->renderer.offscreen.textureIndex].set, 0, 0);
+				cmd.Draw(6);
+			}
 			cmd.EndRenderPass();
 		cmd.End();
 		cmd.Submit(cur.presentReady, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, cur.renderFinish);
@@ -404,7 +430,7 @@ public:
 		/* ---------------------------------------------------------------- Post-render and present ---------------------------------------------------------------- */
 
 		cmd.Present(this->renderer.swapchain, currentImage, cur.renderFinish);
-		this->renderer.frameIndex = (this->renderer.frameIndex + 1) % this->renderer.specs.framesInFlight;
+		this->renderer.NextFrame();
 		
 		// Frame counter
 		frame++;

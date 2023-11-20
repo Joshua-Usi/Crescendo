@@ -21,7 +21,7 @@ namespace Crescendo
 
 		for (uint32_t i = 0; i < spec.framesInFlight; i++)
 		{
-			this->frameData.emplace_back(this->device.CreateGraphicsCommandQueue(), this->device.CreateSemaphore(), this->device.CreateSemaphore());
+			this->renderCommandQueues.emplace_back(this->device.CreateGraphicsCommandQueue(), this->device.CreateSemaphore(), this->device.CreateSemaphore());
 			this->ssbo.emplace_back(this->device.CreateSSBO(sizeof(glm::mat4) * SSBO_OBJECT_COUNT, VMA_MEMORY_USAGE_CPU_TO_GPU));
 		}
 		this->CreateSwapchain();
@@ -40,7 +40,8 @@ namespace Crescendo
 	{
 		/* ---------------------------------------------------------------- 0. - Wait for resize finish ---------------------------------------------------------------- */
 
-		constexpr VkFormat DEFAULT_DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
+		constexpr VkFormat DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
+		constexpr VkFormat OFFSCREEN_FORMAT = VK_FORMAT_R8G8B8A8_UNORM;
 
 		this->device.WaitIdle();
 		// Get glfw window size
@@ -57,28 +58,33 @@ namespace Crescendo
 		if (this->renderPasses.capacity() > 0) this->renderPasses.erase(0);
 		// Explicitly destroy swapchain and depth buffer
 		this->swapchain.~Swapchain();
-		this->depthBuffer.~Image();
+		if (this->textures.capacity() > 0) this->textures.erase(this->offscreen.textureIndex);
+		this->offscreenDepth.~Image();
 
 		/* ---------------------------------------------------------------- 2 - Swapchain framebuffers ---------------------------------------------------------------- */
 
 		this->swapchain = this->instance.CreateSwapchain(this->device, VK_PRESENT_MODE_MAILBOX_KHR, VkExtent2D(width, height));
 
 		// Create renderpasses
-		uint32_t drpIdx = this->renderPasses.insert(this->device.CreateDefaultRenderPass(this->swapchain.GetImageFormat(), DEFAULT_DEPTH_FORMAT));
-		CS_ASSERT(drpIdx == 0, "Render pass index is not 0!");
+		uint32_t drpIdx = this->renderPasses.insert(this->device.CreateDefaultRenderPass(OFFSCREEN_FORMAT, DEPTH_FORMAT));
+		uint32_t pprpIdx = this->renderPasses.insert(this->device.CreatePostProcessingRenderPass(this->swapchain.GetImageFormat()));
 
 		// Create images
-		this->depthBuffer = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(
-			VK_IMAGE_TYPE_2D, DEFAULT_DEPTH_FORMAT, this->swapchain.GetExtent3D(), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-		), VMA_MEMORY_USAGE_GPU_ONLY);
+		Vulkan::Texture offscreenTexture{};
+		offscreenTexture.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, OFFSCREEN_FORMAT, this->swapchain.GetExtent3D(), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
+		offscreenTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetPostProcessingSampler(), offscreenTexture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		this->offscreenDepth = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, DEPTH_FORMAT, this->swapchain.GetExtent3D(), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
 
 		// Create the frame buffers
-		std::vector<VkImageView> attachments{ nullptr, this->depthBuffer.imageView };
 		for (const auto& swapChainImage : this->swapchain)
 		{
-			attachments[0] = swapChainImage.imageView;
-			this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[drpIdx], attachments, this->swapchain.GetExtent(), true, true));
+			this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[pprpIdx], { swapChainImage.imageView }, this->swapchain.GetExtent(), true, false));
 		}
+
+		this->offscreen.sampler = this->device.GetPostProcessingSampler();
+		this->offscreen.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[drpIdx], { offscreenTexture.image.imageView, this->offscreenDepth.imageView }, this->swapchain.GetExtent(), true, true));
+		this->offscreen.textureIndex = this->textures.insert(std::move(offscreenTexture));
 	}
 	ShadowMap VulkanInstance::CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height)
 	{
@@ -87,10 +93,10 @@ namespace Crescendo
 		Vulkan::Texture shadowTexture{};
 		shadowTexture.image = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, format, Crescendo::Vulkan::Create::Extent3D(width, height, 1), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
 		shadowTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetDirectionalShadowMapSampler(), shadowTexture.image, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+		map.sampler = this->device.GetDirectionalShadowMapSampler();
+		map.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(renderPass, { shadowTexture.image.imageView }, { width, height }, false, true));
 		map.textureIndex = this->textures.insert(std::move(shadowTexture));
 
-		map.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(renderPass, { this->textures[map.textureIndex].image.imageView }, { width, height}, false, true));
-	
 		return map;
 	}
 	Vulkan::Mesh VulkanInstance::UploadMesh(const cs_std::graphics::mesh& mesh)

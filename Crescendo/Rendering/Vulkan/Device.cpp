@@ -20,7 +20,8 @@ namespace Crescendo::Vulkan
 		// Create universal descriptor sets
 		this->fragmentSamplerSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT));
 		this->ssboSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT));
-		this->directionalShadowMapSampler = this->CreateSampler(Crescendo::Vulkan::Create::SamplerCreateInfo(VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE));;
+		this->directionalShadowMapSampler = this->CreateSampler(Crescendo::Vulkan::Create::SamplerCreateInfo(VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE));
+		this->postProcessingSampler = this->CreateSampler(Crescendo::Vulkan::Create::SamplerCreateInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK));
 	}
 	Device::~Device()
 	{
@@ -30,6 +31,7 @@ namespace Crescendo::Vulkan
 		vkDestroyDescriptorSetLayout(this->device, this->fragmentSamplerSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(this->device, this->ssboSetLayout, nullptr);
 		vkDestroySampler(this->device, this->directionalShadowMapSampler, nullptr);
+		vkDestroySampler(this->device, this->postProcessingSampler, nullptr);
 
 		this->allocator.Destroy();
 		this->descriptorManager.Destroy();
@@ -38,13 +40,15 @@ namespace Crescendo::Vulkan
 	Device::Device(Device&& other) noexcept
 		: allocator(std::move(other.allocator)), descriptorManager(std::move(other.descriptorManager)),
 		device(other.device), queues(other.queues),
-		fragmentSamplerSetLayout(fragmentSamplerSetLayout), ssboSetLayout(ssboSetLayout), directionalShadowMapSampler(directionalShadowMapSampler),
+		fragmentSamplerSetLayout(fragmentSamplerSetLayout), ssboSetLayout(ssboSetLayout), directionalShadowMapSampler(directionalShadowMapSampler), postProcessingSampler(postProcessingSampler),
 		minUniformBufferOffsetAlignment(other.minUniformBufferOffsetAlignment)
 	{
 		other.device = nullptr;
 		other.fragmentSamplerSetLayout = nullptr;
 		other.ssboSetLayout = nullptr;
 		other.directionalShadowMapSampler = nullptr;
+		other.postProcessingSampler = nullptr;
+
 	}
 	Device& Device::operator=(Device&& other) noexcept
 	{
@@ -57,6 +61,7 @@ namespace Crescendo::Vulkan
 			this->fragmentSamplerSetLayout = other.fragmentSamplerSetLayout; other.fragmentSamplerSetLayout = nullptr;
 			this->ssboSetLayout = other.ssboSetLayout; other.ssboSetLayout = nullptr;
 			this->directionalShadowMapSampler = other.directionalShadowMapSampler; other.directionalShadowMapSampler = nullptr;
+			this->postProcessingSampler = other.postProcessingSampler; other.postProcessingSampler = nullptr;
 			this->minUniformBufferOffsetAlignment = other.minUniformBufferOffsetAlignment;
 		}
 		return *this;
@@ -93,7 +98,7 @@ namespace Crescendo::Vulkan
 			colorFormat, samples,
 			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
 			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			VK_IMAGE_LAYOUT_UNDEFINED, (!isMultiSampling) ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 		);
 		VkAttachmentReference colorAttachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
@@ -105,40 +110,34 @@ namespace Crescendo::Vulkan
 		);
 		VkAttachmentReference depthAttachmentRef = Create::AttachmentReference(1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-		VkAttachmentDescription colorAttachmentResolve = Create::AttachmentDescription(
-			colorFormat, VK_SAMPLE_COUNT_1_BIT,
-			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
-			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-		);
-		VkAttachmentReference colorAttachmentResolveRef = Create::AttachmentReference((isMultiSampling) ? 2 : VK_ATTACHMENT_UNUSED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		//VkAttachmentDescription colorAttachmentResolve = Create::AttachmentDescription(
+		//	colorFormat, VK_SAMPLE_COUNT_1_BIT,
+		//	VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
+		//	VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+		//	VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+		//);
+		//VkAttachmentReference colorAttachmentResolveRef = Create::AttachmentReference((isMultiSampling) ? 2 : VK_ATTACHMENT_UNUSED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 		const VkSubpassDescription subpass = Create::SubpassDescription(
 			VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1,
 			&colorAttachmentRef,
-			&colorAttachmentResolveRef,
+			nullptr, //&colorAttachmentResolveRef,
 			&depthAttachmentRef,
 			0, nullptr
 		);
 
 		VkSubpassDependency colorDependency = Create::SubpassDependency(
 			VK_SUBPASS_EXTERNAL, 0,
-			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-			0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_DEPENDENCY_BY_REGION_BIT
 		);
-		VkSubpassDependency depthDependency = Create::SubpassDependency(
-			VK_SUBPASS_EXTERNAL, 0,
-			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-			0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0
+		VkSubpassDependency colorDependency2 = Create::SubpassDependency(
+			0, VK_SUBPASS_EXTERNAL,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_DEPENDENCY_BY_REGION_BIT
 		);
 
-		std::vector<VkAttachmentDescription> attachments{ colorAttachment, depthAttachment };
-		if (isMultiSampling) attachments.push_back(colorAttachmentResolve);
-		std::vector<VkSubpassDependency> dependencies{ colorDependency, depthDependency };
-
-		return this->CreateRenderPass(attachments, { subpass }, dependencies);
+		return this->CreateRenderPass({ colorAttachment, depthAttachment }, { subpass }, { colorDependency, colorDependency2 });
 	}
 	RenderPass Device::CreateDefaultShadowRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples)
 	{
@@ -173,12 +172,35 @@ namespace Crescendo::Vulkan
 
 		return this->CreateRenderPass({ shadowMapAttachment }, { shadowMapSubpass }, { shadowMapDependency, shadowMapDependency2 });
 	}
+	RenderPass Device::CreatePostProcessingRenderPass(VkFormat colorFormat, VkSampleCountFlagBits samples)
+	{
+		VkAttachmentDescription attachment = Create::AttachmentDescription(
+			colorFormat, samples,
+			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+		);
+		VkAttachmentReference attachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+		VkSubpassDescription subpass = Create::SubpassDescription(
+			VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &attachmentRef, nullptr, nullptr, 0, nullptr
+		);
+
+		VkSubpassDependency dependency = Create::SubpassDependency(
+			VK_SUBPASS_EXTERNAL, 0,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0
+		);
+
+		return this->CreateRenderPass({ attachment }, { subpass }, { dependency });
+	}
 	Framebuffer Device::CreateFramebuffer(VkRenderPass renderPass, const std::vector<VkImageView>& attachments, VkExtent2D extent, bool hasColorAttachment, bool hasDepthAttachment)
 	{
 		VkFramebuffer fb = nullptr;
 		VkFramebufferCreateInfo framebufferInfo = Create::FramebufferCreateInfo(renderPass, attachments, extent, 1);
 		CS_ASSERT(vkCreateFramebuffer(this->device, &framebufferInfo, nullptr, &fb) == VK_SUCCESS, "Failed to create framebuffer!");
-		return Framebuffer(this->device, fb, renderPass, extent, false, false);
+		return Framebuffer(this->device, fb, renderPass, extent, hasColorAttachment, hasDepthAttachment);
 	}
 	ShaderModule Device::CreateShaderModule(const std::vector<uint8_t>& code)
 	{

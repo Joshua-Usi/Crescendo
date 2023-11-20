@@ -122,6 +122,10 @@ namespace Crescendo::Vulkan
 	{
 		vkCmdPushConstants(this->commandBuffer, layout, stageFlags, offset, size, data);
 	}
+	void GraphicsCommandQueue::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) const
+	{
+		vkCmdDraw(this->commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+	}
 	void GraphicsCommandQueue::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) const
 	{
 		vkCmdDrawIndexed(this->commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);

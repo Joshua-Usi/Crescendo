@@ -15,7 +15,7 @@
 #include "Types/Buffer.hpp"
 #include "Types/Image.hpp"
 #include "Types/PipelineVariants.hpp"
-#include "Types/Frame.hpp"
+#include "Types/RenderCommandQueue.hpp"
 #include "Types/Pipelines.hpp"
 
 #include <vector>
@@ -34,6 +34,7 @@ namespace Crescendo::Vulkan
 		VkDescriptorSetLayout fragmentSamplerSetLayout;
 		VkDescriptorSetLayout ssboSetLayout;
 		VkSampler directionalShadowMapSampler;
+		VkSampler postProcessingSampler;
 
 		// Device properties
 		uint32_t minUniformBufferOffsetAlignment;
@@ -73,6 +74,7 @@ namespace Crescendo::Vulkan
 		RenderPass CreateRenderPass(const std::vector<VkAttachmentDescription>& attachments, const std::vector<VkSubpassDescription>& subpasses, const std::vector<VkSubpassDependency>& subpassDependencies);
 		RenderPass CreateDefaultRenderPass(VkFormat colorFormat, VkFormat depthFormat, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
 		RenderPass CreateDefaultShadowRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
+		RenderPass CreatePostProcessingRenderPass(VkFormat colorFormat, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
 		Framebuffer CreateFramebuffer(VkRenderPass renderPass, const std::vector<VkImageView>& attachments, VkExtent2D extent, bool hasColorAttachment, bool hasDepthAttachment);
 		ShaderModule CreateShaderModule(const std::vector<uint8_t>& code);
 		ShaderReflection CreateShaderReflection(const std::vector<uint8_t>& code);
@@ -102,6 +104,7 @@ namespace Crescendo::Vulkan
 		VkDescriptorSetLayout GetFragmentSamplerLayout() const { return fragmentSamplerSetLayout; }
 		VkDescriptorSetLayout GetSSBOLayout() const { return ssboSetLayout; }
 		VkSampler GetDirectionalShadowMapSampler() const { return directionalShadowMapSampler; }
+		VkSampler GetPostProcessingSampler() const { return postProcessingSampler; }
 	public:
 		operator VkDevice() const { return device; }
 	};

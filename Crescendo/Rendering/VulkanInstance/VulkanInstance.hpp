@@ -37,6 +37,16 @@ namespace Crescendo
 		VkSampler sampler;
 		uint32_t textureIndex;
 		uint32_t framebufferIndex;
+
+		ShadowMap() : sampler(nullptr), textureIndex(0), framebufferIndex(0) {}
+	};
+	struct Offscreen
+	{
+		VkSampler sampler;
+		uint32_t textureIndex;
+		uint32_t framebufferIndex;
+
+		Offscreen() : sampler(nullptr), textureIndex(0), framebufferIndex(0) {}
 	};
 
 	class VulkanInstance
@@ -49,7 +59,7 @@ namespace Crescendo
 
 		// Variable setup
 		uint8_t frameIndex = 0;
-		std::vector<Vulkan::Frame> frameData;
+		std::vector<Vulkan::RenderCommandQueue> renderCommandQueues;
 		Vulkan::Swapchain swapchain;
 
 		// Resources
@@ -62,9 +72,10 @@ namespace Crescendo
 
 		std::vector<Vulkan::SSBO> ssbo;
 
-		Vulkan::Image depthBuffer;
+		Vulkan::Image offscreenDepth;
 
 		ShadowMap shadowMap;
+		Offscreen offscreen;
 
 		struct Specifications
 		{
@@ -90,5 +101,8 @@ namespace Crescendo
 
 		Vulkan::Mesh UploadMesh(const cs_std::graphics::mesh& mesh);
 		Vulkan::Texture UploadTexture(const cs_std::image& image, bool generateMipmaps);
+
+		Vulkan::RenderCommandQueue& GetCurrentRenderCommandQueue() { return renderCommandQueues[frameIndex]; }
+		void NextFrame() { frameIndex = (frameIndex + 1) % specs.framesInFlight; }
 	};
 }

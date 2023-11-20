@@ -23,7 +23,6 @@ namespace Crescendo::Vulkan
 		 *	But I reckon it's fine
 		 */
 		vkb::PhysicalDevice vkbPhysicalDevice;
-		cs_std::function_queue deletionQueue;
 		VkInstance instance;
 		VkDebugUtilsMessengerEXT debugMessenger;
 		VkSurfaceKHR surface;

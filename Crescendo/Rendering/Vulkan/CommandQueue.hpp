@@ -150,6 +150,14 @@ namespace Crescendo::Vulkan
 		/// <param name="offset">Offset into the range, assumes 0</param>
 		void PushConstants(VkPipelineLayout layout, const void* data, uint32_t size, VkShaderStageFlags stageFlags, uint32_t offset = 0) const;
 		/// <summary>
+		/// Draw vertices
+		/// </summary>
+		/// <param name="vertexCount"></param>
+		/// <param name="instanceCount"></param>
+		/// <param name="firstVertex"></param>
+		/// <param name="firstInstance"></param>
+		void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t firstVertex = 0, uint32_t firstInstance = 0) const;
+		/// <summary>
 		/// Draw vertices using an index buffer
 		/// </summary>
 		/// <param name="indexCount">Number of indices to draw</param>
