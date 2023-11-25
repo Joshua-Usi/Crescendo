@@ -96,7 +96,7 @@ namespace cs_std::graphics
 	{
 		// Somtimes metallic and roughness are combined into a single texture
 		// We will store both paths in that case, SSO will make sure theres not much overhead
-		std::filesystem::path diffuse, normal, metallic, roughness, metallicRoughness, emissive, occlusion;
+		std::filesystem::path diffuse, normal, metallic, roughness, metallicRoughness, emissive;
 		glm::mat4 transform;
 		bool isDoubleSided, isTransparent;
 
@@ -107,7 +107,7 @@ namespace cs_std::graphics
 			const std::filesystem::path& roughness, const std::filesystem::path& metallicRoughness, const std::filesystem::path& emissive,
 			const std::filesystem::path& occlusion, const glm::mat4& transform, bool isDoubleSided, bool isTransparent)
 			: diffuse(diffuse), normal(normal), metallic(metallic), roughness(roughness),
-			metallicRoughness(metallicRoughness), emissive(emissive), occlusion(occlusion),
+			metallicRoughness(metallicRoughness), emissive(emissive),
 			transform(transform), isDoubleSided(isDoubleSided), isTransparent(isTransparent) {}
 		// Destructor
 		~mesh_attributes() = default;
