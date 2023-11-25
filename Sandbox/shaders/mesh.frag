@@ -18,6 +18,7 @@ layout(set = 3, binding = 0) uniform sampler2D diffuseTex;
 layout(set = 4, binding = 0) uniform sampler2D normalTex;
 layout(set = 5, binding = 0) uniform sampler2D shadowTex;
 
+// Standard hard shadows
 float textureProj(vec4 shadowCoord)
 {
     float shadow = 10.0;
@@ -27,6 +28,59 @@ float textureProj(vec4 shadowCoord)
     shadow = mix(bpli.ambient, shadow, condition);
 
     return shadow;
+}
+
+// PCF soft shadows
+float textureProjPCF(vec4 shadowCoord)
+{
+	const int PCF_SIZE = 5;
+	vec2 filterSize = 1.0f / textureSize(shadowTex, 0);
+	float shadow = 0.0;
+
+    for (int i = -PCF_SIZE; i <= PCF_SIZE; i++)
+	{
+        for (int j = -PCF_SIZE; j <= PCF_SIZE; j++)
+		{
+            shadow += step(shadowCoord.z - 0.002f, texture(shadowTex, vec2(shadowCoord.x + i * filterSize.x, shadowCoord.y + j * filterSize.y)).r);
+        }
+    }
+    shadow /= float((PCF_SIZE * 2 + 1) * (PCF_SIZE * 2 + 1));
+    float inShadowMap = step(0.0f, shadowCoord.w);
+    float lightIntensity = mix(bpli.ambient, 10.0f, shadow);
+    lightIntensity = mix(lightIntensity, 1.0f, 1.0f - inShadowMap);
+
+    return lightIntensity;
+}
+
+// Vogel disk soft shadows
+vec2 vogelDiskSample(int sampleIndex, int samplesCount, float phi)
+{
+	const float goldenAngle = 2.4f;
+	float r = sqrt(float(sampleIndex) / float(samplesCount));
+	float theta = float(sampleIndex) * goldenAngle + phi;
+
+	return vec2(r * cos(theta), r * sin(theta));
+}
+float textureProjVogel(vec4 shadowCoord)
+{
+	const int SAMPLES_COUNT = 32;
+	vec2 filterSize = 1.0f / textureSize(shadowTex, 0);
+	float shadow = 0.0;
+
+	for (int i = 0; i < SAMPLES_COUNT; ++i)
+	{
+        vec2 sampleOffset = vogelDiskSample(i, SAMPLES_COUNT, 0.0) * filterSize;
+        vec2 samplePos = shadowCoord.xy + sampleOffset;
+        shadow += step(shadowCoord.z - 0.002f, texture(shadowTex, samplePos).r);
+    }
+
+	shadow /= float(SAMPLES_COUNT);
+	float inShadowMap = step(0.0f, shadowCoord.w);
+	float lightIntensity = mix(bpli.ambient, 10.0f, shadow);
+	lightIntensity = mix(lightIntensity, 1.0f, 1.0f - inShadowMap);
+
+	return lightIntensity;
+
 }
 
 

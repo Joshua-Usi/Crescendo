@@ -28,28 +28,14 @@ namespace Crescendo
 		float renderScale;
 	};
 
-	class VulkanResourceStorage
-	{
-
-	};
-
-	struct ShadowMap
+	struct SamplableFramebuffer
 	{
 		VkSampler sampler;
-		uint32_t textureIndex;
+		std::vector<uint32_t> textureIndices;
 		uint32_t framebufferIndex;
 
-		ShadowMap() : sampler(nullptr), textureIndex(0), framebufferIndex(0) {}
+		SamplableFramebuffer() : sampler(nullptr), textureIndices(0), framebufferIndex(0) {}
 	};
-	struct Offscreen
-	{
-		VkSampler sampler;
-		uint32_t textureIndex;
-		uint32_t framebufferIndex;
-
-		Offscreen() : sampler(nullptr), textureIndex(0), framebufferIndex(0) {}
-	};
-
 	class VulkanInstance
 	{
 	public:
@@ -73,10 +59,7 @@ namespace Crescendo
 
 		std::vector<Vulkan::SSBO> ssbo;
 
-		Vulkan::Image offscreenDepth;
-
-		ShadowMap shadowMap;
-		Offscreen offscreen;
+		SamplableFramebuffer shadowMap, offscreen;
 
 		 VulkanInstanceSpecification specs;
 	public:
@@ -93,7 +76,8 @@ namespace Crescendo
 		~VulkanInstance();
 	public:
 		void CreateSwapchain();
-		ShadowMap CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height);
+		SamplableFramebuffer CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, VkFormat depthFormat, uint32_t width, uint32_t height);
+		SamplableFramebuffer CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height);
 
 		Vulkan::Mesh UploadMesh(const cs_std::graphics::mesh& mesh);
 		Vulkan::Texture UploadTexture(const cs_std::image& image, bool generateMipmaps);

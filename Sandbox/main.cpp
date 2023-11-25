@@ -57,33 +57,25 @@ public:
 
 		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
 		this->camera.camera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-		this->UICamera = Graphics::OrthographicCamera(
-			glm::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f),
-			glm::vec2(-1.0f, 1.0f)
-		);
+		this->UICamera = Graphics::OrthographicCamera(glm::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f),glm::vec2(-1.0f, 1.0f));
 		this->UICamera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
 		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
 
-		this->shadowMapCamera = Graphics::OrthographicCamera(
-			glm::vec4(-27.5f, 27.5f, -27.5f, 27.5f),
-			glm::vec2(0.0f, 100.0f)
-		);
+		this->shadowMapCamera = Graphics::OrthographicCamera(glm::vec4(-12.5f, 12.5f, -20.0f, 20.0f), glm::vec2(0.0f, 100.0f));
 
 		/* ---------------------------------------------------------------- 0 - Vulkan setup ---------------------------------------------------------------- */
 
-		Crescendo::VulkanInstanceSpecification spec {
+		this->renderer = Crescendo::VulkanInstance({
 			.enableValidationLayers = CVar::Get<bool>("rc_validationlayers"),
 			.appName = CVar::Get<std::string>("rc_appname"),
 			.engineName = CVar::Get<std::string>("rc_enginename"),
 			.window = this->GetWindow()->GetNative(),
-			.descriptorSetsPerPool = static_cast<uint32_t>(CVar::Get<int64_t>("rc_descriptorsetsperpool")),
+			.descriptorSetsPerPool = static_cast<uint32_t>(CVar::Get<int64_t>("irc_descriptorsetsperpool")),
 			.framesInFlight = static_cast<uint32_t>(CVar::Get<int64_t>("rc_framesinflight")),
 			.anisotropicSamples = static_cast<uint32_t>(CVar::Get<int64_t>("rc_anisotropicsamples")),
 			.multisamples = static_cast<uint32_t>(CVar::Get<int64_t>("rc_multisamples")),
 			.renderScale = CVar::Get<float>("rc_renderscale")
-		};
-
-		this->renderer = Crescendo::VulkanInstance(spec);
+		});
 
 		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
 		struct Shader { std::string name; Crescendo::Vulkan::PipelineVariants variants; };
@@ -169,6 +161,7 @@ public:
 
 		uint32_t modelIndex = 0;
 		uint32_t textureIndex = 0;
+		const uint32_t currentTextureCount = this->renderer.textures.capacity();
 		std::map<std::filesystem::path, uint32_t> seenTextures;
 
 		uint32_t indexCount = 0;
@@ -199,7 +192,7 @@ public:
 
 				this->modelData.emplace_back(
 					cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform),
-					seenTextures[attributes.diffuse] + 2, seenTextures[attributes.normal] + 2,
+					seenTextures[attributes.diffuse] + currentTextureCount, seenTextures[attributes.normal] + currentTextureCount,
 					attributes.isTransparent, attributes.isDoubleSided, true
 				);
 
@@ -211,8 +204,6 @@ public:
 				modelIndex++;
 			}
 		}
-
-		cs_std::console::log("Total scene indices:", indexCount);
 
 		/* ---------------------------------------------------------------- 1.3 - Texture Data ---------------------------------------------------------------- */
 
@@ -237,7 +228,7 @@ public:
 		cs_std::console::raw('\n');
 		this->taskQueue.sleep();
 
-		for (auto& image : images) this->renderer.textures.insert(this->renderer.UploadTexture(image, false));
+		for (auto& image : images) this->renderer.textures.insert(this->renderer.UploadTexture(image, true));
 	}
 	void OnUpdate(double dt)
 	{
@@ -245,7 +236,7 @@ public:
 
 		this->camera.Update();
 
-		float currentTime = this->GetTime<float>() / 20.0f - 2.0f;
+		float currentTime = 0.0f;
 		this->shadowMapCamera.SetPosition(glm::vec3(std::sinf(currentTime) * 75.0f, std::cosf(currentTime) * 75.0f, 0.0f));
 		this->shadowMapCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f));
 
@@ -256,7 +247,7 @@ public:
 		Crescendo::Vulkan::Pipelines& skyboxPipeline = this->renderer.pipelines[2];
 		Crescendo::Vulkan::Pipelines& shadowPipeline = this->renderer.pipelines[3];
 		Crescendo::Vulkan::Pipelines& uiPipeline = this->renderer.pipelines[4];
-		Crescendo::Vulkan::Pipelines & postProcessingPipeline = this->renderer.pipelines[5];
+		Crescendo::Vulkan::Pipelines& postProcessingPipeline = this->renderer.pipelines[5];
 
 		// Render prep
 		const glm::mat4 projections[2] { this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
@@ -278,6 +269,7 @@ public:
 		cmd.WaitCompletion();
 		cmd.Reset();
 
+		// Get the next image
 		uint32_t currentImage = this->renderer.swapchain.AcquireNextImage(cur.presentReady);
 		if (this->renderer.swapchain.NeedsRecreation())
 		{
@@ -322,6 +314,8 @@ public:
 			{
 				// Normal rendering
 				cs_std::graphics::frustum frustum = cs_std::graphics::frustum(this->camera.camera.GetViewProjectionMatrix());
+				float time = this->GetTime<float>();
+				cmd.PushConstants(defaultPipeline, time, VK_SHADER_STAGE_VERTEX_BIT);
 				for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 2; i++)
 				{
 					const Crescendo::Vulkan::Mesh& mesh = this->renderer.meshes[i];
@@ -335,7 +329,7 @@ public:
 					// Bind storage descriptor sets
 					cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
 					// Bind texture descriptor sets
-					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[this->modelData[i].textureID].set, this->renderer.textures[this->modelData[i].normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndex].set }, {}, 3);
+					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[this->modelData[i].textureID].set, this->renderer.textures[this->modelData[i].normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
 					// Bind vertex meshes
 					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(mesh);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
@@ -365,7 +359,7 @@ public:
 					// Bind storage descriptor sets
 					cmd.BindDescriptorSet(uiPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
 					// Bind texture descriptor sets
-					cmd.BindDescriptorSet(uiPipeline, this->renderer.textures[this->renderer.shadowMap.textureIndex].set, 0, 2);
+					cmd.BindDescriptorSet(uiPipeline, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set, 0, 2);
 					// Bind vertex meshes
 					std::vector<VkBuffer> buffers = uiPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 1]);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
@@ -382,7 +376,7 @@ public:
 			{
 				cmd.BindPipeline(postProcessingPipeline[0]);
 				// Bind texture
-				cmd.BindDescriptorSet(postProcessingPipeline, this->renderer.textures[this->renderer.offscreen.textureIndex].set, 0, 0);
+				cmd.BindDescriptorSet(postProcessingPipeline, this->renderer.textures[this->renderer.offscreen.textureIndices[0]].set, 0, 0);
 				cmd.Draw(6);
 			}
 			cmd.EndRenderPass();

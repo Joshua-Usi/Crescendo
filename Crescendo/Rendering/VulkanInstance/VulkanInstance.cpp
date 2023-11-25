@@ -51,8 +51,11 @@ namespace Crescendo
 		if (this->renderPasses.capacity() > 0) this->renderPasses.erase(0);
 		// Explicitly destroy swapchain and depth buffer
 		this->swapchain.~Swapchain();
-		if (this->textures.capacity() > 0) this->textures.erase(this->offscreen.textureIndex);
-		this->offscreenDepth.~Image();
+		if (this->textures.capacity() > 0)
+		{
+			for (const auto& index : this->offscreen.textureIndices) this->textures.erase(index);
+			for (const auto& index : this->shadowMap.textureIndices) this->textures.erase(index);
+		}
 
 		/* ---------------------------------------------------------------- 2 - Swapchain framebuffers ---------------------------------------------------------------- */
 
@@ -74,28 +77,43 @@ namespace Crescendo
 		offscreenExtent.width = static_cast<uint32_t>(static_cast<float>(offscreenExtent.width) * specs.renderScale);
 		offscreenExtent.height = static_cast<uint32_t>(static_cast<float>(offscreenExtent.height) * specs.renderScale);
 
-		Vulkan::Texture offscreenTexture{};
-		offscreenTexture.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, OFFSCREEN_FORMAT, offscreenExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
-		offscreenTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetPostProcessingSampler(), offscreenTexture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-		this->offscreenDepth = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, DEPTH_FORMAT, offscreenExtent, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
-		this->offscreen.sampler = this->device.GetPostProcessingSampler();
-		this->offscreen.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[drpIdx], { offscreenTexture.image.imageView, this->offscreenDepth.imageView }, { offscreenExtent.width, offscreenExtent.height }, true, true));
-		this->offscreen.textureIndex = this->textures.insert(std::move(offscreenTexture));
+		// Create offscreen framebuffer
+		this->offscreen = this->CreateOffscreen(this->renderPasses[drpIdx], OFFSCREEN_FORMAT, DEPTH_FORMAT, offscreenExtent.width, offscreenExtent.height);
 
 		// Create shadow map
 		this->shadowMap = this->CreateShadowMap(this->renderPasses[smrpi], SHADOW_MAP_FORMAT, SHADOW_MAP_RES, SHADOW_MAP_RES);
 	}
-	ShadowMap VulkanInstance::CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height)
+	SamplableFramebuffer VulkanInstance::CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, VkFormat depthFormat, uint32_t width, uint32_t height)
 	{
-		ShadowMap map {};
+		SamplableFramebuffer offscreen {};
+
+		Vulkan::Texture offscreenTexture{};
+		offscreenTexture.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, colorFormat, { width, height, 1 }, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
+		offscreenTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetPostProcessingSampler(), offscreenTexture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		Vulkan::Texture offscreenTextureDepth{};
+		offscreenTextureDepth.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, depthFormat, { width, height, 1 }, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
+		offscreenTextureDepth.set = nullptr;
+
+		offscreen.sampler = this->device.GetPostProcessingSampler();
+		offscreen.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(pass, { offscreenTexture.image.imageView, offscreenTextureDepth.image.imageView }, { width, height }, true, true));
+		offscreen.textureIndices = {
+			static_cast<uint32_t>(this->textures.insert(std::move(offscreenTexture))),
+			static_cast<uint32_t>(this->textures.insert(std::move(offscreenTextureDepth)))
+		};
+
+		return offscreen;
+	}
+	SamplableFramebuffer VulkanInstance::CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height)
+	{
+		SamplableFramebuffer map {};
 
 		Vulkan::Texture shadowTexture{};
 		shadowTexture.image = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, format, Crescendo::Vulkan::Create::Extent3D(width, height, 1), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
 		shadowTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetDirectionalShadowMapSampler(), shadowTexture.image, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 		map.sampler = this->device.GetDirectionalShadowMapSampler();
 		map.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(renderPass, { shadowTexture.image.imageView }, { width, height }, false, true));
-		map.textureIndex = this->textures.insert(std::move(shadowTexture));
+		map.textureIndices.push_back(this->textures.insert(std::move(shadowTexture)));
 
 		return map;
 	}

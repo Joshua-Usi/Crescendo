@@ -25,6 +25,12 @@ layout(std140, set = 2, binding = 0) readonly buffer ShaderStorage {
 	mat4 modelBuffer[];
 };
 
+layout(push_constant) uniform constants
+{
+	// Time used as a wind shader to offset vertices
+	float time;
+};
+
 const mat4 bias = mat4( 
 	0.5, 0.0, 0.0, 0.0,
 	0.0, 0.5, 0.0, 0.0,
@@ -53,4 +59,12 @@ void main()
 	oFragPosLightSpace = (bias * lightSpaceMatrix * model) * vec4(iPosition, 1.0f);
 	
 	gl_Position = viewProjection * model * vec4(iPosition, 1.0f);
+	
+	// wind shader, offsets in every direction
+	// vec3 pos = iPosition;
+	// pos.x += sin(time * 1.0f + pos.y * 8.0f) * 0.025f;
+	// pos.y += sin(time * 1.0f + pos.x * 8.0f) * 0.025f;
+	// pos.z += sin(time * 1.0f + pos.y * 8.0f) * 0.025f;
+	// gl_Position = viewProjection * model * vec4(pos, 1.0f);
+
 }
