@@ -25,6 +25,7 @@ namespace Crescendo::IO
 		{
 			memcpy(newPixels.data(), pixels, width * height * FIXED_CHANNELS);
 		}
+		// Dead code for now
 		else
 		{
 			// Optional downsampling code

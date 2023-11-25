@@ -168,6 +168,6 @@ namespace Crescendo::Graphics
 
 		virtual void SetOrthoBounds(const glm::vec4& bounds) final { this->bounds = bounds; };
 		virtual void OrthoZoom(float factor) final { this->bounds *= factor; };
-		virtual glm::vec4 GetOrthoBounds() const  final { return this->bounds; };
+		virtual glm::vec4 GetOrthoBounds() const final { return this->bounds; };
 	};
 }

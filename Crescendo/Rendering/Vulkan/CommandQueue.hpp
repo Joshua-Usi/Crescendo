@@ -136,7 +136,7 @@ namespace Crescendo::Vulkan
 		/// <param name="pipeline">Pipeline</param>
 		/// <param name="bindPoint">Automatically presumes GRAPHICS</param>
 		void BindPipeline(VkPipeline pipeline, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
-		template <typename T> void PushConstants(VkPipelineLayout layout, const T& data, VkShaderStageFlags stageFlags, uint32_t offset = 0) const
+		template <typename T> void PushConstants(VkPipelineLayout layout, T& data, VkShaderStageFlags stageFlags, uint32_t offset = 0) const
 		{
 			PushConstants(layout, &data, sizeof(T), stageFlags, offset);
 		}
