@@ -7,6 +7,9 @@ layout(location = 0) out vec4 oColor;
 layout(set = 0, binding = 0) uniform sampler2D image;
 
 vec3 ACESFilm(vec3 x) {
+	// a and c are determine the strength of the tonemap. Higher values result in higher constrast
+	// b and e define offsets that manage the black level of toe of the curve, controls how the darkest parts are rendered
+	// d is the midtone coefficient, controling midtones of the image
     const float a = 2.51f, b = 0.03f, c = 2.43f, d = 0.59f, e = 0.14f;
     return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0f, 1.0f);
 }
@@ -19,7 +22,7 @@ void main()
 	oColor = vec4(ACESFilm(hdrColor), 1.0f);
 
 	// Unmodified
-	oColor = vec4(texture(image, iTexCoord).rgb, 1.0f);
+	// oColor = vec4(texture(image, iTexCoord).rgb, 1.0f);
 	
 	// Inverted
 	// oColor = vec4(1.0f - pow(texture(image, iTexCoord).rgb, vec3(1.0f / 2.2f)), 1.0f);
