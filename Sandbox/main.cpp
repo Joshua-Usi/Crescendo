@@ -370,7 +370,7 @@ public:
 			}
 			cmd.EndRenderPass();
 			// Post-processing step
-			cmd.DynamicStateSetViewport(framebuffer.GetViewport(false));
+			cmd.DynamicStateSetViewport(framebuffer.GetViewport());
 			cmd.DynamicStateSetScissor(framebuffer.GetScissor());
 			cmd.BeginRenderPass(framebuffer.renderPass, framebuffer, framebuffer.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f } });
 			{

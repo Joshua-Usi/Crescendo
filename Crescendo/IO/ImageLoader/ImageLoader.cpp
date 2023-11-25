@@ -2,17 +2,26 @@
 
 #include "Core/common.hpp"
 
+#include "cs_std/file.hpp"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
+
+#include <bit>
 
 namespace Crescendo::IO
 {
 	cs_std::image LoadImage(const std::filesystem::path& path)
 	{
-		constexpr int FIXED_CHANNELS = 4;
-		int width, height, channels;
-		// Force 4 channel RGBA
-		stbi_uc* pixels = stbi_load(path.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+		int width, height, channels, tmp;
+
+		std::vector<cs_std::byte> data = cs_std::binary_file(path).open().read();
+		stbi_info_from_memory(reinterpret_cast<stbi_uc*>(data.data()), static_cast<int>(data.size()), &width, &height, &channels);
+		channels = static_cast<int>(std::bit_ceil(static_cast<uint64_t>(channels)));
+		cs_std::console::log(path, "has", channels, "channels");
+
+ 		stbi_uc* pixels = stbi_load_from_memory(reinterpret_cast<stbi_uc*>(data.data()), static_cast<int>(data.size()), &width, &height, &tmp, channels);
+
 		if (pixels == nullptr)
 		{
 			cs_std::console::error("Failed to load image: " + path.string());
@@ -20,10 +29,10 @@ namespace Crescendo::IO
 		}
 
 		constexpr uint32_t scaleFactor = 1;
-		std::vector<uint8_t> newPixels(width * height * FIXED_CHANNELS / (scaleFactor * scaleFactor));
+		std::vector<uint8_t> newPixels(width * height * channels / (scaleFactor * scaleFactor));
 		if (scaleFactor == 1)
 		{
-			memcpy(newPixels.data(), pixels, width * height * FIXED_CHANNELS);
+			memcpy(newPixels.data(), pixels, width * height * channels);
 		}
 		// Dead code for now
 		else
@@ -34,14 +43,14 @@ namespace Crescendo::IO
 			{
 				for (uint32_t j = 0; j < width / scaleFactor; j++)
 				{
-					for (uint32_t k = 0; k < FIXED_CHANNELS; k++)
+					for (uint32_t k = 0; k < channels; k++)
 					{
-						newPixels[(i * width / scaleFactor + j) * FIXED_CHANNELS + k] = pixels[((i * width + j) * scaleFactor) * FIXED_CHANNELS + k];
+						newPixels[(i * width / scaleFactor + j) * channels + k] = pixels[((i * width + j) * scaleFactor) * channels + k];
 					}
 				}
 			}
 		}
 		stbi_image_free(pixels);
-		return cs_std::image(newPixels, width / scaleFactor, height / scaleFactor, FIXED_CHANNELS);
+		return cs_std::image(newPixels, width / scaleFactor, height / scaleFactor, channels);
 	}
 }
