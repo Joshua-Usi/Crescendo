@@ -237,6 +237,19 @@ namespace Crescendo::Vulkan
 		}
 	public:
 		PipelineVariants operator[](uint32_t index) const { return GetVariant(index); }
+	public:
+		struct Iterator {
+		private:
+			const PipelineVariants& pipelineVariants;
+			uint32_t currentIndex;
+		public:
+			Iterator(const PipelineVariants& pv, uint32_t index) : pipelineVariants(pv), currentIndex(index) {}
+			Iterator& operator++() { currentIndex++; return *this; }
+			bool operator!=(const Iterator& other) const { return currentIndex != other.currentIndex; }
+			PipelineVariants operator*() const { return pipelineVariants.GetVariant(currentIndex); }
+		};
+		Iterator begin() const { return Iterator(*this, 0); }
+		Iterator end() const { return Iterator(*this, GetVariantCount()); }
 	};
 }
 

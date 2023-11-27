@@ -215,7 +215,7 @@ namespace Crescendo::Vulkan
 	}
 	Pipelines Device::CreatePipelines(const std::vector<uint8_t>& vertexCode, const std::vector<uint8_t>& fragmentCode, const PipelineVariants& variant)
 	{
-		constexpr std::array<std::pair<const char*, cs_std::graphics::Attribute>, 12> ATTRIBUTE_MAP = {
+		constexpr std::array<std::pair<const char*, cs_std::graphics::Attribute>, 12> ATTRIBUTE_MAP {
 			std::make_pair("iPosition",		cs_std::graphics::Attribute::POSITION),
 			std::make_pair("iNormal",		cs_std::graphics::Attribute::NORMAL),
 			std::make_pair("iTangent",		cs_std::graphics::Attribute::TANGENT),
@@ -230,7 +230,7 @@ namespace Crescendo::Vulkan
 			std::make_pair("iWeights0",		cs_std::graphics::Attribute::WEIGHTS_0)
 		};
 		// We we always use dynamic states, there is really no performance penalty for just viewports and scissors and it means we don't need to recreate pipelines when resizing
-		constexpr std::array<VkDynamicState, 2> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+		constexpr std::array<VkDynamicState, 2> dynamicStates { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 
 		// TODO when an empty shader is passed in, don't create a module for it
 		const ShaderModule	vertexModule = this->CreateShaderModule(vertexCode),
@@ -319,10 +319,8 @@ namespace Crescendo::Vulkan
 		if (vertexCode.size() > 0) stages.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertexModule));
 		if (fragmentCode.size() > 0) stages.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentModule));
 
-		for (uint32_t i = 0, n = variant.GetVariantCount(); i < n; i++)
+		for (const auto& thisVariant : variant)
 		{
-			PipelineVariants thisVariant = variant.GetVariant(i);
-
 			const PipelineBuilderInfo pipelineBuilderInfo = {
 				.dynamicState = Create::PipelineDynamicStateCreateInfo(dynamicStates),
 				.shaderStagesInfo = stages,
