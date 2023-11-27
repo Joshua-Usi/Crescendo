@@ -18,7 +18,6 @@ namespace Crescendo::IO
 		std::vector<cs_std::byte> data = cs_std::binary_file(path).open().read();
 		stbi_info_from_memory(reinterpret_cast<stbi_uc*>(data.data()), static_cast<int>(data.size()), &width, &height, &channels);
 		channels = static_cast<int>(std::bit_ceil(static_cast<uint64_t>(channels)));
-		cs_std::console::log(path, "has", channels, "channels");
 
  		stbi_uc* pixels = stbi_load_from_memory(reinterpret_cast<stbi_uc*>(data.data()), static_cast<int>(data.size()), &width, &height, &tmp, channels);
 
