@@ -232,6 +232,7 @@ namespace Crescendo::Vulkan
 		// We we always use dynamic states, there is really no performance penalty for just viewports and scissors and it means we don't need to recreate pipelines when resizing
 		constexpr std::array<VkDynamicState, 2> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 
+		// TODO when an empty shader is passed in, don't create a module for it
 		const ShaderModule	vertexModule = this->CreateShaderModule(vertexCode),
 						fragmentModule = this->CreateShaderModule(fragmentCode);
 		const ShaderReflection vertexReflection = this->CreateShaderReflection(vertexCode),
@@ -312,16 +313,19 @@ namespace Crescendo::Vulkan
 
 		// Generate each pipeline
 		std::vector<VkPipeline> pipelines;
+		
+		// Cache stages
+		std::vector<VkPipelineShaderStageCreateInfo> stages;
+		if (vertexCode.size() > 0) stages.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertexModule));
+		if (fragmentCode.size() > 0) stages.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentModule));
+
 		for (uint32_t i = 0, n = variant.GetVariantCount(); i < n; i++)
 		{
 			PipelineVariants thisVariant = variant.GetVariant(i);
 
 			const PipelineBuilderInfo pipelineBuilderInfo = {
 				.dynamicState = Create::PipelineDynamicStateCreateInfo(dynamicStates),
-				.shaderStagesInfo = {
-					Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertexModule),
-					Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentModule)
-				},
+				.shaderStagesInfo = stages,
 				.vertexInputInfo = Create::PipelineVertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions),
 				.inputAssemblyInfo = Create::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE),
 				.rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(

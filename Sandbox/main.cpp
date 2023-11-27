@@ -92,8 +92,8 @@ public:
 		for (const auto& shader : shaderList)
 		{
 			this->renderer.pipelines.insert(this->renderer.device.CreatePipelines(
-				cs_std::binary_file(shader.name + ".vert.spv").open().read(),
-				cs_std::binary_file(shader.name + ".frag.spv").open().read(),
+				cs_std::binary_file(shader.name + ".vert.spv").open().read_if_exists(),
+				cs_std::binary_file(shader.name + ".frag.spv").open().read_if_exists(),
 				shader.variants
 			));
 		}
