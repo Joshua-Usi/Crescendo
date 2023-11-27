@@ -1,5 +1,7 @@
 #include "ModelLoader.hpp"
 
+#include "Core/common.hpp"
+
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
@@ -93,7 +95,10 @@ namespace Crescendo::IO
 		tinygltf::Model gltfModel;
 		std::string err, warn;
 
-		if (!loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path.string())) return model;
+		if (!loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path.string()))
+		{
+			cs_std::console::error("Failed to load GLTF file: ", path.string(), ". Reason: ", err);
+		}
 
 		std::unordered_map<uint32_t, NodeData> nodeToMesh;
 		for (auto& node : gltfModel.scenes[gltfModel.defaultScene].nodes) traverseNode(gltfModel, nodeToMesh, gltfModel.nodes[node]);

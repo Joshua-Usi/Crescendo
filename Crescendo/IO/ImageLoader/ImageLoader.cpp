@@ -23,7 +23,7 @@ namespace Crescendo::IO
 
 		if (pixels == nullptr)
 		{
-			cs_std::console::error("Failed to load image: " + path.string());
+			cs_std::console::error("Failed to load image: " + path.string(), ". Reason: ", stbi_failure_reason());
 			return cs_std::image();
 		}
 
