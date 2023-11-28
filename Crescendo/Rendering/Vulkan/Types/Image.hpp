@@ -1,9 +1,11 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "Volk/volk.h"
 #include "vma/vk_mem_alloc.h"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	struct Image
 	{

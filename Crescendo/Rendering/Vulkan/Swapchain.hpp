@@ -1,12 +1,12 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "volk/volk.h"
 
 #include "Types/Image.hpp"
 
-#include <vector>
-
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	class Swapchain
 	{

@@ -1,9 +1,11 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "glm/glm.hpp"
 #include "glm/gtx/quaternion.hpp"
 
-namespace Crescendo::Graphics
+CS_NAMESPACE_BEGIN
 {
 	namespace internal
 	{
@@ -27,9 +29,7 @@ namespace Crescendo::Graphics
 			}
 			else
 			{
-				float sqx = q.x * q.x;
-				float sqy = q.y * q.y;
-				float sqz = q.z * q.z;
+				float sqx = q.x * q.x, sqy = q.y * q.y, sqz = q.z * q.z;
 				euler.y = std::atan2(2.0f * q.y * q.w - 2.0f * q.x * q.z, 1.0f - 2.0f * sqy - 2.0f * sqz);
 				euler.z = std::asin(2.0f * test);
 				euler.x = std::atan2(2.0f * q.x * q.w - 2.0f * q.y * q.z, 1.0f - 2.0f * sqx - 2.0f * sqz);
@@ -37,9 +37,6 @@ namespace Crescendo::Graphics
 			return euler;
 		}
 	}
-	/// <summary>
-	/// Pure data-only camera
-	/// </summary>
 	class Camera
 	{
 	protected:

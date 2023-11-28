@@ -1,11 +1,10 @@
 #include "VulkanInstance.hpp"
-#include "Core/common.hpp"
 
 #include "glfw/glfw3.h"
 
-namespace Crescendo
+CS_NAMESPACE_BEGIN
 {
-	VulkanInstance::VulkanInstance(const VulkanInstanceSpecification& spec) : specs(spec)
+	VulkanInstance::VulkanInstance(const VulkanInstanceSpecification & spec) : specs(spec)
 	{
 		const size_t SSBO_OBJECT_COUNT = 8192;
 
@@ -109,7 +108,7 @@ namespace Crescendo
 		SamplableFramebuffer map {};
 
 		Vulkan::Texture shadowTexture{};
-		shadowTexture.image = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, format, Crescendo::Vulkan::Create::Extent3D(width, height, 1), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
+		shadowTexture.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, format, Vulkan::Create::Extent3D(width, height, 1), 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
 		shadowTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetDirectionalShadowMapSampler(), shadowTexture.image, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
 		map.sampler = this->device.GetDirectionalShadowMapSampler();
 		map.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(renderPass, { shadowTexture.image.imageView }, { width, height }, false, true));
@@ -117,7 +116,7 @@ namespace Crescendo
 
 		return map;
 	}
-	Vulkan::Mesh VulkanInstance::UploadMesh(const cs_std::graphics::mesh& mesh)
+	Vulkan::Mesh VulkanInstance::UploadMesh(const cs_std::graphics::mesh & mesh)
 	{
 		/* ---------------------------------------------------------------- 0 - Mesh validation ---------------------------------------------------------------- */
 
@@ -163,23 +162,23 @@ namespace Crescendo
 		for (const auto& attribute : mesh.attributes) bufferOffsets.push_back(bufferOffsets.back() + attribute.data.size() * sizeof(float));
 
 		// Stage all data into one buffer, reduces allocations
-		Crescendo::Vulkan::Buffer staging = this->device.CreateBuffer(bufferOffsets.back(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+		Vulkan::Buffer staging = this->device.CreateBuffer(bufferOffsets.back(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 		staging.Fill(0, mesh.indices.data(), mesh.indices.size() * sizeof(uint32_t));
 		for (size_t i = 0; i < mesh.attributes.size(); i++) staging.Fill(bufferOffsets[i + 1], mesh.attributes[i].data.data(), mesh.attributes[i].data.size() * sizeof(float));
 
 		/* ---------------------------------------------------------------- 2 - Transfer ---------------------------------------------------------------- */
 
 		// Upload data to the GPU
-		this->transferQueue.InstantSubmit([&](const Crescendo::Vulkan::TransferCommandQueue& cmd) {
+		this->transferQueue.InstantSubmit([&](const Vulkan::TransferCommandQueue& cmd) {
 			// Copy index data
-			VkBufferCopy copy = Crescendo::Vulkan::Create::BufferCopy(0, 0, mesh.indices.size() * sizeof(uint32_t));
+			VkBufferCopy copy = Vulkan::Create::BufferCopy(0, 0, mesh.indices.size() * sizeof(uint32_t));
 			cmd.CopyBuffer(staging.buffer, gpuMesh.indexBuffer, copy);
 
 			// Copy other vertex attributes
 			uint32_t offset = 1;
 			for (const auto& attribute : gpuMesh.vertexAttributes)
 			{
-				VkBufferCopy copy = Crescendo::Vulkan::Create::BufferCopy(bufferOffsets[offset], 0, attribute.elements * sizeof(float));
+				VkBufferCopy copy = Vulkan::Create::BufferCopy(bufferOffsets[offset], 0, attribute.elements * sizeof(float));
 				cmd.CopyBuffer(staging.buffer, attribute.buffer, copy);
 				offset++;
 			}
@@ -187,7 +186,7 @@ namespace Crescendo
 
 		return gpuMesh;
 	}
-	Vulkan::Texture VulkanInstance::UploadTexture(const cs_std::image& image, bool generateMipmaps)
+	Vulkan::Texture VulkanInstance::UploadTexture(const cs_std::image & image, bool generateMipmaps)
 	{
 		/* ----------------------------------------------------------------  0 - Dynamic sampler creation ---------------------------------------------------------------- */
 
@@ -200,7 +199,7 @@ namespace Crescendo
 
 		// Create samplers dynamically as required for mip levels
 		// TODO add anisotropy
-		VkSamplerCreateInfo samplerInfo = Crescendo::Vulkan::Create::SamplerCreateInfo(
+		VkSamplerCreateInfo samplerInfo = Vulkan::Create::SamplerCreateInfo(
 			VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
 			this->specs.anisotropicSamples, 1.0f
 		);
@@ -213,11 +212,11 @@ namespace Crescendo
 		/* ----------------------------------------------------------------  1 - Staging ---------------------------------------------------------------- */
 
 		// Stage the image data
-		Crescendo::Vulkan::Buffer staging = this->device.CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY).Fill(0, image.data.data(), imageSize);
+		Vulkan::Buffer staging = this->device.CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY).Fill(0, image.data.data(), imageSize);
 
 		// Create the image
-		const VkExtent3D extent = Crescendo::Vulkan::Create::Extent3D(image.width, image.height, 1);
-		Crescendo::Vulkan::Image texture = this->device.CreateImage(Crescendo::Vulkan::Create::ImageCreateInfo(
+		const VkExtent3D extent = Vulkan::Create::Extent3D(image.width, image.height, 1);
+		Vulkan::Image texture = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(
 			VK_IMAGE_TYPE_2D, DEFAULT_FORMAT, extent,
 			mipLevels, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -226,24 +225,24 @@ namespace Crescendo
 
 		/* ----------------------------------------------------------------  2 - Generate mipmaps ---------------------------------------------------------------- */
 
-		this->transferQueue.InstantSubmit([&](const Crescendo::Vulkan::TransferCommandQueue& cmd) {
+		this->transferQueue.InstantSubmit([&](const Vulkan::TransferCommandQueue& cmd) {
 			// Transition to blit compatible
-			VkImageMemoryBarrier barrier = Crescendo::Vulkan::Create::ImageMemoryBarrier(
+			VkImageMemoryBarrier barrier = Vulkan::Create::ImageMemoryBarrier(
 				0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, texture.image,
-				Crescendo::Vulkan::Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
+				Vulkan::Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 			);
 			cmd.ResourceBarrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, barrier);
 			// Copy buffer to image
-			const VkBufferImageCopy region = Crescendo::Vulkan::Create::BufferImageCopy(
-				0, 0, 0, Crescendo::Vulkan::Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1), Crescendo::Vulkan::Create::Offset3D(0, 0, 0), extent
+			const VkBufferImageCopy region = Vulkan::Create::BufferImageCopy(
+				0, 0, 0, Vulkan::Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1), Vulkan::Create::Offset3D(0, 0, 0), extent
 			);
 			cmd.CopyBufferToImage(staging.buffer, texture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region);
 			// Transition the image to a transfer destination
-			barrier = Crescendo::Vulkan::Create::ImageMemoryBarrier(
+			barrier = Vulkan::Create::ImageMemoryBarrier(
 				0, 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_UNDEFINED,
 				VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, texture.image,
-				Crescendo::Vulkan::Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
+				Vulkan::Create::ImageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
 			);
 			// Generate each of the mips
 			uint32_t mipWidth = image.width, mipHeight = image.height;
@@ -255,11 +254,11 @@ namespace Crescendo
 				barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 				barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 				cmd.ResourceBarrier(VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, barrier);
-				const VkImageBlit blit = Crescendo::Vulkan::Create::ImageBlit(
-					Crescendo::Vulkan::Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i - 1, 0, 1),
-					Crescendo::Vulkan::Create::Offset3D(0, 0, 0), Crescendo::Vulkan::Create::Offset3D(static_cast<int32_t>(mipWidth), static_cast<int32_t>(mipHeight), 1),
-					Crescendo::Vulkan::Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i, 0, 1),
-					Crescendo::Vulkan::Create::Offset3D(0, 0, 0), Crescendo::Vulkan::Create::Offset3D(static_cast<int32_t>(std::max(mipWidth / 2, 1u)), static_cast<int32_t>(std::max(mipHeight / 2, 1u)), 1)
+				const VkImageBlit blit = Vulkan::Create::ImageBlit(
+					Vulkan::Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i - 1, 0, 1),
+					Vulkan::Create::Offset3D(0, 0, 0), Vulkan::Create::Offset3D(static_cast<int32_t>(mipWidth), static_cast<int32_t>(mipHeight), 1),
+					Vulkan::Create::ImageSubresourceLayers(VK_IMAGE_ASPECT_COLOR_BIT, i, 0, 1),
+					Vulkan::Create::Offset3D(0, 0, 0), Vulkan::Create::Offset3D(static_cast<int32_t>(std::max(mipWidth / 2, 1u)), static_cast<int32_t>(std::max(mipHeight / 2, 1u)), 1)
 				);
 				cmd.BlitImage(texture.image, texture.image, blit);
 				barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;

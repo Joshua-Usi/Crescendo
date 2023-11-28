@@ -4,18 +4,18 @@
 
 #include <numbers>
 
-using namespace Crescendo::Engine;
+using namespace CrescendoEngine;
 
 class CameraController
 {
 public:
-	Crescendo::Graphics::PerspectiveCamera camera = {};
+	PerspectiveCamera camera = {};
 	float pMouseX = 0.0f, pMouseY = 0.0f, sens = 0.0005f;
 
 	CameraController() = default;
 	inline CameraController(float fov, float aspectRatio, const glm::vec2& clipPlane)
 	{
-		this->camera = Crescendo::Graphics::PerspectiveCamera(fov, aspectRatio, clipPlane);
+		this->camera = PerspectiveCamera(fov, aspectRatio, clipPlane);
 	}
 	inline void Update()
 	{

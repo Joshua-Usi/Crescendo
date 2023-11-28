@@ -1,14 +1,13 @@
 #pragma once
 
-#include "Volk/volk.h"
+#include "common.hpp"
 
-#include <array>
-#include <vector>
+#include "Volk/volk.h"
 
 /// <summary>
 /// Argument order is defined exactly as in the Vulkan API.
 /// </summary>
-namespace Crescendo::Vulkan::Create
+CS_NAMESPACE_BEGIN::Vulkan::Create
 {
 	template<typename T = std::vector<VkSemaphore>, typename U = std::vector<uint32_t>, typename V = std::vector<VkCommandBuffer>, typename W = std::vector<VkSemaphore>>
 	inline constexpr VkSubmitInfo SubmitInfo(const T& waitSemaphores, const U& waitDstStageMask, const V& commandBuffers, const W& signalSemaphores)

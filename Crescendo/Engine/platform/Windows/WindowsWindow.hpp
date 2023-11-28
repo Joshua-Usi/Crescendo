@@ -5,36 +5,34 @@
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
 
-namespace Crescendo::Engine
+CS_NAMESPACE_BEGIN
 {
 	class WindowsWindow : public Window
 	{
 	private:
 		GLFWwindow* window;
 	public:
-		WindowsWindow(const WindowProperties& props);
+		WindowsWindow(const Properties& props);
 		virtual ~WindowsWindow() override;
-
 		WindowsWindow(const WindowsWindow&) = delete;
 		WindowsWindow& operator=(const WindowsWindow&) = delete;
-
+	public:
 		virtual void Close() override final;
-		virtual void OnUpdate() override final;
-
+		virtual void OnUpdate() override final {};
+	public:
 		virtual uint32_t GetWidth() const override final;
 		virtual uint32_t GetHeight() const override final;
 		virtual float GetAspectRatio() const override final;
 		virtual void* GetNative() const override final;
 		virtual int32_t GetRefreshRate() const override final;
 		virtual std::string GetName() const override final;
-
+	public:
 		virtual void SetVSync(bool isEnabled) override final;
 		virtual void SetCursorLock(bool isEnabled) override final;
 		virtual void SetName(const std::string& name) override final;
 		virtual void SetFullScreen(bool isFullScreen) override final;
 		virtual void SetSize(uint32_t width, uint32_t height) override final;
-
-
+	public:
 		virtual bool IsVSynced() const override final;
 		virtual bool IsCursorLocked() const override final;
 		virtual bool IsOpen() const override final;

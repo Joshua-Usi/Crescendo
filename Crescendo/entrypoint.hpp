@@ -3,18 +3,17 @@
 #include "Engine/Application/Application.hpp"
 
 #ifdef CS_PLATFORM_WINDOWS
-// Entrypoint so the user does not need to write their own main function
-int main(int argc, char** argv)
-{
-	// TODO Handle command line arguments
-	unique<Crescendo::Engine::Application> app;
-	do
+	int main(int argc, char** argv)
 	{
-		app = Crescendo::Engine::CreateApplication();
-		app->Run();
-	} while (app->ShouldRestart());
-	return 0;
-}
+		// TODO Handle command line arguments
+		std::unique_ptr<CrescendoEngine::Application> app;
+		do
+		{
+			app = CrescendoEngine::CreateApplication();
+			app->Run();
+		} while (app->ShouldRestart());
+		return 0;
+	}
 #else
 	#error Crescendo only supports Windows!
 #endif

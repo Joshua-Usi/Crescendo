@@ -1,9 +1,8 @@
 #pragma once
 
-#include "Volk/volk.h"
+#include "common.hpp"
 
-#include <cstdint>
-#include <vector>
+#include "Volk/volk.h"
 
 #include "cs_std/graphics/model.hpp"
 
@@ -11,7 +10,7 @@
 #include "Types.hpp"
 #include "PipelineVariants.hpp"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	class Device;
 
@@ -41,11 +40,11 @@ namespace Crescendo::Vulkan
 		};
 		struct DescriptorSet
 		{
-			Crescendo::Vulkan::Buffer buffer;
+			Buffer buffer;
 			VkDescriptorSet set;
 
 			DescriptorSet() = default;
-			DescriptorSet(Crescendo::Vulkan::Buffer& buffer, VkDescriptorSet set) : buffer(std::move(buffer)), set(set) {}
+			DescriptorSet(Buffer& buffer, VkDescriptorSet set) : buffer(std::move(buffer)), set(set) {}
 			~DescriptorSet() = default;
 			// No copy
 			DescriptorSet(const DescriptorSet&) = delete;
@@ -83,7 +82,7 @@ namespace Crescendo::Vulkan
 		uint32_t CreateDescriptorSets(uint32_t set, uint32_t count);
 		void UpdateDescriptorData(uint32_t idx, uint32_t set, uint32_t binding, const void* data, size_t size);
 		template<typename T> void UpdateDescriptorData(uint32_t idx, uint32_t set, uint32_t binding, const T& data) { UpdateDescriptorData(idx, set, binding, &data, sizeof(T)); }
-		std::vector<VkBuffer> GetMatchingBuffers(const Crescendo::Vulkan::Mesh& mesh) const;
+		std::vector<VkBuffer> GetMatchingBuffers(const Mesh& mesh) const;
 	public:
 		operator VkPipelineLayout() const { return layout; }
 		VkPipeline operator [](uint32_t index) const { return pipelines[index]; }

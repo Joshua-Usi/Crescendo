@@ -1,14 +1,15 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "volk/volk.h"
 
 #include "Types/Create.hpp"
 #include "Types/Queues.hpp"
 
 #include <functional>
-#include <vector>
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	class Device;
 

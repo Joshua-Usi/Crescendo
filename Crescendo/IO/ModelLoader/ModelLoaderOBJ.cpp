@@ -1,10 +1,8 @@
-#include "ModelLoader.hpp"
+#include "ModelLoaders.hpp"
 
 #include "rapidobj/rapidobj.hpp"
 
-#include "Core/common.hpp"
-
-namespace Crescendo::IO
+CS_NAMESPACE_BEGIN
 {
 	cs_std::graphics::model LoadOBJ(const std::filesystem::path& path)
 	{

@@ -1,13 +1,13 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "Volk/volk.h"
 
 #include "Buffer.hpp"
 #include "Image.hpp"
 
-#include <vector>
-
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	struct SSBO
 	{
@@ -19,18 +19,18 @@ namespace Crescendo::Vulkan
 	{
 		struct Attribute
 		{
-			Crescendo::Vulkan::Buffer buffer;
+			Buffer buffer;
 			uint32_t elements;
 			cs_std::graphics::Attribute attribute;
 		};
-		Crescendo::Vulkan::Buffer indexBuffer;
+		Buffer indexBuffer;
 		uint32_t indexCount;
 		std::vector<Attribute> vertexAttributes;
 	};
 
 	struct Texture
 	{
-		Crescendo::Vulkan::Image image;
+		Image image;
 		VkDescriptorSet set;
 	};
 }

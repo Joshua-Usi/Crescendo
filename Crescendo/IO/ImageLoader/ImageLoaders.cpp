@@ -1,6 +1,4 @@
-#include "ImageLoader.hpp"
-
-#include "Core/common.hpp"
+#include "ImageLoaders.hpp"
 
 #include "cs_std/file.hpp"
 
@@ -9,7 +7,7 @@
 
 #include <bit>
 
-namespace Crescendo::IO
+CS_NAMESPACE_BEGIN
 {
 	cs_std::image LoadImage(const std::filesystem::path& path)
 	{
@@ -34,21 +32,21 @@ namespace Crescendo::IO
 			memcpy(newPixels.data(), pixels, width * height * channels);
 		}
 		// Dead code for now
-		else
-		{
-			// Optional downsampling code
-			// Nearest neighbour downsampling
-			for (uint32_t i = 0; i < height / scaleFactor; i++)
-			{
-				for (uint32_t j = 0; j < width / scaleFactor; j++)
-				{
-					for (uint32_t k = 0; k < channels; k++)
-					{
-						newPixels[(i * width / scaleFactor + j) * channels + k] = pixels[((i * width + j) * scaleFactor) * channels + k];
-					}
-				}
-			}
-		}
+		//else
+		//{
+		//	// Optional downsampling code
+		//	// Nearest neighbour downsampling
+		//	for (uint32_t i = 0; i < height / scaleFactor; i++)
+		//	{
+		//		for (uint32_t j = 0; j < width / scaleFactor; j++)
+		//		{
+		//			for (uint32_t k = 0; k < channels; k++)
+		//			{
+		//				newPixels[(i * width / scaleFactor + j) * channels + k] = pixels[((i * width + j) * scaleFactor) * channels + k];
+		//			}
+		//		}
+		//	}
+		//}
 		stbi_image_free(pixels);
 		return cs_std::image(newPixels, width / scaleFactor, height / scaleFactor, channels);
 	}

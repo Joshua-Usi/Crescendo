@@ -1,8 +1,10 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "Volk/volk.h"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	struct ShaderModule
 	{

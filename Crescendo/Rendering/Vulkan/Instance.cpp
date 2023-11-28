@@ -1,9 +1,8 @@
 #include "Instance.hpp"
-#include "Core/common.hpp"
 
 #include "GLFW/glfw3.h"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	bool Instance::isVolkInitialised = false;
 

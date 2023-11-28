@@ -1,8 +1,8 @@
 #include "DescriptorManager.hpp"
-#include "Core/common.hpp"
+
 #include "Types/Create.hpp"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	DescriptorManager::DescriptorManager(VkDevice device, uint32_t maxDescriptorsPerPool) : device(device), maxDescriptorsPerPool(maxDescriptorsPerPool)
 	{

@@ -1,11 +1,11 @@
 #include "Allocator.hpp"
-#include "Core/common.hpp"
+
 #include "Types/Create.hpp"
 
 #define VMA_IMPLEMENTATION
 #include "VMA/vk_mem_alloc.h"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	Allocator::Allocator(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device) : device(device)
 	{

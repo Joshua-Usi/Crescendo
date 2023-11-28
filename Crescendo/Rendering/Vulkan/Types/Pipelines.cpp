@@ -1,7 +1,7 @@
 #include "Pipelines.hpp"
 #include "../Device.hpp"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	Pipelines::Pipelines(Device& device, std::vector<VkPipeline>& pipelines, std::vector<VkDescriptorSetLayout>& dataLayouts, const std::vector<Set>& setMetadata, const std::vector<cs_std::graphics::Attribute>& vertexAttributes, const PipelineVariants& variants, VkPipelineLayout layout)
 		: device(&device), pipelines(std::move(pipelines)), dataLayouts(std::move(dataLayouts)), setMetadata(setMetadata), descriptorSets(this->setMetadata.size()),
@@ -69,7 +69,7 @@ namespace Crescendo::Vulkan
 		const uint32_t offset = setMetadata[set].BindingOffset(binding);
 		memcpy(static_cast<char*>(descriptorSets[set][idx].buffer.mPtr) + offset, data, size);
 	}
-	std::vector<VkBuffer> Pipelines::GetMatchingBuffers(const Crescendo::Vulkan::Mesh& mesh) const
+	std::vector<VkBuffer> Pipelines::GetMatchingBuffers(const Mesh& mesh) const
 	{
 		std::vector<VkBuffer> buffers;
 		for (uint32_t cpvaf = 0, mvaf = 0; cpvaf < this->vertexAttributes.size(); mvaf++)

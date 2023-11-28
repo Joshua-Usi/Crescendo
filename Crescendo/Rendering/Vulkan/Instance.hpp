@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "Volk/volk.h"
 #include "VkBootstrap/VkBootstrap.h"
 
@@ -8,10 +10,7 @@
 #include "Device.hpp"
 #include "Swapchain.hpp"
 
-#include <string>
-#include <iostream>
-
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	class Instance
 	{

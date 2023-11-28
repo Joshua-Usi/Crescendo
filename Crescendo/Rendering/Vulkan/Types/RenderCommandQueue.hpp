@@ -1,20 +1,22 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "Volk/volk.h"
 
 #include "../CommandQueue.hpp"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	struct RenderCommandQueue
 	{
 	public:
-		Crescendo::Vulkan::GraphicsCommandQueue cmd;
+		GraphicsCommandQueue cmd;
 		VkSemaphore presentReady, renderFinish;
 	public:
 		// Constructors
 		RenderCommandQueue() = default;
-		RenderCommandQueue(Crescendo::Vulkan::GraphicsCommandQueue&& cmd, VkSemaphore&& presentReady, VkSemaphore&& renderFinish) noexcept : cmd(std::move(cmd)), presentReady(presentReady), renderFinish(renderFinish) {}
+		RenderCommandQueue(GraphicsCommandQueue&& cmd, VkSemaphore&& presentReady, VkSemaphore&& renderFinish) noexcept : cmd(std::move(cmd)), presentReady(presentReady), renderFinish(renderFinish) {}
 		// Destructors
 		~RenderCommandQueue()
 		{

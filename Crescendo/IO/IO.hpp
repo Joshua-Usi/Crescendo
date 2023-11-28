@@ -1,4 +1,4 @@
 #pragma once
 
-#include "ModelLoader/ModelLoader.hpp"
-#include "ImageLoader/ImageLoader.hpp"
+#include "ModelLoader/ModelLoaders.hpp"
+#include "ImageLoader/ImageLoaders.hpp"

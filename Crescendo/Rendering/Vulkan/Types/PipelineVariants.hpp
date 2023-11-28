@@ -1,15 +1,16 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "Volk/volk.h"
 
-#include <cstdint>
 #include <algorithm>
 
 #define CS_DEFINE_ENUM_CLASS_OR_OPERATOR(EnumType, EnumName) friend EnumName operator|(EnumName a, EnumName b) { return static_cast<EnumName>(static_cast<EnumType>(a) | static_cast<EnumType>(b)); }
 #define CS_DEFINE_ENUM_CLASS_AND_OPERATOR(EnumType, EnumName) friend EnumName operator&(EnumName a, EnumName b) { return static_cast<EnumName>(static_cast<EnumType>(a) & static_cast<EnumType>(b)); }
 #define CS_DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EnumType, EnumName) CS_DEFINE_ENUM_CLASS_OR_OPERATOR(EnumType, EnumName); CS_DEFINE_ENUM_CLASS_AND_OPERATOR(EnumType, EnumName)
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	struct PipelineVariants
 	{
@@ -215,25 +216,25 @@ namespace Crescendo::Vulkan
 	public:
 		// Generate optimised pipelines for specific use cases
 		// Generates pipelines for double-sided and transparent objects
-		static PipelineVariants GetDefaultVariant(VkRenderPass pass)
+		static PipelineVariants GetDefaultVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
-			return PipelineVariants(pass, FillMode::Solid, CullMode::Back | CullMode::None, Multisamples::One, DepthFunc::Less, DepthTest::Enabled, DepthWrite::Enabled | DepthWrite::Disabled);
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Back | CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::Less, DepthTest::Enabled, DepthWrite::Enabled | DepthWrite::Disabled);
 		}
-		static PipelineVariants GetSkyboxVariant(VkRenderPass pass)
+		static PipelineVariants GetSkyboxVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
-			return PipelineVariants(pass, FillMode::Solid, CullMode::Back, Multisamples::One, DepthFunc::LessEqual, DepthTest::Enabled, DepthWrite::Disabled);
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Back, ConvertSamplesToVariant(samples), DepthFunc::LessEqual, DepthTest::Enabled, DepthWrite::Disabled);
 		}
-		static PipelineVariants GetShadowVariant(VkRenderPass pass)
+		static PipelineVariants GetShadowVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
-			return PipelineVariants(pass, FillMode::Solid, CullMode::Front, Multisamples::One, DepthFunc::Less, DepthTest::Enabled, DepthWrite::Enabled);
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Front, ConvertSamplesToVariant(samples), DepthFunc::Less, DepthTest::Enabled, DepthWrite::Enabled);
 		}
-		static PipelineVariants GetUIVariant(VkRenderPass pass)
+		static PipelineVariants GetUIVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
-			return PipelineVariants(pass, FillMode::Solid, CullMode::None, Multisamples::One, DepthFunc::Never, DepthTest::Disabled, DepthWrite::Disabled);
+			return PipelineVariants(pass, FillMode::Solid, CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::Never, DepthTest::Disabled, DepthWrite::Disabled);
 		}
-		static PipelineVariants GetPostProcessingVariant(VkRenderPass pass)
+		static PipelineVariants GetPostProcessingVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
-			return PipelineVariants(pass, FillMode::Solid, CullMode::None, Multisamples::One, DepthFunc::Always, DepthTest::Disabled, DepthWrite::Disabled);
+			return PipelineVariants(pass, FillMode::Solid, CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::Always, DepthTest::Disabled, DepthWrite::Disabled);
 		}
 	public:
 		PipelineVariants operator[](uint32_t index) const { return GetVariant(index); }

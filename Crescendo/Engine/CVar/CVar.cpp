@@ -1,42 +1,15 @@
 #include "Cvar.hpp"
+
 #include "cs_std/xml/xml.hpp"
+
 #include <algorithm>
 
-namespace Crescendo::Engine
+CS_NAMESPACE_BEGIN
 {
-	std::unordered_map<std::string, std::string> CVar::data;
+	std::unordered_map<std::string, std::string> CVar::data {};
 	void CVar::Register(const std::string& name, const std::string& value)
 	{
 		data.emplace(name, value);
-	}
-	template <>
-	std::string CVar::Get<std::string>(const std::string& name)
-	{
-		return data[name];
-	}
-	template <>
-	int64_t CVar::Get<int64_t>(const std::string& name)
-	{
-		return std::stoll(data[name]);
-	}
-	template <>
-	double CVar::Get<double>(const std::string& name)
-	{
-		return std::stod(data[name]);
-	}
-	template<>
-	float CVar::Get<float>(const std::string& name)
-	{
-		return std::stof(data[name]);
-	}
-	template <>
-	bool CVar::Get<bool>(const std::string& name)
-	{
-		// Capitalisation doesn't matter
-		// Treat anything else as false
-		std::string value = data[name];
-		std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-		return value == "true";
 	}
 	std::vector<std::string> CVar::GetNames()
 	{

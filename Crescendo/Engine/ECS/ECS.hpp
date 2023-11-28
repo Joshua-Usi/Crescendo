@@ -1,8 +1,10 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "libraries/Thirdparty/entt/entt.hpp"
 
-namespace Crescendo::Engine
+CS_NAMESPACE_BEGIN
 {
 	struct Entity
 	{

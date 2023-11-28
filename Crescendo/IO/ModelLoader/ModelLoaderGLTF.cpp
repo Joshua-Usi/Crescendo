@@ -1,6 +1,4 @@
-#include "ModelLoader.hpp"
-
-#include "Core/common.hpp"
+#include "ModelLoaders.hpp"
 
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
@@ -17,12 +15,11 @@
 #define TINYGLTF_IMPLEMENTATION
 #include "tinygltf/tiny_gltf.h"
 
-#include <iostream>
 #include <unordered_map>
 
 #include "glm/gtc/quaternion.hpp"
 
-namespace Crescendo::IO
+CS_NAMESPACE_BEGIN
 {
 	struct NodeData
 	{

@@ -1,12 +1,11 @@
 #include "Device.hpp"
 
-#include "Core/common.hpp"
 #include "Types/Create.hpp"
 
 #include "cs_std/graphics/model.hpp"
 #include "cs_std/algorithms.hpp"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	size_t CalculatePaddedSizeForAlignment(size_t size, size_t alignmentRequirement)
 	{
@@ -20,8 +19,8 @@ namespace Crescendo::Vulkan
 		// Create universal descriptor sets
 		this->fragmentSamplerSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT));
 		this->ssboSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT));
-		this->directionalShadowMapSampler = this->CreateSampler(Crescendo::Vulkan::Create::SamplerCreateInfo(VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE));
-		this->postProcessingSampler = this->CreateSampler(Crescendo::Vulkan::Create::SamplerCreateInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK));
+		this->directionalShadowMapSampler = this->CreateSampler(Create::SamplerCreateInfo(VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE));
+		this->postProcessingSampler = this->CreateSampler(Create::SamplerCreateInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK));
 	}
 	Device::~Device()
 	{
@@ -362,8 +361,8 @@ namespace Crescendo::Vulkan
 			this->CreateBuffer(allocationSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU),
 			this->AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->GetSSBOLayout())
 		);
-		VkDescriptorBufferInfo bufferInfo = Crescendo::Vulkan::Create::DescriptorBufferInfo(ssbo.buffer, 0, allocationSize);
-		VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(ssbo.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
+		VkDescriptorBufferInfo bufferInfo = Create::DescriptorBufferInfo(ssbo.buffer, 0, allocationSize);
+		VkWriteDescriptorSet write = Create::WriteDescriptorSet(ssbo.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
 		this->WriteDescriptorSet(write);
 
 		return std::move(ssbo);
@@ -371,8 +370,8 @@ namespace Crescendo::Vulkan
 	VkDescriptorSet Device::CreateTextureDescriptorSet(VkSampler sampler, const Vulkan::Image& image, VkImageLayout layout)
 	{
 		const VkDescriptorSet set = this->AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->GetFragmentSamplerLayout());
-		const VkDescriptorImageInfo imageInfo = Crescendo::Vulkan::Create::DescriptorImageInfo(sampler, image.imageView, layout);
-		const VkWriteDescriptorSet write = Crescendo::Vulkan::Create::WriteDescriptorSet(set, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo);
+		const VkDescriptorImageInfo imageInfo = Create::DescriptorImageInfo(sampler, image.imageView, layout);
+		const VkWriteDescriptorSet write = Create::WriteDescriptorSet(set, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo);
 		this->WriteDescriptorSet(write);
 
 		return set;

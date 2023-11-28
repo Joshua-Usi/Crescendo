@@ -9,7 +9,6 @@
  *		Bailey (mungo_) and mart (martplus) - For the idea of a game engine competition
  */
 
-// I have no idea why, but it will only compile if it is in this header, not in the Core.hpp header
 #include "entrypoint.hpp"
 
 #include "Engine/Engine.hpp"
@@ -19,6 +18,6 @@
 #include "Rendering/Rendering.hpp"
 
 #include "cs_std/file.hpp"
-#include "cs_std/console.hpp"
 
-#define CrescendoRegisterApp(app) unique<Crescendo::Engine::Application> Crescendo::Engine::CreateApplication() { return std::make_unique<app>(); }
+
+#define CrescendoRegisterApp(app) std::unique_ptr<CrescendoEngine::Application> CrescendoEngine::CreateApplication() { return std::make_unique<app>(); }

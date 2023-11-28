@@ -3,7 +3,7 @@
 #include "Engine/layers/Update.hpp"
 #include "Engine/CVar/Cvar.hpp"
 
-namespace Crescendo::Engine
+CS_NAMESPACE_BEGIN
 {
 	// Assign self and null as no instance exists yet
 	Application* Application::self = nullptr;
@@ -16,7 +16,7 @@ namespace Crescendo::Engine
 		CVar::LoadConfigXML("config.xml");
 
 		window = Window::Create({
-			CVar::Get<std::string>("ec_windowtitle"),
+			CVar::Get<std::string>("ec_appname"),
 			static_cast<uint32_t>(CVar::Get<int64_t>("ec_windowwidth")),
 			static_cast<uint32_t>(CVar::Get<int64_t>("ec_windowheight")),
 		});
@@ -24,7 +24,7 @@ namespace Crescendo::Engine
 		// Attach layers
 		const uint32_t refreshRate = this->window->GetRefreshRate();
 		const double secondsPerFrame = (refreshRate == 0 || !CVar::Get<bool>("ec_vsync")) ? 0.0 : 1.0 / double(refreshRate);
-		this->layerManager.Attach(new LayerUpdate(secondsPerFrame, 0));
+		this->layerManager.Attach(new LayerUpdate(secondsPerFrame));
 		this->layerManager.Init(this->timeManager.now<double>());
 	}
 	void Application::Run()

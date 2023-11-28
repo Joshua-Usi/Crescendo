@@ -2,12 +2,11 @@
 
 #include "Engine/interfaces/Input.hpp"
 
-namespace Crescendo::Engine
+CS_NAMESPACE_BEGIN
 {
 	static bool IsGLFWInitialised = false;
-	WindowsWindow::WindowsWindow(const WindowProperties& props)
+	WindowsWindow::WindowsWindow(const Properties& props)
 	{
-		// Set window properties
 		this->data.title = props.title;
 		this->data.width = props.width;
 		this->data.height = props.height;
@@ -16,26 +15,17 @@ namespace Crescendo::Engine
 
 		if (!IsGLFWInitialised)
 		{
-			bool success = glfwInit();
-			CS_ASSERT(success, "Failed to Initialise GLFW!");
+			CS_ASSERT(glfwInit(), "Failed to Initialise GLFW!");
 			IsGLFWInitialised = true;
 		}
-		// Hint no api for creating a vulkan interface
+
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-		// Create window
 		this->window = glfwCreateWindow(this->data.width, this->data.height, this->data.title.c_str(), NULL, NULL);
-	
-		// Hook user pointer
-		glfwSetWindowUserPointer(this->window, &this->data);
 
-		// Create window close callback, hook to window
-		glfwSetWindowCloseCallback(this->window, [](GLFWwindow* window)
-		{
-			WindowData* windowPointer = static_cast<WindowData*>(glfwGetWindowUserPointer(window));
-			windowPointer->windowPointer->Close();
-		});
+		glfwSetWindowUserPointer(this->window, &this->data);
+		glfwSetWindowCloseCallback(this->window, [](GLFWwindow* window) { static_cast<Data*>(glfwGetWindowUserPointer(window))->windowPointer->Close(); });
 	}
 	WindowsWindow::~WindowsWindow()
 	{
@@ -51,7 +41,6 @@ namespace Crescendo::Engine
 			IsGLFWInitialised = false;
 		}
 	}
-	void WindowsWindow::OnUpdate() {}
 	uint32_t WindowsWindow::GetWidth() const
 	{
 		return this->data.width;
@@ -142,8 +131,8 @@ namespace Crescendo::Engine
 	{
 		return this->data.isFullScreen;
 	}
-	shared<Window> Window::Create(const WindowProperties& props)
+	std::unique_ptr<Window> Window::Create(const Properties& props)
 	{
-		return std::make_shared<WindowsWindow>(props);
+		return std::make_unique<WindowsWindow>(props);
 	}
 }

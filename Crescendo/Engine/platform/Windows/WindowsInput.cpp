@@ -5,7 +5,7 @@
 
 #include "GLFW/glfw3.h"
 
-namespace Crescendo::Engine
+CS_NAMESPACE_BEGIN
 {
 	Input* Input::self = new WindowsInput();
 

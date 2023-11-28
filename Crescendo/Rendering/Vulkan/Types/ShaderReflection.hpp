@@ -1,12 +1,10 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "Volk/volk.h"
 
-#include <cstdint>
-#include <string>
-#include <vector>
-
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	struct ShaderReflection
 	{

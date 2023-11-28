@@ -1,9 +1,11 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "Volk/volk.h"
 #include "Create.hpp"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	struct Framebuffer
 	{

@@ -1,12 +1,14 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "../Vulkan/Instance.hpp"
 #include "cs_std/packed_vector.hpp"
 #include "../Vulkan/Types/Types.hpp"
 
 #include "cs_std/image.hpp"
 
-namespace Crescendo
+CS_NAMESPACE_BEGIN
 {
 	class Texture { private: uint32_t id; };
 	class Mesh { private: uint32_t id; };

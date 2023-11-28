@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "volk/volk.h"
 #include "VkBootstrap/VkBootstrap.h"
 
@@ -18,9 +20,7 @@
 #include "Types/RenderCommandQueue.hpp"
 #include "Types/Pipelines.hpp"
 
-#include <vector>
-
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	class Device
 	{

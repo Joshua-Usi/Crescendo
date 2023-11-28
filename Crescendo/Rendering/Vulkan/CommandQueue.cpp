@@ -1,9 +1,8 @@
 #include "CommandQueue.hpp"
-#include "Core/common.hpp"
 
 #include "Device.hpp"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	BaseCommandQueue::BaseCommandQueue(Device& device, const Queues::Queue& queue, bool startSignalled)
 		: device(device), queue(queue.queue), queueFamily(queue.family),
@@ -132,7 +131,7 @@ namespace Crescendo::Vulkan
 	}
 	VkResult GraphicsCommandQueue::Present(VkSwapchainKHR swapchain, uint32_t imageIndex, VkSemaphore renderFinishSemaphore) const
 	{
-		const VkPresentInfoKHR presentInfo = Crescendo::Vulkan::Create::PresentInfoKHR(renderFinishSemaphore, swapchain, imageIndex);
+		const VkPresentInfoKHR presentInfo = Create::PresentInfoKHR(renderFinishSemaphore, swapchain, imageIndex);
 		return vkQueuePresentKHR(this->GetQueue(), &presentInfo);
 	}
 	void GraphicsCommandQueue::InstantSubmit(std::function<void(const GraphicsCommandQueue& cmd)>&& function, uint64_t timeout) const

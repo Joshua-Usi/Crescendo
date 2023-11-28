@@ -1,9 +1,8 @@
 #include "Swapchain.hpp"
-#include "Core/common.hpp"
 
 #include "VkBootstrap/VkBootstrap.h"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	Swapchain::Swapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkPresentModeKHR presentMode, VkExtent2D windowExtent) : device(device), needsRecreation(false)
 	{

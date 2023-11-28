@@ -1,8 +1,10 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "VkBootstrap/VkBootstrap.h"
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	class Queues
 	{

@@ -1,14 +1,14 @@
 #pragma once
 
+#include "common.hpp"
+
 #include "volk/volk.h"
 #include "vma/vk_mem_alloc.h"
 
 #include "Types/Buffer.hpp"
 #include "Types/Image.hpp"
 
-#include <vector>
-
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	class Allocator
 	{

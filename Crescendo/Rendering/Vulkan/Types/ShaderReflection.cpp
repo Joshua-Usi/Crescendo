@@ -1,12 +1,12 @@
 #include "ShaderReflection.hpp"
-#include "Core/common.hpp"
+
 #include "Create.hpp"
 
 #include "SPIRV-reflect/spirv_reflect.h"
 
 #include <algorithm>
 
-namespace Crescendo::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan
 {
 	VkFormat GetFormatFromSize(uint32_t size)
 	{
