@@ -349,11 +349,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 			pipelines.push_back(this->CreatePipeline(pipelineBuilderInfo));
 		}
 
-		return Pipelines(
-			*this, pipelines,
-			dataLayouts, setData, vertexAttributes,
-			variant, pipelineLayout
-		);
+		return Pipelines(*this, pipelines, dataLayouts, setData, vertexAttributes, variant, pipelineLayout);
 	}
 	SSBO Device::CreateSSBO(size_t allocationSize, VmaMemoryUsage memoryUsage)
 	{
@@ -365,7 +361,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkWriteDescriptorSet write = Create::WriteDescriptorSet(ssbo.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
 		this->WriteDescriptorSet(write);
 
-		return std::move(ssbo);
+		return ssbo;
 	}
 	VkDescriptorSet Device::CreateTextureDescriptorSet(VkSampler sampler, const Vulkan::Image& image, VkImageLayout layout)
 	{
