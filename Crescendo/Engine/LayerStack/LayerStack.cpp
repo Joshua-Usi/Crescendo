@@ -51,11 +51,12 @@ CS_NAMESPACE_BEGIN
 	}
 	void LayerStack::Update(double time)
 	{
+		constexpr double DELTA_TIME_CAP_MULTIPLIER = 4.0;
 		for (auto& layer : this->layersToUpdate)
 		{
 			double dt = time - layer->lastCalled;
-			double callDt = layer->updateRate;
-
+			// Prevents death spirals
+			double callDt = (dt > DELTA_TIME_CAP_MULTIPLIER * callDt) ? dt : layer->updateRate;
 			layer->OnUpdate(dt);
 			layer->lastCalled += callDt;
 		}
