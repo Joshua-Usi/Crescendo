@@ -68,10 +68,10 @@ public:
 			.appName = CVar::Get<std::string>("ec_appname"),
 			.engineName = "Crescendo",
 			.window = this->GetWindow()->GetNative(),
-			.descriptorSetsPerPool = static_cast<uint32_t>(CVar::Get<int64_t>("irc_descriptorsetsperpool")),
-			.framesInFlight = static_cast<uint32_t>(CVar::Get<int64_t>("rc_framesinflight")),
-			.anisotropicSamples = static_cast<uint32_t>(CVar::Get<int64_t>("rc_anisotropicsamples")),
-			.multisamples = static_cast<uint32_t>(CVar::Get<int64_t>("rc_multisamples")),
+			.descriptorSetsPerPool = CVar::Get<uint32_t>("irc_descriptorsetsperpool"),
+			.framesInFlight = CVar::Get<uint32_t>("rc_framesinflight"),
+			.anisotropicSamples = CVar::Get<uint32_t>("rc_anisotropicsamples"),
+			.multisamples = CVar::Get<uint32_t>("rc_multisamples"),
 			.renderScale = CVar::Get<float>("rc_renderscale")
 			});
 
@@ -144,7 +144,7 @@ public:
 
 		std::vector<cs_std::graphics::model> models =
 		{
-			LoadGLTF("./assets/tristan/TRISTANSEXY.gltf"),
+			//LoadGLTF("./assets/tristan/TRISTANSEXY.gltf"),
 			LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
 			LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
 			//LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
@@ -312,8 +312,6 @@ public:
 		{
 			// Normal rendering
 			cs_std::graphics::frustum frustum = cs_std::graphics::frustum(this->camera.camera.GetViewProjectionMatrix());
-			float time = this->GetTime<float>();
-			cmd.PushConstants(defaultPipeline, time, VK_SHADER_STAGE_VERTEX_BIT);
 			for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 2; i++)
 			{
 				const Vulkan::Mesh& mesh = this->renderer.meshes[i];

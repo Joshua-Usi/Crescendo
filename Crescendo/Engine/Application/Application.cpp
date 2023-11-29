@@ -17,8 +17,8 @@ CS_NAMESPACE_BEGIN
 
 		window = Window::Create({
 			CVar::Get<std::string>("ec_appname"),
-			static_cast<uint32_t>(CVar::Get<int64_t>("ec_windowwidth")),
-			static_cast<uint32_t>(CVar::Get<int64_t>("ec_windowheight")),
+			CVar::Get<uint32_t>("ec_windowwidth"),
+			CVar::Get<uint32_t>("ec_windowheight"),
 		});
 
 		// Attach layers
