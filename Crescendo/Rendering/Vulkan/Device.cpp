@@ -97,7 +97,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 			colorFormat, samples,
 			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
 			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			VK_IMAGE_LAYOUT_UNDEFINED, (isMultiSampling) ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 		);
 		VkAttachmentReference colorAttachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
@@ -109,20 +109,16 @@ CS_NAMESPACE_BEGIN::Vulkan
 		);
 		VkAttachmentReference depthAttachmentRef = Create::AttachmentReference(1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-		//VkAttachmentDescription colorAttachmentResolve = Create::AttachmentDescription(
-		//	colorFormat, VK_SAMPLE_COUNT_1_BIT,
-		//	VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
-		//	VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-		//	VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-		//);
-		//VkAttachmentReference colorAttachmentResolveRef = Create::AttachmentReference((isMultiSampling) ? 2 : VK_ATTACHMENT_UNUSED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		VkAttachmentDescription colorAttachmentResolve = Create::AttachmentDescription(
+			colorFormat, VK_SAMPLE_COUNT_1_BIT,
+			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
+			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		);
+		VkAttachmentReference colorAttachmentResolveRef = Create::AttachmentReference((isMultiSampling) ? 2 : VK_ATTACHMENT_UNUSED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 		const VkSubpassDescription subpass = Create::SubpassDescription(
-			VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1,
-			&colorAttachmentRef,
-			nullptr, //&colorAttachmentResolveRef,
-			&depthAttachmentRef,
-			0, nullptr
+			VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &colorAttachmentRef, (isMultiSampling) ? &colorAttachmentResolveRef : nullptr, &depthAttachmentRef, 0, nullptr
 		);
 
 		VkSubpassDependency colorDependency = Create::SubpassDependency(
@@ -136,9 +132,12 @@ CS_NAMESPACE_BEGIN::Vulkan
 			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_DEPENDENCY_BY_REGION_BIT
 		);
 
-		return this->CreateRenderPass({ colorAttachment, depthAttachment }, { subpass }, { colorDependency, colorDependency2 });
+		std::vector attachments = { colorAttachment, depthAttachment };
+		if (isMultiSampling) attachments.push_back(colorAttachmentResolve);
+
+		return this->CreateRenderPass(attachments, { subpass }, { colorDependency, colorDependency2 });
 	}
-	RenderPass Device::CreateDefaultShadowRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples)
+	RenderPass Device::CreateDefaultDepthOnlyRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples)
 	{
 		VkAttachmentDescription shadowMapAttachment = Create::AttachmentDescription(
 			depthFormat, samples,
@@ -171,7 +170,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 
 		return this->CreateRenderPass({ shadowMapAttachment }, { shadowMapSubpass }, { shadowMapDependency, shadowMapDependency2 });
 	}
-	RenderPass Device::CreatePostProcessingRenderPass(VkFormat colorFormat, VkSampleCountFlagBits samples)
+	RenderPass Device::CreateDefaultPostProcessingRenderPass(VkFormat colorFormat, VkSampleCountFlagBits samples)
 	{
 		VkAttachmentDescription attachment = Create::AttachmentDescription(
 			colorFormat, samples,
@@ -203,6 +202,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	ShaderModule Device::CreateShaderModule(const std::vector<uint8_t>& code)
 	{
+		if (code.size() == 0) return ShaderModule(this->device, nullptr);
+
 		VkShaderModule shaderModule = nullptr;
 		const VkShaderModuleCreateInfo createInfo = Create::ShaderModuleCreateInfo(code);
 		CS_ASSERT(vkCreateShaderModule(this->device, &createInfo, nullptr, &shaderModule) == VK_SUCCESS, "Failed to create shader module!");

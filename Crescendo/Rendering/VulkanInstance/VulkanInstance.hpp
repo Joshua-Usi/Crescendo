@@ -78,7 +78,7 @@ CS_NAMESPACE_BEGIN
 		~VulkanInstance();
 	public:
 		void CreateSwapchain();
-		SamplableFramebuffer CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, VkFormat depthFormat, uint32_t width, uint32_t height);
+		SamplableFramebuffer CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, VkFormat depthFormat, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height);
 		SamplableFramebuffer CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height);
 
 		Vulkan::Mesh UploadMesh(const cs_std::graphics::mesh& mesh);

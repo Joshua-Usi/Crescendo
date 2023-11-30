@@ -2,8 +2,6 @@
 
 #include "cs_std/xml/xml.hpp"
 
-#include <algorithm>
-
 CS_NAMESPACE_BEGIN
 {
 	std::unordered_map<std::string, std::string> CVar::data {};

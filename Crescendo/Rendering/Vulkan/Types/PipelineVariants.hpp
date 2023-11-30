@@ -211,14 +211,23 @@ CS_NAMESPACE_BEGIN::Vulkan
 		}
 		static Multisamples ConvertSamplesToVariant(uint32_t samples)
 		{
-			return static_cast<Multisamples>(1 << (samples - 1));
+			switch (samples)
+			{
+				case 64: return Multisamples::SixtyFour;
+				case 32: return Multisamples::ThirtyTwo;
+				case 16: return Multisamples::Sixteen;
+				case 8: return Multisamples::Eight;
+				case 4: return Multisamples::Four;
+				case 2: return Multisamples::Two;
+			}
+			return Multisamples::One;
 		}
 	public:
 		// Generate optimised pipelines for specific use cases
 		// Generates pipelines for double-sided and transparent objects
 		static PipelineVariants GetDefaultVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
-			return PipelineVariants(pass, FillMode::Solid, CullMode::Back | CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::Less, DepthTest::Enabled, DepthWrite::Enabled | DepthWrite::Disabled);
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Back | CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::LessEqual, DepthTest::Enabled, DepthWrite::Enabled | DepthWrite::Disabled);
 		}
 		static PipelineVariants GetSkyboxVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
@@ -226,7 +235,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		}
 		static PipelineVariants GetShadowVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
-			return PipelineVariants(pass, FillMode::Solid, CullMode::Front, ConvertSamplesToVariant(samples), DepthFunc::Less, DepthTest::Enabled, DepthWrite::Enabled);
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Front, ConvertSamplesToVariant(samples), DepthFunc::LessEqual, DepthTest::Enabled, DepthWrite::Enabled);
 		}
 		static PipelineVariants GetUIVariant(VkRenderPass pass, uint32_t samples = 1)
 		{

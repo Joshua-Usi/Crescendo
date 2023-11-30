@@ -4,13 +4,45 @@
 
 CS_NAMESPACE_BEGIN
 {
-	VulkanInstance::VulkanInstance(const VulkanInstanceSpecification & spec) : specs(spec)
+	VkSampleCountFlagBits MaxMultisampleCount(const VkPhysicalDeviceProperties& properties) {
+		VkSampleCountFlags counts = properties.limits.framebufferColorSampleCounts & properties.limits.framebufferDepthSampleCounts;
+		if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+		if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+		if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+		if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+		if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+		if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+		return VK_SAMPLE_COUNT_1_BIT;
+	}
+	VkSampleCountFlagBits ConvertSamplesToVkFlag(uint32_t samples)
+	{
+		switch (samples)
+		{
+			case 64: return VK_SAMPLE_COUNT_64_BIT;
+			case 32: return VK_SAMPLE_COUNT_32_BIT;
+			case 16: return VK_SAMPLE_COUNT_16_BIT;
+			case 8: return VK_SAMPLE_COUNT_8_BIT;
+			case 4: return VK_SAMPLE_COUNT_4_BIT;
+			case 2: return VK_SAMPLE_COUNT_2_BIT;
+		}
+		// Default to 1 sample if invalid
+		return VK_SAMPLE_COUNT_1_BIT;
+	}
+	VulkanInstance::VulkanInstance(const VulkanInstanceSpecification& spec) : specs(spec)
 	{
 		const size_t SSBO_OBJECT_COUNT = 8192;
 
 		this->instance = Vulkan::Instance(specs.enableValidationLayers, specs.appName, specs.engineName, static_cast<GLFWwindow*>(specs.window));
 		this->device = this->instance.CreateDevice(specs.descriptorSetsPerPool);
 		this->transferQueue = this->device.CreateTransferCommandQueue();
+
+		// Modify spec if some values are invalid
+		float maxAnisotropy = this->instance.GetPhysicalDeviceProperties().limits.maxSamplerAnisotropy;
+		uint32_t maxMultisamples = MaxMultisampleCount(this->instance.GetPhysicalDeviceProperties());
+
+		specs.anisotropicSamples = std::clamp(specs.anisotropicSamples, 1u, static_cast<uint32_t>(maxAnisotropy));
+		specs.multisamples = std::clamp(specs.multisamples, 1u, maxMultisamples);
 
 		for (uint32_t i = 0; i < specs.framesInFlight; i++)
 		{
@@ -34,6 +66,7 @@ CS_NAMESPACE_BEGIN
 		constexpr VkFormat OFFSCREEN_FORMAT = VK_FORMAT_R16G16B16A16_SFLOAT; // For HDR
 		constexpr VkFormat SHADOW_MAP_FORMAT = VK_FORMAT_D16_UNORM;
 		constexpr uint32_t SHADOW_MAP_RES = 4096;
+		const VkSampleCountFlagBits multisamplesCount = ConvertSamplesToVkFlag(this->specs.multisamples);
 
 		this->device.WaitIdle();
 		// Get glfw window size
@@ -61,9 +94,10 @@ CS_NAMESPACE_BEGIN
 		this->swapchain = this->instance.CreateSwapchain(this->device, VK_PRESENT_MODE_MAILBOX_KHR, VkExtent2D(width, height));
 
 		// Create renderpasses
-		uint32_t drpIdx = this->renderPasses.insert(this->device.CreateDefaultRenderPass(OFFSCREEN_FORMAT, DEPTH_FORMAT));
-		uint32_t pprpIdx = this->renderPasses.insert(this->device.CreatePostProcessingRenderPass(this->swapchain.GetImageFormat()));
-		const uint32_t smrpi = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(SHADOW_MAP_FORMAT));
+		const uint32_t drpIdx = this->renderPasses.insert(this->device.CreateDefaultRenderPass(OFFSCREEN_FORMAT, DEPTH_FORMAT, multisamplesCount));
+		const uint32_t pprpIdx = this->renderPasses.insert(this->device.CreateDefaultPostProcessingRenderPass(this->swapchain.GetImageFormat()));
+		const uint32_t smrpIdx = this->renderPasses.insert(this->device.CreateDefaultDepthOnlyRenderPass(SHADOW_MAP_FORMAT));
+		//const uint32_t dpprpIdx = this->renderPasses.insert(this->device.CreateDefaultDepthOnlyRenderPass(DEPTH_FORMAT));
 
 		// Create the swapchain frame buffers
 		for (const auto& swapChainImage : this->swapchain)
@@ -77,30 +111,38 @@ CS_NAMESPACE_BEGIN
 		offscreenExtent.height = static_cast<uint32_t>(static_cast<float>(offscreenExtent.height) * specs.renderScale);
 
 		// Create offscreen framebuffer
-		this->offscreen = this->CreateOffscreen(this->renderPasses[drpIdx], OFFSCREEN_FORMAT, DEPTH_FORMAT, offscreenExtent.width, offscreenExtent.height);
+		this->offscreen = this->CreateOffscreen(this->renderPasses[drpIdx], OFFSCREEN_FORMAT, DEPTH_FORMAT, multisamplesCount, offscreenExtent.width, offscreenExtent.height);
 
 		// Create shadow map
-		this->shadowMap = this->CreateShadowMap(this->renderPasses[smrpi], SHADOW_MAP_FORMAT, SHADOW_MAP_RES, SHADOW_MAP_RES);
+		this->shadowMap = this->CreateShadowMap(this->renderPasses[smrpIdx], SHADOW_MAP_FORMAT, SHADOW_MAP_RES, SHADOW_MAP_RES);
 	}
-	SamplableFramebuffer VulkanInstance::CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, VkFormat depthFormat, uint32_t width, uint32_t height)
+	SamplableFramebuffer VulkanInstance::CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, VkFormat depthFormat, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height)
 	{
+		bool isMultisampling = multisamples != VK_SAMPLE_COUNT_1_BIT;
+
 		SamplableFramebuffer offscreen {};
 
-		Vulkan::Texture offscreenTexture{};
-		offscreenTexture.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, colorFormat, { width, height, 1 }, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
-		offscreenTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetPostProcessingSampler(), offscreenTexture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		Vulkan::Texture offscreenMultisampleTexture {};
+		if (isMultisampling) offscreenMultisampleTexture.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, colorFormat, { width, height, 1 }, 1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
 
-		Vulkan::Texture offscreenTextureDepth{};
-		offscreenTextureDepth.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, depthFormat, { width, height, 1 }, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
-		offscreenTextureDepth.set = nullptr;
+		Vulkan::Texture offscreenResolveTexture {};
+		offscreenResolveTexture.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, colorFormat, { width, height, 1 }, 1, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
+		offscreenResolveTexture.set = this->device.CreateTextureDescriptorSet(this->device.GetPostProcessingSampler(), offscreenResolveTexture.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		offscreen.sampler = this->device.GetPostProcessingSampler();
-		offscreen.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(pass, { offscreenTexture.image.imageView, offscreenTextureDepth.image.imageView }, { width, height }, true, true));
-		offscreen.textureIndices = {
-			static_cast<uint32_t>(this->textures.insert(std::move(offscreenTexture))),
+		Vulkan::Texture offscreenTextureDepth {};
+		offscreenTextureDepth.image = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(VK_IMAGE_TYPE_2D, depthFormat, { width, height, 1 }, 1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT), VMA_MEMORY_USAGE_GPU_ONLY);
+
+		std::vector<VkImageView> attachments = (isMultisampling) ? std::vector<VkImageView>{offscreenMultisampleTexture.image.imageView, offscreenTextureDepth.image.imageView, offscreenResolveTexture.image.imageView} : std::vector<VkImageView>{offscreenResolveTexture.image.imageView, offscreenTextureDepth.image.imageView};
+		std::vector<uint32_t> textureIndices = {
+			static_cast<uint32_t>(this->textures.insert(std::move(offscreenResolveTexture))),
 			static_cast<uint32_t>(this->textures.insert(std::move(offscreenTextureDepth)))
 		};
+		if (isMultisampling) textureIndices.push_back(static_cast<uint32_t>(this->textures.insert(std::move(offscreenMultisampleTexture))));
 
+		offscreen.sampler = this->device.GetPostProcessingSampler();
+		offscreen.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(pass, attachments, { width, height }, true, true));
+		offscreen.textureIndices = textureIndices;
+			
 		return offscreen;
 	}
 	SamplableFramebuffer VulkanInstance::CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height)

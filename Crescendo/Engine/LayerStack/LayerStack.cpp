@@ -56,7 +56,7 @@ CS_NAMESPACE_BEGIN
 		{
 			double dt = time - layer->lastCalled;
 			// Prevents death spirals
-			double callDt = (dt > DELTA_TIME_CAP_MULTIPLIER * callDt) ? dt : layer->updateRate;
+			double callDt = (dt > DELTA_TIME_CAP_MULTIPLIER * layer->updateRate) ? dt : layer->updateRate;
 			layer->OnUpdate(dt);
 			layer->lastCalled += callDt;
 		}

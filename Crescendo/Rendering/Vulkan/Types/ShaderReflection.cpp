@@ -66,6 +66,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	ShaderReflection::ShaderReflection(const std::vector<uint8_t>& code)
 	{
+		if (code.size() == 0) return;
+
 		SpvReflectShaderModule reflectionModule;
 		CS_ASSERT(spvReflectCreateShaderModule(code.size(), code.data(), &reflectionModule) == SPV_REFLECT_RESULT_SUCCESS, "Failed to create shader reflection module!");
 		// Reflect input variables

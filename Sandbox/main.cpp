@@ -73,17 +73,17 @@ public:
 			.anisotropicSamples = CVar::Get<uint32_t>("rc_anisotropicsamples"),
 			.multisamples = CVar::Get<uint32_t>("rc_multisamples"),
 			.renderScale = CVar::Get<float>("rc_renderscale")
-			});
+		});
 
 		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
 		struct Shader { std::string name; Vulkan::PipelineVariants variants; };
 
 		std::vector<Shader> shaderList{
-			{ "./shaders/compiled/mesh", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0]) },
-			{ "./shaders/compiled/mesh-unlit", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0])},
-			{ "./shaders/compiled/skybox", Vulkan::PipelineVariants::GetSkyboxVariant(this->renderer.renderPasses[0]) },
+			{ "./shaders/compiled/mesh", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
+			{ "./shaders/compiled/mesh-unlit", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples)},
+			{ "./shaders/compiled/skybox", Vulkan::PipelineVariants::GetSkyboxVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
 			{ "./shaders/compiled/shadow_map", Vulkan::PipelineVariants::GetShadowVariant(this->renderer.renderPasses[2]) },
-			{ "./shaders/compiled/ui", Vulkan::PipelineVariants::GetUIVariant(this->renderer.renderPasses[0]) },
+			{ "./shaders/compiled/ui", Vulkan::PipelineVariants::GetUIVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
 			{ "./shaders/compiled/post_processing", Vulkan::PipelineVariants::GetPostProcessingVariant(this->renderer.renderPasses[1]) }
 		};
 

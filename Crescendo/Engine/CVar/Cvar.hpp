@@ -3,6 +3,7 @@
 #include "common.hpp"
 
 #include <unordered_map>
+#include <algorithm>
 
 CS_NAMESPACE_BEGIN
 {

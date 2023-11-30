@@ -73,8 +73,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 		TransferCommandQueue CreateTransferCommandQueue();
 		RenderPass CreateRenderPass(const std::vector<VkAttachmentDescription>& attachments, const std::vector<VkSubpassDescription>& subpasses, const std::vector<VkSubpassDependency>& subpassDependencies);
 		RenderPass CreateDefaultRenderPass(VkFormat colorFormat, VkFormat depthFormat, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
-		RenderPass CreateDefaultShadowRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
-		RenderPass CreatePostProcessingRenderPass(VkFormat colorFormat, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
+		RenderPass CreateDefaultDepthOnlyRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
+		RenderPass CreateDefaultPostProcessingRenderPass(VkFormat colorFormat, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
 		Framebuffer CreateFramebuffer(VkRenderPass renderPass, const std::vector<VkImageView>& attachments, VkExtent2D extent, bool hasColorAttachment, bool hasDepthAttachment);
 		ShaderModule CreateShaderModule(const std::vector<uint8_t>& code);
 		ShaderReflection CreateShaderReflection(const std::vector<uint8_t>& code);
