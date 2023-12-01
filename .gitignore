@@ -11,8 +11,6 @@ vendor/
 # Intermediate build files
 bin-intermediate/
 
-#Ignore engine config files
-config.xml
 #ignore assets folder
 Sandbox/assets/
 #ignore compiled shaders, leave source

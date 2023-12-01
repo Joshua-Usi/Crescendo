@@ -10,9 +10,7 @@ CS_NAMESPACE_BEGIN
 	Application::Application()
 		: isRunning(true), shouldRestart(false), taskQueue(cs_std::task_queue()), timeManager(cs_std::time_manager()), layerManager(LayerStack())
 	{
-		CS_ASSERT(self == nullptr, "Application instance already exists!");
 		self = this;
-
 		CVar::LoadConfigXML("config.xml");
 
 		window = Window::Create({
@@ -21,11 +19,22 @@ CS_NAMESPACE_BEGIN
 			CVar::Get<uint32_t>("ec_windowheight"),
 		});
 
-		// Attach layers
 		const uint32_t refreshRate = this->window->GetRefreshRate();
 		const double secondsPerFrame = (refreshRate == 0 || !CVar::Get<bool>("ec_vsync")) ? 0.0 : 1.0 / double(refreshRate);
 		this->layerManager.Attach(new LayerUpdate(secondsPerFrame));
 		this->layerManager.Init(this->timeManager.now<double>());
+
+		this->renderer = VulkanInstance({
+			.enableValidationLayers = CVar::Get<bool>("irc_validationlayers"),
+			.appName = CVar::Get<std::string>("ec_appname"),
+			.engineName = "Crescendo",
+			.window = this->GetWindow()->GetNative(),
+			.descriptorSetsPerPool = CVar::Get<uint32_t>("irc_descriptorsetsperpool"),
+			.framesInFlight = CVar::Get<uint32_t>("rc_framesinflight"),
+			.anisotropicSamples = CVar::Get<uint32_t>("rc_anisotropicsamples"),
+			.multisamples = CVar::Get<uint32_t>("rc_multisamples"),
+			.renderScale = CVar::Get<float>("rc_renderscale")
+		});
 	}
 	void Application::Run()
 	{

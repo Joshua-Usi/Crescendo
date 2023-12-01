@@ -4,14 +4,12 @@
 using namespace CrescendoEngine;
 
 #include "cs_std/graphics/algorithms.hpp"
-#include "cs_std/packed_vector.hpp"
+#include "cs_std/xml/xml.hpp"
 
 #include "glm/gtx/common.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
 #include "CameraController.hpp"
-
-#include "Rendering/VulkanInstance/VulkanInstance.hpp"
 
 struct ModelData
 {
@@ -33,8 +31,6 @@ private:
 
 	int frame = 0;
 	double lastTime = 0.0;
-
-	VulkanInstance renderer;
 public:
 	void OnStartup()
 	{
@@ -48,24 +44,9 @@ public:
 
 		this->shadowMapCamera = OrthographicCamera(glm::vec4(-12.5f, 12.5f, -20.0f, 20.0f), glm::vec2(0.0f, 100.0f));
 
-		/* ---------------------------------------------------------------- 0 - Vulkan setup ---------------------------------------------------------------- */
-
-		this->renderer = VulkanInstance({
-			.enableValidationLayers = CVar::Get<bool>("irc_validationlayers"),
-			.appName = CVar::Get<std::string>("ec_appname"),
-			.engineName = "Crescendo",
-			.window = this->GetWindow()->GetNative(),
-			.descriptorSetsPerPool = CVar::Get<uint32_t>("irc_descriptorsetsperpool"),
-			.framesInFlight = CVar::Get<uint32_t>("rc_framesinflight"),
-			.anisotropicSamples = CVar::Get<uint32_t>("rc_anisotropicsamples"),
-			.multisamples = CVar::Get<uint32_t>("rc_multisamples"),
-			.renderScale = CVar::Get<float>("rc_renderscale")
-		});
-
 		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
 		struct Shader { std::string name; Vulkan::PipelineVariants variants; };
-
-		std::string shaderPath = "./shaders/compiled/";
+		std::string shaderPath = CVar::Get<std::string>("pc_shaderpath");
 
 		std::vector<Shader> shaderList{
 			{ "mesh", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
@@ -94,7 +75,7 @@ public:
 		this->renderer.pipelines[3].CreateDescriptorSets(0, 3); // One per fif
 		this->renderer.pipelines[4].CreateDescriptorSets(0, 3); // One per fif
 
-		this->renderer.pipelines[0].UpdateDescriptorData(0, 1, 0, glm::vec3(0.3f, 0.4f, 0.3f));
+		this->renderer.pipelines[0].UpdateDescriptorData(0, 1, 0, glm::vec3(0.3f, 0.4f, 1.0f));
 
 		/* ---------------------------------------------------------------- 1.2 - Mesh data ---------------------------------------------------------------- */
 
@@ -112,19 +93,18 @@ public:
 			skyboxModel.meshAttributes.push_back(skyboxAttributes);
 		}
 
-		std::vector<cs_std::graphics::model> models =
+		std::string assetPath = CVar::Get<std::string>("pc_assetpath");
+		cs_std::xml::document modelsXML = cs_std::xml::parse_file("./models.xml");
+		std::vector<cs_std::graphics::model> models;
+		
+		for (uint32_t i = 0; i < modelsXML.root->GetChildCount(); i++)
 		{
-			//LoadGLTF("./assets/tristan/TRISTANSEXY.gltf"),
-			LoadGLTF("./assets/modern-sponza/modern-sponza.gltf"),
-			LoadGLTF("./assets/sponza-curtains/sponza-curtains.gltf"),
-			//LoadGLTF("./assets/sponza-ivy/sponza-ivy.gltf"),
-			//LoadGLTF("./assets/sponza-candles/sponza-candles.gltf"),
-			//LoadOBJ("./assets/obj-sponza/sponza.obj"),
-			//LoadGLTF("./assets/companion-cube/scene.gltf"),
-			//LoadGLTF("./assets/tree/tree.gltf"),
-			LoadGLTF("./assets/chair/chair.gltf"),
-			skyboxModel,
-		};
+			cs_std::xml::node* modelNode = modelsXML.root->GetChild(i);
+			if (modelNode->tag == "gltf") models.push_back(LoadGLTF(assetPath + modelNode->innerText));
+			else if (modelNode->tag == "obj") models.push_back(LoadOBJ(assetPath + modelNode->innerText));
+		}
+
+		models.push_back(skyboxModel);
 
 		uint32_t modelIndex = 0;
 		uint32_t textureIndex = 0;
@@ -342,24 +322,18 @@ public:
 		frame++;
 		if (this->GetTime() - this->lastTime >= 1.0)
 		{
-			this->lastTime = this->GetTime();
+			this->lastTime += 1.0;
 			this->GetWindow()->SetName("Crescendo | FPS: " + std::to_string(this->frame));
 			this->frame = 0;
 		}
 
 		if (Input::GetKeyDown(Key::F11)) this->GetWindow()->SetFullScreen(!this->GetWindow()->IsFullScreen());
 		if (Input::GetMouseButtonDown(MouseButton::Left)) this->GetWindow()->SetCursorLock(true);
-		if (Input::GetKeyDown(Key::Escape))
-		{
-			if (this->GetWindow()->IsCursorLocked()) this->GetWindow()->SetCursorLock(false);
-			else this->Exit();
-		}
+		if (Input::GetKeyDown(Key::Escape)) this->GetWindow()->IsCursorLocked() ? this->GetWindow()->SetCursorLock(false) : this->Exit();
 		if (Input::GetKeyPressed(Key::ControlLeft) && Input::GetKeyPressed(Key::F5)) this->Restart();
 	}
 	void OnExit()
 	{
-		std::string xml = CVar::SerializeConfigXML();
-		cs_std::console::log(xml);
 	}
 };
 

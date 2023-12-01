@@ -8,6 +8,8 @@
 #include "cs_std/task_queue.hpp"
 #include "cs_std/time_manager.hpp"
 
+#include "Rendering/VulkanInstance/VulkanInstance.hpp"
+
 CS_NAMESPACE_BEGIN
 {
 	class Application
@@ -22,6 +24,7 @@ CS_NAMESPACE_BEGIN
 
 		bool isRunning, shouldRestart;
 	protected:
+		VulkanInstance renderer;
 		cs_std::task_queue taskQueue;
 	public:
 		Application();
