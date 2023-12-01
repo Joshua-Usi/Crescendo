@@ -36,7 +36,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		bool NeedsRecreation() const { return needsRecreation; }
 		uint32_t GetImageCount() const { return static_cast<uint32_t>(images.size()); }
 		VkFormat GetImageFormat() const { return imageFormat; }
-			const VkExtent2D& GetExtent() const { return extent; }
+		const VkExtent2D& GetExtent() const { return extent; }
 		VkExtent3D GetExtent3D() const { return { extent.width, extent.height, 1 }; }
 		VkSwapchainKHR GetSwapchain() const { return swapchain; }
 

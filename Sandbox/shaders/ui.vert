@@ -1,6 +1,4 @@
 #version 460
-layout (location = 0) in vec3 iPosition;
-layout (location = 1) in vec2 iTexCoord;
 
 layout (location = 0) out vec2 oTexCoord;
 
@@ -14,9 +12,7 @@ layout(std140, set = 1, binding = 0) readonly buffer ShaderStorage {
 
 void main()
 {
-	oTexCoord = iTexCoord;
-	
 	const mat4 model = modelBuffer[gl_InstanceIndex];
-
-	gl_Position = viewProjection * model * vec4(iPosition.xy, 0.0f, 1.0f);
+	oTexCoord = vec2(gl_VertexIndex & 1, mod((gl_VertexIndex + 1) / 3, 2));
+	gl_Position = viewProjection * model * vec4(oTexCoord - 0.5f, 0.0f, 1.0f);
 }

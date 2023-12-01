@@ -6,8 +6,12 @@
 
 #include <algorithm>
 
-#define CS_DEFINE_ENUM_CLASS_OR_OPERATOR(EnumType, EnumName) friend EnumName operator|(EnumName a, EnumName b) { return static_cast<EnumName>(static_cast<EnumType>(a) | static_cast<EnumType>(b)); }
-#define CS_DEFINE_ENUM_CLASS_AND_OPERATOR(EnumType, EnumName) friend EnumName operator&(EnumName a, EnumName b) { return static_cast<EnumName>(static_cast<EnumType>(a) & static_cast<EnumType>(b)); }
+#define CS_DEFINE_ENUM_CLASS_OR_OPERATOR(EnumType, EnumName)\
+	friend EnumName operator|(EnumName a, EnumName b) { return static_cast<EnumName>(static_cast<EnumType>(a) | static_cast<EnumType>(b)); };\
+	friend EnumName operator|=(EnumName& a, EnumName b) { return a = a | b; }
+#define CS_DEFINE_ENUM_CLASS_AND_OPERATOR(EnumType, EnumName)\
+		friend EnumName operator&(EnumName a, EnumName b) { return static_cast<EnumName>(static_cast<EnumType>(a) & static_cast<EnumType>(b)); };\
+		friend EnumName operator&=(EnumName& a, EnumName b) { return a = a & b; }
 #define CS_DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EnumType, EnumName) CS_DEFINE_ENUM_CLASS_OR_OPERATOR(EnumType, EnumName); CS_DEFINE_ENUM_CLASS_AND_OPERATOR(EnumType, EnumName)
 
 CS_NAMESPACE_BEGIN::Vulkan

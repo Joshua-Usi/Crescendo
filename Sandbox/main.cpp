@@ -11,20 +11,8 @@ using namespace CrescendoEngine;
 
 #include "CameraController.hpp"
 
-#include <map>
-
-#include "glfw/glfw3.h"
-
 #include "Rendering/VulkanInstance/VulkanInstance.hpp"
 
-//struct Transform
-//{
-//	glm::mat4 transform;
-//	Transform(const glm::mat4& transform) : transform(transform) {}
-//
-//	operator glm::mat4&() { return this->transform; }
-//};
-//
 struct ModelData
 {
 	cs_std::graphics::bounding_aabb bounds;
@@ -42,7 +30,6 @@ private:
 	OrthographicCamera shadowMapCamera;
 
 	std::vector<ModelData> modelData;
-	//std::vector<Entity> entities;
 
 	int frame = 0;
 	double lastTime = 0.0;
@@ -78,20 +65,22 @@ public:
 		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
 		struct Shader { std::string name; Vulkan::PipelineVariants variants; };
 
+		std::string shaderPath = "./shaders/compiled/";
+
 		std::vector<Shader> shaderList{
-			{ "./shaders/compiled/mesh", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
-			{ "./shaders/compiled/mesh-unlit", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples)},
-			{ "./shaders/compiled/skybox", Vulkan::PipelineVariants::GetSkyboxVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
-			{ "./shaders/compiled/shadow_map", Vulkan::PipelineVariants::GetShadowVariant(this->renderer.renderPasses[2]) },
-			{ "./shaders/compiled/ui", Vulkan::PipelineVariants::GetUIVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
-			{ "./shaders/compiled/post_processing", Vulkan::PipelineVariants::GetPostProcessingVariant(this->renderer.renderPasses[1]) }
+			{ "mesh", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
+			{ "mesh-unlit", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples)},
+			{ "skybox", Vulkan::PipelineVariants::GetSkyboxVariant(this->renderer.renderPasses[0]) },
+			{ "shadow_map", Vulkan::PipelineVariants::GetShadowVariant(this->renderer.renderPasses[2]) },
+			{ "ui", Vulkan::PipelineVariants::GetUIVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
+			{ "post_processing", Vulkan::PipelineVariants::GetPostProcessingVariant(this->renderer.renderPasses[1]) }
 		};
 
 		for (const auto& shader : shaderList)
 		{
 			this->renderer.pipelines.insert(this->renderer.device.CreatePipelines(
-				cs_std::binary_file(shader.name + ".vert.spv").open().read_if_exists(),
-				cs_std::binary_file(shader.name + ".frag.spv").open().read_if_exists(),
+				cs_std::binary_file(shaderPath + shader.name + ".vert.spv").open().read_if_exists(),
+				cs_std::binary_file(shaderPath + shader.name + ".frag.spv").open().read_if_exists(),
 				shader.variants
 			));
 		}
@@ -123,25 +112,6 @@ public:
 			skyboxModel.meshAttributes.push_back(skyboxAttributes);
 		}
 
-		cs_std::graphics::model quadModel{};
-		{
-			Construct::Mesh quad = Construct::Quad();
-			cs_std::graphics::mesh quadMesh{};
-			quadMesh.indices = quad.indices;
-			quadMesh.add_attribute(cs_std::graphics::Attribute::POSITION, quad.vertices);
-			quadMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, quad.textureUVs);
-			cs_std::graphics::mesh_attributes quadAttributes{};
-
-			glm::mat4 model = glm::mat4(1.0f);
-			model = glm::translate(model, glm::vec3(100.0f, -100.0f, 0.0f));
-			model = glm::scale(model, glm::vec3(200.0f, 200.0f, 1.0f));
-
-			quadAttributes.transform = model;
-
-			quadModel.meshes.push_back(quadMesh);
-			quadModel.meshAttributes.push_back(quadAttributes);
-		}
-
 		std::vector<cs_std::graphics::model> models =
 		{
 			//LoadGLTF("./assets/tristan/TRISTANSEXY.gltf"),
@@ -151,10 +121,9 @@ public:
 			//LoadGLTF("./assets/sponza-candles/sponza-candles.gltf"),
 			//LoadOBJ("./assets/obj-sponza/sponza.obj"),
 			//LoadGLTF("./assets/companion-cube/scene.gltf"),
-			LoadGLTF("./assets/tree/tree.gltf"),
-			//LoadGLTF("./assets/chair/chair.gltf"),
+			//LoadGLTF("./assets/tree/tree.gltf"),
+			LoadGLTF("./assets/chair/chair.gltf"),
 			skyboxModel,
-			quadModel
 		};
 
 		uint32_t modelIndex = 0;
@@ -280,102 +249,87 @@ public:
 
 		cmd.Begin();
 		// Shadowmap pass
-		cmd.DynamicStateSetViewport(shadowFramebuffer.GetViewport());
-		cmd.DynamicStateSetScissor(shadowFramebuffer.GetScissor());
-		cmd.BeginRenderPass(shadowFramebuffer.renderPass, shadowFramebuffer, shadowFramebuffer.GetScissor(), { Vulkan::Create::DefaultDepthClear() });
 		{
+			cmd.DynamicStateSetViewport(shadowFramebuffer.GetViewport());
+			cmd.DynamicStateSetScissor(shadowFramebuffer.GetScissor());
+			cmd.BeginRenderPass(shadowFramebuffer.renderPass, shadowFramebuffer, shadowFramebuffer.GetScissor(), { Vulkan::Create::DefaultDepthClear() });
 			cs_std::graphics::frustum frustum(this->shadowMapCamera.GetViewProjectionMatrix());
-			// Bind pipeline
 			cmd.BindPipeline(shadowPipeline[0]);
-			// Bind data descriptor sets
 			cmd.BindDescriptorSets(shadowPipeline, { shadowPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
-			// Bind storage descriptor sets
 			cmd.BindDescriptorSet(shadowPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
-			for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 2; i++)
+			for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 1; i++)
 			{
 				const Vulkan::Mesh& mesh = this->renderer.meshes[i];
-				// If outside the frustum, skip
 				if (!frustum.intersects(this->modelData[i].bounds)) continue;
-				// Bind vertex meshes
 				std::vector<VkBuffer> buffers = shadowPipeline.GetMatchingBuffers(mesh);
 				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 				cmd.BindVertexBuffers(buffers, bufferOffsets);
 				cmd.BindIndexBuffer(mesh.indexBuffer);
 				cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
 			}
+			cmd.EndRenderPass();
 		}
-		cmd.EndRenderPass();
-		// Normal pass
-		cmd.DynamicStateSetViewport(offScreen.GetViewport(true));
-		cmd.DynamicStateSetScissor(offScreen.GetScissor());
-		cmd.BeginRenderPass(offScreen.renderPass, offScreen, offScreen.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f }, Vulkan::Create::DefaultDepthClear() });
+		// Depth pre-pass
 		{
+			cmd.DynamicStateSetViewport(offScreen.GetViewport(true));
+			cmd.DynamicStateSetScissor(offScreen.GetScissor());
+	
+		}
+		// Normal pass
+		{
+			cmd.DynamicStateSetViewport(offScreen.GetViewport(true));
+			cmd.DynamicStateSetScissor(offScreen.GetScissor());
+			cmd.BeginRenderPass(offScreen.renderPass, offScreen, offScreen.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f }, Vulkan::Create::DefaultDepthClear() });
 			// Normal rendering
-			cs_std::graphics::frustum frustum = cs_std::graphics::frustum(this->camera.camera.GetViewProjectionMatrix());
-			for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 2; i++)
 			{
-				const Vulkan::Mesh& mesh = this->renderer.meshes[i];
-				// If outside the frustum, skip
-				if (!frustum.intersects(this->modelData[i].bounds)) continue;
-				// Select the correct pipeline
-				int index = (this->modelData[i].isDoubleSided << 1) | this->modelData[i].isTransparent;
-				cmd.BindPipeline(defaultPipeline[index]);
-				// Bind data descriptor sets
-				cmd.BindDescriptorSets(defaultPipeline, { defaultPipeline.descriptorSets[0][this->renderer.frameIndex].set, defaultPipeline.descriptorSets[1][0].set }, { 0, 0, 0 });
-				// Bind storage descriptor sets
-				cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
-				// Bind texture descriptor sets
-				cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[this->modelData[i].textureID].set, this->renderer.textures[this->modelData[i].normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
-				// Bind vertex meshes
-				std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(mesh);
-				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
-				cmd.BindVertexBuffers(buffers, bufferOffsets);
-				cmd.BindIndexBuffer(mesh.indexBuffer);
-				cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
+				cs_std::graphics::frustum frustum = cs_std::graphics::frustum(this->camera.camera.GetViewProjectionMatrix());
+				for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 1; i++)
+				{
+					const Vulkan::Mesh& mesh = this->renderer.meshes[i];
+					if (!frustum.intersects(this->modelData[i].bounds)) continue;
+					int index = (this->modelData[i].isDoubleSided << 1) | this->modelData[i].isTransparent;
+					cmd.BindPipeline(defaultPipeline[index]);
+					cmd.BindDescriptorSets(defaultPipeline, { defaultPipeline.descriptorSets[0][this->renderer.frameIndex].set, defaultPipeline.descriptorSets[1][0].set }, { 0, 0, 0 });
+					cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
+					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[this->modelData[i].textureID].set, this->renderer.textures[this->modelData[i].normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
+					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(mesh);
+					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
+					cmd.BindVertexBuffers(buffers, bufferOffsets);
+					cmd.BindIndexBuffer(mesh.indexBuffer);
+					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
+				}
 			}
 			// Skybox rendering
 			{
 				cmd.BindPipeline(skyboxPipeline[0]);
-				// Bind data descriptor sets
 				cmd.BindDescriptorSets(skyboxPipeline, { skyboxPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
-				// Bind texture descriptor sets
-				cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->modelData[this->renderer.meshes.capacity() - 2].textureID].set, 0, 1);
-				// Bind vertex meshes
-				std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 2]);
-				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
-				cmd.BindVertexBuffers(buffers, bufferOffsets);
-				cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 2].indexBuffer);
-				cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 2].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 2);
-			}
-			// UI rendering
-			{
-				cmd.BindPipeline(uiPipeline[0]);
-				// Bind data descriptor sets
-				cmd.BindDescriptorSets(uiPipeline, { uiPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
-				// Bind storage descriptor sets
-				cmd.BindDescriptorSet(uiPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
-				// Bind texture descriptor sets
-				cmd.BindDescriptorSet(uiPipeline, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set, 0, 2);
-				// Bind vertex meshes
-				std::vector<VkBuffer> buffers = uiPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 1]);
+				cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->modelData[this->renderer.meshes.capacity() - 1].textureID].set, 0, 1);
+				std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 1]);
 				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 				cmd.BindVertexBuffers(buffers, bufferOffsets);
 				cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexBuffer);
 				cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 1);
 			}
+			// UI rendering
+			{
+				cmd.BindPipeline(uiPipeline[0]);
+				cmd.BindDescriptorSets(uiPipeline, { uiPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
+				cmd.BindDescriptorSet(uiPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
+				cmd.BindDescriptorSet(uiPipeline, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set, 0, 2);
+				cmd.Draw(6, 1, 0, this->renderer.meshes.capacity() - 1);
+			}
+			cmd.EndRenderPass();
 		}
-		cmd.EndRenderPass();
 		// Post-processing step
-		cmd.DynamicStateSetViewport(framebuffer.GetViewport());
-		cmd.DynamicStateSetScissor(framebuffer.GetScissor());
-		cmd.BeginRenderPass(framebuffer.renderPass, framebuffer, framebuffer.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f } });
 		{
+			cmd.DynamicStateSetViewport(framebuffer.GetViewport());
+			cmd.DynamicStateSetScissor(framebuffer.GetScissor());
+			cmd.BeginRenderPass(framebuffer.renderPass, framebuffer, framebuffer.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f } });
 			cmd.BindPipeline(postProcessingPipeline[0]);
-			// Bind texture
 			cmd.BindDescriptorSet(postProcessingPipeline, this->renderer.textures[this->renderer.offscreen.textureIndices[0]].set, 0, 0);
 			cmd.Draw(6);
+			cmd.EndRenderPass();
 		}
-		cmd.EndRenderPass();
 		cmd.End();
 		cmd.Submit(cur.presentReady, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, cur.renderFinish);
 
