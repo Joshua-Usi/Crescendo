@@ -119,35 +119,16 @@ public:
 			{
 				auto& mesh = model.meshes[i];
 				auto& attributes = model.meshAttributes[i];
-
 				if (!mesh.has_attribute(cs_std::graphics::Attribute::TANGENT)) cs_std::graphics::generate_tangents(mesh);
-
-				indexCount += mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data.size();
-
 				this->renderer.meshes.insert(this->renderer.UploadMesh(mesh));
-
-				if (!attributes.diffuse.empty() && seenTextures.find(attributes.diffuse) == seenTextures.end())
-				{
-					seenTextures[attributes.diffuse] = textureIndex;
-					textureIndex++;
-				}
-				if (!attributes.normal.empty() && seenTextures.find(attributes.normal) == seenTextures.end())
-				{
-					seenTextures[attributes.normal] = textureIndex;
-					textureIndex++;
-				}
-
+				if (!attributes.diffuse.empty() && seenTextures.find(attributes.diffuse) == seenTextures.end()) { seenTextures[attributes.diffuse] = textureIndex; textureIndex++; }
+				if (!attributes.normal.empty() && seenTextures.find(attributes.normal) == seenTextures.end()) { seenTextures[attributes.normal] = textureIndex; textureIndex++; }
 				this->modelData.emplace_back(
 					cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform),
 					seenTextures[attributes.diffuse] + currentTextureCount, seenTextures[attributes.normal] + currentTextureCount,
 					attributes.isTransparent, attributes.isDoubleSided, true
 				);
-
-				// Fill the model matrix buffer
-				for (uint32_t j = 0; j < this->renderer.specs.framesInFlight; j++)
-				{
-					memcpy(static_cast<char*>(this->renderer.ssbo[j].buffer.mPtr) + sizeof(glm::mat4) * modelIndex, &attributes.transform, sizeof(glm::mat4));
-				}
+				for (auto& ssbo : this->renderer.ssbo) memcpy(static_cast<char*>(ssbo.buffer.mPtr) + sizeof(glm::mat4) * modelIndex, &attributes.transform, sizeof(glm::mat4));
 				modelIndex++;
 			}
 		}
