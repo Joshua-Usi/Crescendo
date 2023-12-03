@@ -137,7 +137,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 
 		return this->CreateRenderPass(attachments, { subpass }, { colorDependency, colorDependency2 });
 	}
-	RenderPass Device::CreateDefaultDepthOnlyRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples)
+	RenderPass Device::CreateDefaultShadowRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples)
 	{
 		VkAttachmentDescription shadowMapAttachment = Create::AttachmentDescription(
 			depthFormat, samples,
@@ -169,6 +169,39 @@ CS_NAMESPACE_BEGIN::Vulkan
 		);
 
 		return this->CreateRenderPass({ shadowMapAttachment }, { shadowMapSubpass }, { shadowMapDependency, shadowMapDependency2 });
+	}
+	RenderPass Device::CreateDefaultDepthPrePassRenderPass(VkFormat depthFormat, VkSampleCountFlagBits samples)
+	{
+		VkAttachmentDescription depthAttachment = Create::AttachmentDescription(
+			depthFormat, samples,
+			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+		);
+		VkAttachmentReference depthAttachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+		VkSubpassDescription depthSubpass = Create::SubpassDescription(
+			VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 0, nullptr, nullptr, &depthAttachmentRef, 0, nullptr
+		);
+
+		VkSubpassDependency depthDependency = Create::SubpassDependency(
+			VK_SUBPASS_EXTERNAL, 0,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+			VK_DEPENDENCY_BY_REGION_BIT
+		);
+		VkSubpassDependency depthDependency2 = Create::SubpassDependency(
+			0, VK_SUBPASS_EXTERNAL,
+			VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_DEPENDENCY_BY_REGION_BIT
+		);
+
+		return this->CreateRenderPass({ depthAttachment }, { depthSubpass }, { depthDependency, depthDependency2 });
 	}
 	RenderPass Device::CreateDefaultPostProcessingRenderPass(VkFormat colorFormat, VkSampleCountFlagBits samples)
 	{

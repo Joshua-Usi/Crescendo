@@ -61,7 +61,7 @@ CS_NAMESPACE_BEGIN
 
 		std::vector<Vulkan::SSBO> ssbo;
 
-		SamplableFramebuffer shadowMap, offscreen;
+		SamplableFramebuffer shadowMap, depthPrePass, offscreen;
 
 		 VulkanInstanceSpecification specs;
 	public:

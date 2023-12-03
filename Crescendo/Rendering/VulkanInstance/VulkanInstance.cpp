@@ -96,8 +96,8 @@ CS_NAMESPACE_BEGIN
 		// Create renderpasses
 		const uint32_t drpIdx = this->renderPasses.insert(this->device.CreateDefaultRenderPass(OFFSCREEN_FORMAT, DEPTH_FORMAT, multisamplesCount));
 		const uint32_t pprpIdx = this->renderPasses.insert(this->device.CreateDefaultPostProcessingRenderPass(this->swapchain.GetImageFormat()));
-		const uint32_t smrpIdx = this->renderPasses.insert(this->device.CreateDefaultDepthOnlyRenderPass(SHADOW_MAP_FORMAT));
-		//const uint32_t dpprpIdx = this->renderPasses.insert(this->device.CreateDefaultDepthOnlyRenderPass(DEPTH_FORMAT));
+		const uint32_t smrpIdx = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(SHADOW_MAP_FORMAT));
+		const uint32_t dpprpIdx = this->renderPasses.insert(this->device.CreateDefaultDepthPrePassRenderPass(DEPTH_FORMAT));
 
 		// Create the swapchain frame buffers
 		for (const auto& swapChainImage : this->swapchain)
