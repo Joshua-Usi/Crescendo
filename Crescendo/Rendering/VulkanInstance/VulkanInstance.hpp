@@ -61,7 +61,7 @@ CS_NAMESPACE_BEGIN
 
 		std::vector<Vulkan::SSBO> ssbo;
 
-		SamplableFramebuffer shadowMap, depthPrePass, offscreen;
+		SamplableFramebuffer shadowMap, depthPrepass, offscreen;
 
 		 VulkanInstanceSpecification specs;
 	public:
@@ -78,8 +78,9 @@ CS_NAMESPACE_BEGIN
 		~VulkanInstance();
 	public:
 		void CreateSwapchain();
-		SamplableFramebuffer CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, VkFormat depthFormat, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height);
+		SamplableFramebuffer CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, uint32_t depthTextureIndex, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height);
 		SamplableFramebuffer CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height);
+		SamplableFramebuffer CreateDepthPrepass(VkRenderPass renderPass, VkFormat format, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height);
 
 		Vulkan::Mesh UploadMesh(const cs_std::graphics::mesh& mesh);
 		Vulkan::Texture UploadTexture(const cs_std::image& image, bool generateMipmaps);

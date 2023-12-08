@@ -52,9 +52,10 @@ public:
 			{ "mesh", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
 			{ "mesh-unlit", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples)},
 			{ "skybox", Vulkan::PipelineVariants::GetSkyboxVariant(this->renderer.renderPasses[0]) },
-			{ "shadow_map", Vulkan::PipelineVariants::GetShadowVariant(this->renderer.renderPasses[2]) },
+			{ "depth", Vulkan::PipelineVariants::GetShadowVariant(this->renderer.renderPasses[2]) }, // Shadowmap
 			{ "ui", Vulkan::PipelineVariants::GetUIVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
-			{ "post_processing", Vulkan::PipelineVariants::GetPostProcessingVariant(this->renderer.renderPasses[1]) }
+			{ "post_processing", Vulkan::PipelineVariants::GetPostProcessingVariant(this->renderer.renderPasses[1]) },
+			{ "depth", Vulkan::PipelineVariants::GetDepthPrepassVariant(this->renderer.renderPasses[3], this->renderer.specs.multisamples) } // Depth pre-pass
 		};
 
 		for (const auto& shader : shaderList)
@@ -74,6 +75,7 @@ public:
 		this->renderer.pipelines[2].CreateDescriptorSets(0, 3); // One per fif
 		this->renderer.pipelines[3].CreateDescriptorSets(0, 3); // One per fif
 		this->renderer.pipelines[4].CreateDescriptorSets(0, 3); // One per fif
+		this->renderer.pipelines[6].CreateDescriptorSets(0, 3); // One per fif
 
 		this->renderer.pipelines[0].UpdateDescriptorData(0, 1, 0, glm::vec3(0.3f, 0.4f, 1.0f));
 
@@ -176,6 +178,7 @@ public:
 		Vulkan::Pipelines& shadowPipeline = this->renderer.pipelines[3];
 		Vulkan::Pipelines& uiPipeline = this->renderer.pipelines[4];
 		Vulkan::Pipelines& postProcessingPipeline = this->renderer.pipelines[5];
+		Vulkan::Pipelines& depthPrepassPipeline = this->renderer.pipelines[6];
 
 		// Render prep
 		const glm::mat4 projections[2]{ this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
@@ -188,6 +191,7 @@ public:
 		skyboxPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, glm::translate(this->camera.camera.GetViewProjectionMatrix(), this->camera.camera.GetPosition()));
 		shadowPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[1]);
 		uiPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, this->UICamera.GetViewProjectionMatrix());
+		depthPrepassPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[0]);
 
 		/* ---------------------------------------------------------------- Render commands ---------------------------------------------------------------- */
 
@@ -204,24 +208,37 @@ public:
 			this->renderer.CreateSwapchain();
 			currentImage = this->renderer.swapchain.AcquireNextImage(cur.presentReady);
 		}
-		const Vulkan::Framebuffer& framebuffer = this->renderer.framebuffers[currentImage];
+		const Vulkan::Framebuffer& postProcessing = this->renderer.framebuffers[currentImage];
 		const Vulkan::Framebuffer& offScreen = this->renderer.framebuffers[this->renderer.offscreen.framebufferIndex];
-		const Vulkan::Framebuffer& shadowFramebuffer = this->renderer.framebuffers[this->renderer.shadowMap.framebufferIndex];
+		const Vulkan::Framebuffer& shadow = this->renderer.framebuffers[this->renderer.shadowMap.framebufferIndex];
+		const Vulkan::Framebuffer& depthPrepass = this->renderer.framebuffers[this->renderer.depthPrepass.framebufferIndex];
+
+		cs_std::graphics::frustum shadowMapFrustum(this->shadowMapCamera.GetViewProjectionMatrix()), cameraFrustum(this->camera.camera.GetViewProjectionMatrix());
+
+		std::vector<uint32_t> shadowMapMeshIndices = {}, meshIndices = {}, transparentMeshIndices = {};
+
+		for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 1; i++)
+		{
+			if (shadowMapFrustum.intersects(this->modelData[i].bounds)) shadowMapMeshIndices.push_back(i);
+			if (cameraFrustum.intersects(this->modelData[i].bounds))
+			{
+				if (this->modelData[i].isTransparent) transparentMeshIndices.push_back(i);
+				else meshIndices.push_back(i);
+			}
+		}
 
 		cmd.Begin();
 		// Shadowmap pass
 		{
-			cmd.DynamicStateSetViewport(shadowFramebuffer.GetViewport());
-			cmd.DynamicStateSetScissor(shadowFramebuffer.GetScissor());
-			cmd.BeginRenderPass(shadowFramebuffer.renderPass, shadowFramebuffer, shadowFramebuffer.GetScissor(), { Vulkan::Create::DefaultDepthClear() });
-			cs_std::graphics::frustum frustum(this->shadowMapCamera.GetViewProjectionMatrix());
+			cmd.DynamicStateSetViewport(shadow.GetViewport());
+			cmd.DynamicStateSetScissor(shadow.GetScissor());
+			cmd.BeginRenderPass(shadow.renderPass, shadow, shadow.GetScissor(), { Vulkan::Create::DefaultDepthClear() });
 			cmd.BindPipeline(shadowPipeline[0]);
 			cmd.BindDescriptorSets(shadowPipeline, { shadowPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
 			cmd.BindDescriptorSet(shadowPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
-			for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 1; i++)
+			for (auto i : shadowMapMeshIndices)
 			{
 				const Vulkan::Mesh& mesh = this->renderer.meshes[i];
-				if (!frustum.intersects(this->modelData[i].bounds)) continue;
 				std::vector<VkBuffer> buffers = shadowPipeline.GetMatchingBuffers(mesh);
 				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 				cmd.BindVertexBuffers(buffers, bufferOffsets);
@@ -232,23 +249,48 @@ public:
 		}
 		// Depth pre-pass
 		{
-			cmd.DynamicStateSetViewport(offScreen.GetViewport(true));
-			cmd.DynamicStateSetScissor(offScreen.GetScissor());
-	
+			cmd.DynamicStateSetViewport(depthPrepass.GetViewport(true));
+			cmd.DynamicStateSetScissor(depthPrepass.GetScissor());
+			cmd.BeginRenderPass(depthPrepass.renderPass, depthPrepass, depthPrepass.GetScissor(), { Vulkan::Create::DefaultDepthClear() });
+			cmd.BindPipeline(depthPrepassPipeline[0]);
+			// Normal rendering
+			{
+				for (auto i : meshIndices)
+				{
+					const Vulkan::Mesh& mesh = this->renderer.meshes[i];
+					cmd.BindDescriptorSets(depthPrepassPipeline, { depthPrepassPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
+					cmd.BindDescriptorSet(depthPrepassPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
+					std::vector<VkBuffer> buffers = depthPrepassPipeline.GetMatchingBuffers(mesh);
+					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
+					cmd.BindVertexBuffers(buffers, bufferOffsets);
+					cmd.BindIndexBuffer(mesh.indexBuffer);
+					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
+				}
+			}
+			cmd.EndRenderPass();
 		}
 		// Normal pass
 		{
 			cmd.DynamicStateSetViewport(offScreen.GetViewport(true));
 			cmd.DynamicStateSetScissor(offScreen.GetScissor());
-			cmd.BeginRenderPass(offScreen.renderPass, offScreen, offScreen.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f }, Vulkan::Create::DefaultDepthClear() });
-			// Normal rendering
+			cmd.BeginRenderPass(offScreen.renderPass, offScreen, offScreen.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f } });
+			// Skybox rendering
 			{
-				cs_std::graphics::frustum frustum = cs_std::graphics::frustum(this->camera.camera.GetViewProjectionMatrix());
-				for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 1; i++)
+				cmd.BindPipeline(skyboxPipeline[0]);
+				cmd.BindDescriptorSets(skyboxPipeline, { skyboxPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
+				cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->modelData[this->renderer.meshes.capacity() - 1].textureID].set, 0, 1);
+				std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 1]);
+				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
+				cmd.BindVertexBuffers(buffers, bufferOffsets);
+				cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexBuffer);
+				cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 1);
+			}
+			// Solid objects rendering
+			{
+				for (auto i : meshIndices)
 				{
 					const Vulkan::Mesh& mesh = this->renderer.meshes[i];
-					if (!frustum.intersects(this->modelData[i].bounds)) continue;
-					int index = (this->modelData[i].isDoubleSided << 1) | this->modelData[i].isTransparent;
+					uint32_t index = this->modelData[i].isDoubleSided;
 					cmd.BindPipeline(defaultPipeline[index]);
 					cmd.BindDescriptorSets(defaultPipeline, { defaultPipeline.descriptorSets[0][this->renderer.frameIndex].set, defaultPipeline.descriptorSets[1][0].set }, { 0, 0, 0 });
 					cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
@@ -260,16 +302,22 @@ public:
 					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
 				}
 			}
-			// Skybox rendering
+			// Transparent objects rendering
 			{
-				cmd.BindPipeline(skyboxPipeline[0]);
-				cmd.BindDescriptorSets(skyboxPipeline, { skyboxPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
-				cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->modelData[this->renderer.meshes.capacity() - 1].textureID].set, 0, 1);
-				std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 1]);
-				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
-				cmd.BindVertexBuffers(buffers, bufferOffsets);
-				cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexBuffer);
-				cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 1);
+				for (auto i : transparentMeshIndices)
+				{
+					const Vulkan::Mesh& mesh = this->renderer.meshes[i];
+					uint32_t index = this->modelData[i].isDoubleSided;
+					cmd.BindPipeline(defaultPipeline[index]);
+					cmd.BindDescriptorSets(defaultPipeline, { defaultPipeline.descriptorSets[0][this->renderer.frameIndex].set, defaultPipeline.descriptorSets[1][0].set }, { 0, 0, 0 });
+					cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
+					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[this->modelData[i].textureID].set, this->renderer.textures[this->modelData[i].normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
+					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(mesh);
+					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
+					cmd.BindVertexBuffers(buffers, bufferOffsets);
+					cmd.BindIndexBuffer(mesh.indexBuffer);
+					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
+				}
 			}
 			// UI rendering
 			{
@@ -283,9 +331,9 @@ public:
 		}
 		// Post-processing step
 		{
-			cmd.DynamicStateSetViewport(framebuffer.GetViewport());
-			cmd.DynamicStateSetScissor(framebuffer.GetScissor());
-			cmd.BeginRenderPass(framebuffer.renderPass, framebuffer, framebuffer.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f } });
+			cmd.DynamicStateSetViewport(postProcessing.GetViewport());
+			cmd.DynamicStateSetScissor(postProcessing.GetScissor());
+			cmd.BeginRenderPass(postProcessing.renderPass, postProcessing, postProcessing.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f } });
 			cmd.BindPipeline(postProcessingPipeline[0]);
 			cmd.BindDescriptorSet(postProcessingPipeline, this->renderer.textures[this->renderer.offscreen.textureIndices[0]].set, 0, 0);
 			cmd.Draw(6);

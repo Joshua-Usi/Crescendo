@@ -2,7 +2,7 @@
 <config>
 	<!-- internal render config (usually not modified by end-users) -->
 	<irc_descriptorsetsperpool>32</irc_descriptorsetsperpool>
-	<irc_validationlayers>false</irc_validationlayers>
+	<irc_validationlayers>true</irc_validationlayers>
 	<!-- render config-->
 	<rc_framesinflight>3</rc_framesinflight>
 	<rc_multisamples>1</rc_multisamples>
