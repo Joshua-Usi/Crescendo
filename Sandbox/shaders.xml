@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+	<default>default</default>
+	<skybox>skybox</skybox>
+	<shadow_map>depth</shadow_map>
+	<ui>ui</ui>
+	<post_processing>post_processing</post_processing>
+	<depth_prepass>depth</depth_prepass>
+</config>	

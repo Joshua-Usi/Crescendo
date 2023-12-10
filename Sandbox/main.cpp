@@ -32,82 +32,8 @@ private:
 	int frame = 0;
 	double lastTime = 0.0;
 public:
-	void OnStartup()
+	void LoadModels(std::vector<cs_std::graphics::model>& models)
 	{
-		this->GetWindow()->SetCursorLock(true);
-
-		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
-		this->camera.camera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-		this->UICamera = OrthographicCamera(glm::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f), glm::vec2(-1.0f, 1.0f));
-		this->UICamera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
-
-		this->shadowMapCamera = OrthographicCamera(glm::vec4(-12.5f, 12.5f, -20.0f, 20.0f), glm::vec2(0.0f, 100.0f));
-
-		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
-		struct Shader { std::string name; Vulkan::PipelineVariants variants; };
-		std::string shaderPath = CVar::Get<std::string>("pc_shaderpath");
-
-		std::vector<Shader> shaderList{
-			{ "mesh", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
-			{ "mesh-unlit", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples)},
-			{ "skybox", Vulkan::PipelineVariants::GetSkyboxVariant(this->renderer.renderPasses[0]) },
-			{ "depth", Vulkan::PipelineVariants::GetShadowVariant(this->renderer.renderPasses[2]) }, // Shadowmap
-			{ "ui", Vulkan::PipelineVariants::GetUIVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
-			{ "post_processing", Vulkan::PipelineVariants::GetPostProcessingVariant(this->renderer.renderPasses[1]) },
-			{ "depth", Vulkan::PipelineVariants::GetDepthPrepassVariant(this->renderer.renderPasses[3], this->renderer.specs.multisamples) } // Depth pre-pass
-		};
-
-		for (const auto& shader : shaderList)
-		{
-			this->renderer.pipelines.insert(this->renderer.device.CreatePipelines(
-				cs_std::binary_file(shaderPath + shader.name + ".vert.spv").open().read_if_exists(),
-				cs_std::binary_file(shaderPath + shader.name + ".frag.spv").open().read_if_exists(),
-				shader.variants
-			));
-		}
-
-		/* ---------------------------------------------------------------- 1.1 - Descriptor Data ---------------------------------------------------------------- */
-
-		this->renderer.pipelines[0].CreateDescriptorSets(0, 3); // One per frame in flight (fif)
-		this->renderer.pipelines[0].CreateDescriptorSet(1);
-		this->renderer.pipelines[1].CreateDescriptorSets(0, 3); // One per fif
-		this->renderer.pipelines[2].CreateDescriptorSets(0, 3); // One per fif
-		this->renderer.pipelines[3].CreateDescriptorSets(0, 3); // One per fif
-		this->renderer.pipelines[4].CreateDescriptorSets(0, 3); // One per fif
-		this->renderer.pipelines[6].CreateDescriptorSets(0, 3); // One per fif
-
-		this->renderer.pipelines[0].UpdateDescriptorData(0, 1, 0, glm::vec3(0.3f, 0.4f, 1.0f));
-
-		/* ---------------------------------------------------------------- 1.2 - Mesh data ---------------------------------------------------------------- */
-
-		cs_std::graphics::model skyboxModel{};
-		{
-			Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
-			cs_std::graphics::mesh skyboxMesh{};
-			skyboxMesh.indices = skybox.indices;
-			skyboxMesh.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices);
-			skyboxMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
-			cs_std::graphics::mesh_attributes skyboxAttributes{};
-			skyboxAttributes.diffuse = "./assets/skybox.png";
-
-			skyboxModel.meshes.push_back(skyboxMesh);
-			skyboxModel.meshAttributes.push_back(skyboxAttributes);
-		}
-
-		std::string assetPath = CVar::Get<std::string>("pc_assetpath");
-		cs_std::xml::document modelsXML = cs_std::xml::parse_file("./models.xml");
-		std::vector<cs_std::graphics::model> models;
-		
-		for (uint32_t i = 0; i < modelsXML.root->GetChildCount(); i++)
-		{
-			cs_std::xml::node* modelNode = modelsXML.root->GetChild(i);
-			if (modelNode->tag == "gltf") models.push_back(LoadGLTF(assetPath + modelNode->innerText));
-			else if (modelNode->tag == "obj") models.push_back(LoadOBJ(assetPath + modelNode->innerText));
-		}
-
-		models.push_back(skyboxModel);
-
 		uint32_t modelIndex = 0;
 		uint32_t textureIndex = 0;
 		const uint32_t currentTextureCount = this->renderer.textures.capacity();
@@ -143,6 +69,7 @@ public:
 
 		std::vector<cs_std::image> images(textureStrings.size());
 
+		this->taskQueue.wake();
 		uint32_t last = 0;
 		for (uint32_t i = 0; i < textureStrings.size(); i++)
 		{
@@ -160,6 +87,81 @@ public:
 
 		for (auto& image : images) this->renderer.textures.insert(this->renderer.UploadTexture(image, true));
 	}
+	void OnStartup()
+	{
+		this->GetWindow()->SetCursorLock(true);
+
+		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
+		this->camera.camera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+		this->UICamera = OrthographicCamera(glm::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f), glm::vec2(-1.0f, 1.0f));
+		this->UICamera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
+
+		this->shadowMapCamera = OrthographicCamera(glm::vec4(-12.5f, 12.5f, -20.0f, 20.0f), glm::vec2(0.0f, 100.0f));
+
+		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
+		struct Shader { std::string name; Vulkan::PipelineVariants variants; };
+		std::string shaderPath = CVar::Get<std::string>("pc_shaderpath");
+
+		std::vector<Shader> shaderList{
+			{ "default", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
+			{ "skybox", Vulkan::PipelineVariants::GetSkyboxVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
+			{ "depth", Vulkan::PipelineVariants::GetShadowVariant(this->renderer.renderPasses[2]) }, // Shadowmap
+			{ "ui", Vulkan::PipelineVariants::GetUIVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
+			{ "post_processing", Vulkan::PipelineVariants::GetPostProcessingVariant(this->renderer.renderPasses[1]) },
+			{ "depth", Vulkan::PipelineVariants::GetDepthPrepassVariant(this->renderer.renderPasses[3], this->renderer.specs.multisamples) } // Depth pre-pass
+		};
+
+		for (const auto& shader : shaderList)
+		{
+			this->renderer.pipelines.insert(this->renderer.device.CreatePipelines(
+				cs_std::binary_file(shaderPath + shader.name + ".vert.spv").open().read_if_exists(),
+				cs_std::binary_file(shaderPath + shader.name + ".frag.spv").open().read_if_exists(),
+				shader.variants
+			));
+		}
+
+		/* ---------------------------------------------------------------- 1.1 - Descriptor Data ---------------------------------------------------------------- */
+
+		this->renderer.pipelines[0].CreateDescriptorSets(0, 3); // One per frame in flight (fif)
+		this->renderer.pipelines[0].CreateDescriptorSet(1);
+		this->renderer.pipelines[1].CreateDescriptorSets(0, 3); // One per fif
+		this->renderer.pipelines[2].CreateDescriptorSets(0, 3); // One per fif
+		this->renderer.pipelines[3].CreateDescriptorSets(0, 3); // One per fif
+		this->renderer.pipelines[5].CreateDescriptorSets(0, 3); // One per fif
+
+		this->renderer.pipelines[0].UpdateDescriptorData(0, 1, 0, glm::vec3(0.3f, 0.4f, 1.0f));
+
+		/* ---------------------------------------------------------------- 1.2 - Mesh data ---------------------------------------------------------------- */
+
+		cs_std::graphics::model skyboxModel{};
+		{
+			Construct::Mesh skybox = Construct::SkyboxSphere(16, 16);
+			cs_std::graphics::mesh skyboxMesh{};
+			skyboxMesh.indices = skybox.indices;
+			skyboxMesh.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices);
+			skyboxMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
+			cs_std::graphics::mesh_attributes skyboxAttributes{};
+			skyboxAttributes.diffuse = "./assets/skybox.png";
+
+			skyboxModel.meshes.push_back(skyboxMesh);
+			skyboxModel.meshAttributes.push_back(skyboxAttributes);
+		}
+
+
+		std::string assetPath = CVar::Get<std::string>("pc_assetpath");
+		cs_std::xml::document modelsXML = cs_std::xml::parse_file("./models.xml");
+		std::vector<cs_std::graphics::model> models;
+		
+		for (uint32_t i = 0; i < modelsXML.root->GetChildCount(); i++)
+		{
+			cs_std::xml::node* modelNode = modelsXML.root->GetChild(i);
+			if (modelNode->tag == "gltf") models.push_back(LoadGLTF(assetPath + modelNode->innerText));
+			else if (modelNode->tag == "obj") models.push_back(LoadOBJ(assetPath + modelNode->innerText));
+		}
+		models.push_back(skyboxModel);
+		LoadModels(models);
+	}
 	void OnUpdate(double dt)
 	{
 		/* ---------------------------------------------------------------- Game update ---------------------------------------------------------------- */
@@ -173,12 +175,11 @@ public:
 		/* ---------------------------------------------------------------- Render preparation ---------------------------------------------------------------- */
 
 		Vulkan::Pipelines& defaultPipeline = this->renderer.pipelines[0];
-		Vulkan::Pipelines& unlitPipeline = this->renderer.pipelines[1];
-		Vulkan::Pipelines& skyboxPipeline = this->renderer.pipelines[2];
-		Vulkan::Pipelines& shadowPipeline = this->renderer.pipelines[3];
-		Vulkan::Pipelines& uiPipeline = this->renderer.pipelines[4];
-		Vulkan::Pipelines& postProcessingPipeline = this->renderer.pipelines[5];
-		Vulkan::Pipelines& depthPrepassPipeline = this->renderer.pipelines[6];
+		Vulkan::Pipelines& skyboxPipeline = this->renderer.pipelines[1];
+		Vulkan::Pipelines& shadowPipeline = this->renderer.pipelines[2];
+		Vulkan::Pipelines& uiPipeline = this->renderer.pipelines[3];
+		Vulkan::Pipelines& postProcessingPipeline = this->renderer.pipelines[4];
+		Vulkan::Pipelines& depthPrepassPipeline = this->renderer.pipelines[5];
 
 		// Render prep
 		const glm::mat4 projections[2]{ this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
@@ -187,7 +188,6 @@ public:
 		// Arguments in order: set index, set, binding, data
 		defaultPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections);
 		defaultPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 1, lightingPositions);
-		unlitPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[0]);
 		skyboxPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, glm::translate(this->camera.camera.GetViewProjectionMatrix(), this->camera.camera.GetPosition()));
 		shadowPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[1]);
 		uiPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, this->UICamera.GetViewProjectionMatrix());
@@ -318,14 +318,6 @@ public:
 					cmd.BindIndexBuffer(mesh.indexBuffer);
 					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
 				}
-			}
-			// UI rendering
-			{
-				cmd.BindPipeline(uiPipeline[0]);
-				cmd.BindDescriptorSets(uiPipeline, { uiPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
-				cmd.BindDescriptorSet(uiPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
-				cmd.BindDescriptorSet(uiPipeline, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set, 0, 2);
-				cmd.Draw(6, 1, 0, this->renderer.meshes.capacity() - 1);
 			}
 			cmd.EndRenderPass();
 		}
