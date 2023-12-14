@@ -150,14 +150,14 @@ public:
 
 
 		std::string assetPath = CVar::Get<std::string>("pc_assetpath");
-		cs_std::xml::document modelsXML = cs_std::xml::parse_file("./models.xml");
+
+		cs_std::xml::document modelsXML(cs_std::text_file("./models.xml").open().read());
 		std::vector<cs_std::graphics::model> models;
 		
-		for (uint32_t i = 0; i < modelsXML.root->GetChildCount(); i++)
+		for (const auto& model : modelsXML)
 		{
-			cs_std::xml::node* modelNode = modelsXML.root->GetChild(i);
-			if (modelNode->tag == "gltf") models.push_back(LoadGLTF(assetPath + modelNode->innerText));
-			else if (modelNode->tag == "obj") models.push_back(LoadOBJ(assetPath + modelNode->innerText));
+			if (model->tag == "gltf") models.push_back(LoadGLTF(assetPath + model->innerText));
+			else if (model->tag == "obj") models.push_back(LoadOBJ(assetPath + model->innerText));
 		}
 		models.push_back(skyboxModel);
 		LoadModels(models);

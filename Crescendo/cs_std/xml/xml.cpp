@@ -11,27 +11,18 @@
 
 namespace cs_std::xml
 {
-	document parse(const std::string& xmlString)
+	document::document(const std::string& xml)
 	{
-		document xmlDoc {};
-
-		rapidxml::xml_document<char> doc {};
-		doc.parse<rapidxml::parse_declaration_node | rapidxml::parse_no_data_nodes>((char*)xmlString.c_str());
-		internal::rapid_to_cs_std(xmlDoc, &doc);
-
-		return xmlDoc;
+		rapidxml::xml_document<char> doc{};
+		doc.parse<rapidxml::parse_declaration_node | rapidxml::parse_no_data_nodes>((char*)xml.c_str());
+		internal::rapid_to_cs_std(*this, &doc);
 	}
-	document parse_file(const std::string& filePath)
+	std::string document::stringify() const
 	{
-		std::stringstream data {};
-		return parse(cs_std::text_file(filePath).open().read());
-	}
-	std::string stringify(const document& xmlDoc)
-	{
-		std::string outputString {};
+		std::string outputString{};
 
 		rapidxml::xml_document<char> doc;
-		internal::cs_std_to_rapid(xmlDoc, &doc);
+		internal::cs_std_to_rapid(*this, &doc);
 		rapidxml::print(&outputString, doc, 0);
 
 		return outputString;

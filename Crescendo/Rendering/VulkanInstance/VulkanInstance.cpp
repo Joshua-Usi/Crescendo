@@ -18,7 +18,7 @@ CS_NAMESPACE_BEGIN
 	VkSampleCountFlagBits ConvertSamplesToVkFlag(uint32_t samples)
 	{
 		switch (samples)
-		{
+	{
 			case 64: return VK_SAMPLE_COUNT_64_BIT;
 			case 32: return VK_SAMPLE_COUNT_32_BIT;
 			case 16: return VK_SAMPLE_COUNT_16_BIT;

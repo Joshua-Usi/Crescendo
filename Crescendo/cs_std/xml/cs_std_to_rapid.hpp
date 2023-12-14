@@ -10,13 +10,13 @@ namespace cs_std::xml::internal
 {
 	rapidxml::xml_node<>* cs_std_node_to_rapid_node(rapidxml::xml_document<char>* rapidDoc, node* csNode)
 	{
-		char* tag = rapidDoc->allocate_string(csNode->GetTagName().c_str());
-		char* text = rapidDoc->allocate_string(csNode->GetTextContent().c_str());
+		char* tag = rapidDoc->allocate_string(csNode->tag.c_str());
+		char* text = rapidDoc->allocate_string(csNode->innerText.c_str());
 		rapidxml::xml_node<>* node = rapidDoc->allocate_node(rapidxml::node_element, tag, text);
-		for (auto const& attribute : csNode->attributes)
+		for (auto const& [name, text] : csNode->attributes)
 		{
-			char* key = rapidDoc->allocate_string(attribute.first);
-			char* value = rapidDoc->allocate_string(attribute.second);
+			char* key = rapidDoc->allocate_string(name.c_str());
+			char* value = rapidDoc->allocate_string(text.c_str());
 			rapidxml::xml_attribute<>* rapidAttribute = rapidDoc->allocate_attribute(key, value);
 			node->append_attribute(rapidAttribute);
 		}
@@ -27,17 +27,14 @@ namespace cs_std::xml::internal
 		node* csWorkingNode = crescendoDoc.root.get();
 		rapidxml::xml_node<>* workingNode = rapidDoc;
 
-		// Move declaration node, if declarations exist
-		if (crescendoDoc.AttributeCount() > 0)
+		if (crescendoDoc.attribute_count() > 0)
 		{
 			rapidxml::xml_node<>* declarationNode = rapidDoc->allocate_node(rapidxml::node_declaration);
-			// Move individual declarations over
-			for (auto const& attribute : crescendoDoc.attributes)
+			for (auto const& [name, text] : crescendoDoc.attributes)
 			{
-				rapidxml::xml_attribute<>* rapidAttribute = rapidDoc->allocate_attribute(attribute.first, attribute.second);
+				rapidxml::xml_attribute<>* rapidAttribute = rapidDoc->allocate_attribute(name.c_str(), text.c_str());
 				declarationNode->append_attribute(rapidAttribute);
 			}
-			// Append declaration node
 			rapidDoc->append_node(declarationNode);
 		}
 		

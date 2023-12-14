@@ -10,6 +10,7 @@ namespace cs_std::xml::internal
 {
 	void rapid_to_cs_std(document& crescendoDoc, rapidxml::xml_document<char>* rapidDoc)
 	{
+		crescendoDoc.root = std::make_unique<node>(nullptr, "");
 		node* csWorkingNode = crescendoDoc.root.get();
 		rapidxml::xml_node<>* workingNode = rapidDoc->first_node();
 
@@ -51,21 +52,21 @@ namespace cs_std::xml::internal
 				wasLastOperationUp = false;
 
 				workingNode = workingNode->first_node();
-				csWorkingNode = new node(csWorkingNode);
+				csWorkingNode = new node(csWorkingNode, "");
 			}
 			else if (workingNode->next_sibling())
 			{
 				wasLastOperationUp = false;
 
 				workingNode = workingNode->next_sibling();
-				csWorkingNode = new node(csWorkingNode->GetParent());
+				csWorkingNode = new node(csWorkingNode->_parent(), "");
 			}
 			else
 			{
 				wasLastOperationUp = true;
 
 				workingNode = workingNode->parent();
-				csWorkingNode = csWorkingNode->GetParent();
+				csWorkingNode = csWorkingNode->_parent();
 			}
 		} while (workingNode != rootNode);
 	};
