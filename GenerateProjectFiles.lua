@@ -18,6 +18,7 @@ engine_dirs = {
 	"%{wks.location}/Crescendo/Libraries/ThirdParty",
 	"%{wks.location}/Crescendo/Libraries/ThirdParty/ImGui",
 	"%{wks.location}/Crescendo/Libraries/ThirdParty/ImGui/backends",
+	"%{wks.location}/Crescendo/cs_std",
 }
 flags_debug = {
 	"MultiProcessorCompile",
