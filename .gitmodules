@@ -4,3 +4,6 @@
 [submodule "Crescendo/Libraries/Construct"]
 	path = Crescendo/Libraries/Construct
 	url = https://github.com/Joshua-Usi/Construct.git
+[submodule "Crescendo/cs_std"]
+	path = Crescendo/cs_std
+	url = https://github.com/Joshua-Usi/cs_std
