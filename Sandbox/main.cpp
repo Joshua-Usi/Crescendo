@@ -9,13 +9,22 @@ namespace math = cs_std::math;
 
 #include "CameraController.hpp"
 
+struct MeshData
+{
+	cs_std::graphics::bounding_aabb bounds;
+	uint32_t meshID, textureID, normalID;
+	bool isTransparent, isDoubleSided, isShadowCasting;
+};
+
 struct ModelData
 {
 	cs_std::graphics::bounding_aabb bounds;
-	// textureID and normalID is the index of the texture in the textures array
-	// meshID is the index of the mesh to read from the SSBO
-	uint32_t textureID, normalID; /*meshID*/
-	bool isTransparent, isDoubleSided, isShadowCasting;
+	std::vector<MeshData> meshes;
+};
+
+struct SkyboxData
+{
+	uint32_t meshID, textureID;
 };
 
 class Sandbox : public Application
@@ -26,13 +35,13 @@ private:
 	OrthographicCamera shadowMapCamera;
 
 	std::vector<ModelData> modelData;
+	SkyboxData skyboxData;
 
 	int frame = 0;
 	double lastTime = 0.0;
 public:
 	void LoadModels(std::vector<cs_std::graphics::model>& models)
 	{
-		uint32_t modelIndex = 0;
 		uint32_t textureIndex = 0;
 		const uint32_t currentTextureCount = this->renderer.textures.capacity();
 		std::map<std::filesystem::path, uint32_t> seenTextures;
@@ -41,23 +50,27 @@ public:
 
 		for (auto& model : models)
 		{
+			ModelData modelData {};
 			for (uint32_t i = 0; i < model.meshes.size(); i++)
 			{
 				auto& mesh = model.meshes[i];
 				auto& attributes = model.meshAttributes[i];
 				if (!mesh.has_attribute(cs_std::graphics::Attribute::TANGENT)) cs_std::graphics::generate_tangents(mesh);
-				this->renderer.meshes.insert(this->renderer.UploadMesh(mesh));
+				uint32_t modelIndex = this->renderer.meshes.insert(this->renderer.UploadMesh(mesh));
 				if (!attributes.diffuse.empty() && seenTextures.find(attributes.diffuse) == seenTextures.end()) { seenTextures[attributes.diffuse] = textureIndex; textureIndex++; }
 				if (!attributes.normal.empty() && seenTextures.find(attributes.normal) == seenTextures.end()) { seenTextures[attributes.normal] = textureIndex; textureIndex++; }
 
-				this->modelData.emplace_back(
-					cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform),
-					seenTextures[attributes.diffuse] + currentTextureCount, seenTextures[attributes.normal] + currentTextureCount,
-					attributes.isTransparent, attributes.isDoubleSided, true
-				);
 				for (auto& ssbo : this->renderer.ssbo) memcpy(static_cast<char*>(ssbo.buffer.mPtr) + sizeof(math::mat4) * modelIndex, &attributes.transform, sizeof(math::mat4));
-				modelIndex++;
+
+				MeshData meshData {
+					cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform),
+					modelIndex, seenTextures[attributes.diffuse] + currentTextureCount, seenTextures[attributes.normal] + currentTextureCount,
+					attributes.isTransparent, attributes.isDoubleSided, true
+				};
+				modelData.bounds = modelData.bounds.merge(meshData.bounds);
+				modelData.meshes.push_back(meshData);
 			}
+			this->modelData.push_back(modelData);
 		}
 
 		/* ---------------------------------------------------------------- 1.3 - Texture Data ---------------------------------------------------------------- */
@@ -135,20 +148,19 @@ public:
 
 		/* ---------------------------------------------------------------- 1.2 - Mesh data ---------------------------------------------------------------- */
 
-		cs_std::graphics::model skyboxModel{};
 		{
+			cs_std::graphics::model skyboxModel {};
 			Construct::Mesh skybox = Construct::SkyboxSphere(16, 16);
-			cs_std::graphics::mesh skyboxMesh{};
+			cs_std::graphics::mesh skyboxMesh {};
 			skyboxMesh.indices = skybox.indices;
-			skyboxMesh.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices);
-			skyboxMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
-			cs_std::graphics::mesh_attributes skyboxAttributes{};
-			skyboxAttributes.diffuse = "./assets/skybox.png";
+			skyboxMesh.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices)
+				.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
+			cs_std::graphics::mesh_attributes skyboxAttributes = cs_std::graphics::mesh_attributes().set_diffuse("./assets/skybox.png");
+			skyboxModel.add_mesh(skyboxMesh, skyboxAttributes);
 
-			skyboxModel.meshes.push_back(skyboxMesh);
-			skyboxModel.meshAttributes.push_back(skyboxAttributes);
+			this->skyboxData.meshID = this->renderer.meshes.insert(this->renderer.UploadMesh(skyboxMesh));
+			this->skyboxData.textureID = this->renderer.textures.insert(this->renderer.UploadTexture(LoadImage("./assets/skybox.png"), true));
 		}
-
 
 		std::string assetPath = CVar::Get<std::string>("pc_assetpath");
 
@@ -160,7 +172,6 @@ public:
 			if (model->tag == "gltf") models.push_back(LoadGLTF(assetPath + model->innerText));
 			else if (model->tag == "obj") models.push_back(LoadOBJ(assetPath + model->innerText));
 		}
-		models.push_back(skyboxModel);
 		LoadModels(models);
 	}
 	void OnUpdate(double dt)
@@ -217,16 +228,40 @@ public:
 
 		cs_std::graphics::frustum shadowMapFrustum(this->shadowMapCamera.GetViewProjectionMatrix()), cameraFrustum(this->camera.camera.GetViewProjectionMatrix());
 
-		std::vector<uint32_t> shadowMapMeshIndices = {}, meshIndices = {}, transparentMeshIndices = {};
+		// Meshes to render
+		std::vector<MeshData*> shadowMapMeshData = {}, meshData = {}, transparentMeshData = {};
 
-		for (uint32_t i = 0; i < this->renderer.meshes.capacity() - 1; i++)
+		for (auto& model : modelData)
 		{
-			if (shadowMapFrustum.intersects(this->modelData[i].bounds)) shadowMapMeshIndices.push_back(i);
-			if (cameraFrustum.intersects(this->modelData[i].bounds))
+			// Shadow map culling
+			if (shadowMapFrustum.contains(model.bounds))
 			{
-				if (this->modelData[i].isTransparent) transparentMeshIndices.push_back(i);
-				else meshIndices.push_back(i);
+				for (auto& mesh : model.meshes) shadowMapMeshData.push_back(&mesh);
 			}
+			else if (shadowMapFrustum.intersects(model.bounds))
+			{
+				for (auto& mesh : model.meshes)
+				{
+					if (shadowMapFrustum.intersects(mesh.bounds)) shadowMapMeshData.push_back(&mesh);
+				}
+			}
+			// Camera culling
+			if (cameraFrustum.contains(model.bounds))
+			{
+				for (auto& mesh : model.meshes) meshData.push_back(&mesh);
+			}
+			else if (cameraFrustum.intersects(model.bounds))
+			{
+				for (auto& mesh : model.meshes)
+				{
+					if (cameraFrustum.intersects(mesh.bounds))
+					{
+						if (mesh.isTransparent) transparentMeshData.push_back(&mesh);
+						else meshData.push_back(&mesh);
+					}
+				}
+			}
+
 		}
 
 		cmd.Begin();
@@ -238,14 +273,14 @@ public:
 			cmd.BindPipeline(shadowPipeline[0]);
 			cmd.BindDescriptorSets(shadowPipeline, { shadowPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
 			cmd.BindDescriptorSet(shadowPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
-			for (auto i : shadowMapMeshIndices)
+			for (auto& mesh : shadowMapMeshData)
 			{
-				const Vulkan::Mesh& mesh = this->renderer.meshes[i];
-				std::vector<VkBuffer> buffers = shadowPipeline.GetMatchingBuffers(mesh);
+				const Vulkan::Mesh& m = this->renderer.meshes[mesh->meshID];
+				std::vector<VkBuffer> buffers = shadowPipeline.GetMatchingBuffers(m);
 				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 				cmd.BindVertexBuffers(buffers, bufferOffsets);
-				cmd.BindIndexBuffer(mesh.indexBuffer);
-				cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
+				cmd.BindIndexBuffer(m.indexBuffer);
+				cmd.DrawIndexed(m.indexCount, 1, 0, 0, mesh->meshID);
 			}
 			cmd.EndRenderPass();
 		}
@@ -257,16 +292,16 @@ public:
 			cmd.BindPipeline(depthPrepassPipeline[0]);
 			// Normal rendering
 			{
-				for (auto i : meshIndices)
+				for (auto& mesh : meshData)
 				{
-					const Vulkan::Mesh& mesh = this->renderer.meshes[i];
+					const Vulkan::Mesh& m = this->renderer.meshes[mesh->meshID];
 					cmd.BindDescriptorSets(depthPrepassPipeline, { depthPrepassPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
 					cmd.BindDescriptorSet(depthPrepassPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
-					std::vector<VkBuffer> buffers = depthPrepassPipeline.GetMatchingBuffers(mesh);
+					std::vector<VkBuffer> buffers = depthPrepassPipeline.GetMatchingBuffers(m);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
-					cmd.BindIndexBuffer(mesh.indexBuffer);
-					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
+					cmd.BindIndexBuffer(m.indexBuffer);
+					cmd.DrawIndexed(m.indexCount, 1, 0, 0, mesh->meshID);
 				}
 			}
 			cmd.EndRenderPass();
@@ -280,45 +315,42 @@ public:
 			{
 				cmd.BindPipeline(skyboxPipeline[0]);
 				cmd.BindDescriptorSets(skyboxPipeline, { skyboxPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
-				cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->modelData[this->renderer.meshes.capacity() - 1].textureID].set, 0, 1);
-				std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->renderer.meshes.capacity() - 1]);
-				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
-				cmd.BindVertexBuffers(buffers, bufferOffsets);
-				cmd.BindIndexBuffer(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexBuffer);
-				cmd.DrawIndexed(this->renderer.meshes[this->renderer.meshes.capacity() - 1].indexCount, 1, 0, 0, this->renderer.meshes.capacity() - 1);
+				cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->skyboxData.textureID].set, 0, 1);
+				std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->skyboxData.meshID]);
+				cmd.BindVertexBuffers(buffers, std::vector<VkDeviceSize>(buffers.size(), 0));
+				cmd.BindIndexBuffer(this->renderer.meshes[this->skyboxData.meshID].indexBuffer);
+				cmd.DrawIndexed(this->renderer.meshes[this->skyboxData.meshID].indexCount, 1, 0, 0, 0);
 			}
 			// Solid objects rendering
 			{
-				for (auto i : meshIndices)
+				for (auto& mesh : meshData)
 				{
-					const Vulkan::Mesh& mesh = this->renderer.meshes[i];
-					uint32_t index = this->modelData[i].isDoubleSided;
-					cmd.BindPipeline(defaultPipeline[index]);
+					const Vulkan::Mesh& m = this->renderer.meshes[mesh->meshID];
+					cmd.BindPipeline(defaultPipeline[mesh->isDoubleSided]);
 					cmd.BindDescriptorSets(defaultPipeline, { defaultPipeline.descriptorSets[0][this->renderer.frameIndex].set, defaultPipeline.descriptorSets[1][0].set }, { 0, 0, 0 });
 					cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
-					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[this->modelData[i].textureID].set, this->renderer.textures[this->modelData[i].normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
-					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(mesh);
+					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[mesh->textureID].set, this->renderer.textures[mesh->normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
+					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(m);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
-					cmd.BindIndexBuffer(mesh.indexBuffer);
-					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
+					cmd.BindIndexBuffer(m.indexBuffer);
+					cmd.DrawIndexed(m.indexCount, 1, 0, 0, mesh->meshID);
 				}
 			}
 			// Transparent objects rendering
 			{
-				for (auto i : transparentMeshIndices)
+				for (auto& mesh : transparentMeshData)
 				{
-					const Vulkan::Mesh& mesh = this->renderer.meshes[i];
-					uint32_t index = this->modelData[i].isDoubleSided;
-					cmd.BindPipeline(defaultPipeline[index]);
+					const Vulkan::Mesh& m = this->renderer.meshes[mesh->meshID];
+					cmd.BindPipeline(defaultPipeline[mesh->isDoubleSided]);
 					cmd.BindDescriptorSets(defaultPipeline, { defaultPipeline.descriptorSets[0][this->renderer.frameIndex].set, defaultPipeline.descriptorSets[1][0].set }, { 0, 0, 0 });
 					cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
-					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[this->modelData[i].textureID].set, this->renderer.textures[this->modelData[i].normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
-					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(mesh);
+					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[mesh->textureID].set, this->renderer.textures[mesh->normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
+					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(m);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
-					cmd.BindIndexBuffer(mesh.indexBuffer);
-					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i);
+					cmd.BindIndexBuffer(m.indexBuffer);
+					cmd.DrawIndexed(m.indexCount, 1, 0, 0, mesh->meshID);
 				}
 			}
 			cmd.EndRenderPass();
