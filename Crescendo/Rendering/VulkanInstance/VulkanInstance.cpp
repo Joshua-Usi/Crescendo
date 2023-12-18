@@ -2,6 +2,8 @@
 
 #include "glfw/glfw3.h"
 
+#include "cs_std/math/math.hpp"
+
 CS_NAMESPACE_BEGIN
 {
 	VkSampleCountFlagBits MaxMultisampleCount(const VkPhysicalDeviceProperties& properties) {
@@ -47,7 +49,7 @@ CS_NAMESPACE_BEGIN
 		for (uint32_t i = 0; i < specs.framesInFlight; i++)
 		{
 			this->renderCommandQueues.emplace_back(this->device.CreateGraphicsCommandQueue(), this->device.CreateSemaphore(), this->device.CreateSemaphore());
-			this->ssbo.emplace_back(this->device.CreateSSBO(sizeof(glm::mat4) * SSBO_OBJECT_COUNT, VMA_MEMORY_USAGE_CPU_TO_GPU));
+			this->ssbo.emplace_back(this->device.CreateSSBO(sizeof(cs_std::math::mat4) * SSBO_OBJECT_COUNT, VMA_MEMORY_USAGE_CPU_TO_GPU));
 		}
 		this->CreateSwapchain();
 	}

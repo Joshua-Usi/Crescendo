@@ -5,8 +5,6 @@
 #include "Volk/volk.h"
 #include "VkBootstrap/VkBootstrap.h"
 
-#include "cs_std/function_queue.hpp"
-
 #include "Device.hpp"
 #include "Swapchain.hpp"
 

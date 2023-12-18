@@ -6,7 +6,7 @@
 #include "Engine/interfaces/Window.hpp"
 
 #include "cs_std/task_queue.hpp"
-#include "cs_std/time_manager.hpp"
+#include "cs_std/timestamp.hpp"
 
 #include "Rendering/VulkanInstance/VulkanInstance.hpp"
 
@@ -20,7 +20,7 @@ CS_NAMESPACE_BEGIN
 		std::unique_ptr<Window> window;
 
 		LayerStack layerManager;
-		cs_std::time_manager timeManager;
+		cs_std::timestamp timestamp;
 
 		bool isRunning, shouldRestart;
 	protected:
@@ -44,7 +44,7 @@ CS_NAMESPACE_BEGIN
 		};
 		bool IsRunning() const { return this->isRunning; };
 		bool ShouldRestart() const { return this->shouldRestart; };
-		template<typename return_type = double> return_type GetTime() { return this->timeManager.now<return_type>(); }
+		template<typename return_type = double> return_type GetTime() { return this->timestamp.elapsed<return_type>(); }
 		Window* GetWindow() const { return this->window.get(); };
 	public:
 		virtual void OnUpdate(double dt) {};

@@ -17,65 +17,65 @@
 
 #include <unordered_map>
 
-#include "glm/gtc/quaternion.hpp"
+#include "cs_std/math/math.hpp"
 
 CS_NAMESPACE_BEGIN
 {
 	struct NodeData
 	{
 		tinygltf::Node* node;
-		glm::mat4 transform;
+		cs_std::math::mat4 transform;
 	};
-    size_t ComponentEnumToSize(int componentType)
-    {
-        switch (componentType)
-        {
-		    case TINYGLTF_COMPONENT_TYPE_BYTE: return sizeof(char);
-		    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return sizeof(unsigned char);
-		    case TINYGLTF_COMPONENT_TYPE_SHORT: return sizeof(short);
-		    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return sizeof(unsigned short);
-		    case TINYGLTF_COMPONENT_TYPE_INT: return sizeof(int);
-		    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return sizeof(unsigned int);
-		    case TINYGLTF_COMPONENT_TYPE_FLOAT: return sizeof(float);
-		    case TINYGLTF_COMPONENT_TYPE_DOUBLE: return sizeof(double);
+	size_t ComponentEnumToSize(int componentType)
+	{
+		switch (componentType)
+		{
+			case TINYGLTF_COMPONENT_TYPE_BYTE: return sizeof(char);
+			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return sizeof(unsigned char);
+			case TINYGLTF_COMPONENT_TYPE_SHORT: return sizeof(short);
+			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return sizeof(unsigned short);
+			case TINYGLTF_COMPONENT_TYPE_INT: return sizeof(int);
+			case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return sizeof(unsigned int);
+			case TINYGLTF_COMPONENT_TYPE_FLOAT: return sizeof(float);
+			case TINYGLTF_COMPONENT_TYPE_DOUBLE: return sizeof(double);
 		}
 		// Just so that we don't multiply by 0
-        return 1;
-    }
-    uint32_t TypeEnumToSize(int type)
-    {
-        switch (type)
-        {
-		    case TINYGLTF_TYPE_SCALAR: return 1;
-		    case TINYGLTF_TYPE_VEC2: return 2;
-		    case TINYGLTF_TYPE_VEC3: return 3;
-		    case TINYGLTF_TYPE_VEC4: return 4;
-		    case TINYGLTF_TYPE_MAT2: return 4;
-		    case TINYGLTF_TYPE_MAT3: return 9;
-		    case TINYGLTF_TYPE_MAT4: return 16;
-        }
-        // Just so that we don't multiply by 0
-        return 1; 
-    }
-	void traverseNode(tinygltf::Model& model, std::unordered_map<uint32_t, NodeData>& nodeMap, tinygltf::Node& node, glm::mat4 parentTransform = glm::mat4(1.0f))
+		return 1;
+	}
+	uint32_t TypeEnumToSize(int type)
 	{
-		const glm::vec3 scale = (node.scale.size() == 0) ? glm::vec3(1.0f, 1.0f, 1.0f) : glm::vec3(
+		switch (type)
+		{
+			case TINYGLTF_TYPE_SCALAR: return 1;
+			case TINYGLTF_TYPE_VEC2: return 2;
+			case TINYGLTF_TYPE_VEC3: return 3;
+			case TINYGLTF_TYPE_VEC4: return 4;
+			case TINYGLTF_TYPE_MAT2: return 4;
+			case TINYGLTF_TYPE_MAT3: return 9;
+			case TINYGLTF_TYPE_MAT4: return 16;
+		}
+		// Just so that we don't multiply by 0
+		return 1;
+	}
+	void traverseNode(tinygltf::Model& model, std::unordered_map<uint32_t, NodeData>& nodeMap, tinygltf::Node& node, cs_std::math::mat4 parentTransform = cs_std::math::mat4(1.0f))
+	{
+		const cs_std::math::vec3 scale = (node.scale.size() == 0) ? cs_std::math::vec3(1.0f, 1.0f, 1.0f) : cs_std::math::vec3(
 			static_cast<float>(node.scale[0]), static_cast<float>(node.scale[1]), static_cast<float>(node.scale[2])
 		);
 		// GLM uses WXYZ
-		const glm::quat rotation = (node.rotation.size() == 0) ? glm::quat(1.0f, 0.0f, 0.0f, 0.0f) : glm::quat(
+		const cs_std::math::quat rotation = (node.rotation.size() == 0) ? cs_std::math::quat(1.0f, 0.0f, 0.0f, 0.0f) : cs_std::math::quat(
 			static_cast<float>(node.rotation[3]), static_cast<float>(node.rotation[0]), static_cast<float>(node.rotation[1]), static_cast<float>(node.rotation[2])
 		);
-		const glm::vec3 translate = (node.translation.size() == 0) ? glm::vec3(0.0f, 0.0f, 0.0f) : glm::vec3(
+		const cs_std::math::vec3 translate = (node.translation.size() == 0) ? cs_std::math::vec3(0.0f, 0.0f, 0.0f) : cs_std::math::vec3(
 			static_cast<float>(node.translation[0]), static_cast<float>(node.translation[1]), static_cast<float>(node.translation[2])
 		);
 
-		glm::mat4 childTransform = glm::mat4(1.0f);
-		childTransform = glm::translate(childTransform, translate);
-		childTransform = childTransform * glm::mat4_cast(rotation);
-		childTransform = glm::scale(childTransform, scale);
+		cs_std::math::mat4 childTransform = cs_std::math::mat4(1.0f);
+		childTransform = cs_std::math::translate(childTransform, translate);
+		childTransform = childTransform * cs_std::math::mat4_cast(rotation);
+		childTransform = cs_std::math::scale(childTransform, scale);
 
-		const glm::mat4 finalTransform = parentTransform * childTransform;
+		const cs_std::math::mat4 finalTransform = parentTransform * childTransform;
 
 		nodeMap[node.mesh].node = &node;
 		nodeMap[node.mesh].transform = finalTransform;
@@ -95,6 +95,7 @@ CS_NAMESPACE_BEGIN
 		if (!loader.LoadASCIIFromFile(&gltfModel, &err, &warn, path.string()))
 		{
 			cs_std::console::error("Failed to load GLTF file: ", path.string(), ". Reason: ", err);
+			return model;
 		}
 
 		std::unordered_map<uint32_t, NodeData> nodeToMesh;
@@ -103,7 +104,7 @@ CS_NAMESPACE_BEGIN
 		for (uint32_t i = 0; i < gltfModel.meshes.size(); i++)
 		{
 
-			const glm::mat4& transform = nodeToMesh[i].transform;
+			const cs_std::math::mat4& transform = nodeToMesh[i].transform;
 			for (const auto& primitive : gltfModel.meshes[i].primitives)
 			{
 				cs_std::graphics::mesh mesh = {};
@@ -159,25 +160,25 @@ CS_NAMESPACE_BEGIN
 				if (primitive.material >= 0)
 				{
 					const auto& gltfMaterial = gltfModel.materials[primitive.material];
-					attributes.isDoubleSided = gltfMaterial.doubleSided;
-					attributes.isTransparent = gltfMaterial.alphaMode == "BLEND";
+
+					attributes.set_double_sided(gltfMaterial.doubleSided)
+						.set_transparent(gltfMaterial.alphaMode == "BLEND");
 					for (const auto& texture : gltfMaterial.values)
 					{
-						const int	& baseColorTextureIndex			= gltfMaterial.pbrMetallicRoughness.baseColorTexture.index,
-									& metallicRoughnessTextureIndex	= gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index,
-									& normalTextureIndex			= gltfMaterial.normalTexture.index,
-									& occlusionTextureIndex			= gltfMaterial.occlusionTexture.index,
-									& emissiveTextureIndex			= gltfMaterial.emissiveTexture.index;
+						const int& baseColorTextureIndex = gltfMaterial.pbrMetallicRoughness.baseColorTexture.index,
+									& metallicRoughnessTextureIndex = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index,
+									& normalTextureIndex = gltfMaterial.normalTexture.index,
+									& occlusionTextureIndex = gltfMaterial.occlusionTexture.index,
+									& emissiveTextureIndex = gltfMaterial.emissiveTexture.index;
 
-						if (baseColorTextureIndex			!= -1) attributes.diffuse			= texturePathPrepend / gltfModel.images[baseColorTextureIndex].uri;
-						if (metallicRoughnessTextureIndex	!= -1) attributes.metallicRoughness	= texturePathPrepend / gltfModel.images[metallicRoughnessTextureIndex].uri;
-						if (normalTextureIndex				!= -1) attributes.normal			= texturePathPrepend / gltfModel.images[normalTextureIndex].uri;
-						if (occlusionTextureIndex			!= -1) attributes.occlusion			= texturePathPrepend / gltfModel.images[occlusionTextureIndex].uri;
-						if (emissiveTextureIndex			!= -1) attributes.emissive			= texturePathPrepend / gltfModel.images[emissiveTextureIndex].uri;
+						if (baseColorTextureIndex != -1) attributes.set_diffuse(texturePathPrepend / gltfModel.images[baseColorTextureIndex].uri);
+						if (metallicRoughnessTextureIndex != -1) attributes.set_metallic_roughness(texturePathPrepend / gltfModel.images[metallicRoughnessTextureIndex].uri);
+						if (normalTextureIndex != -1) attributes.set_normal(texturePathPrepend / gltfModel.images[normalTextureIndex].uri);
+						if (occlusionTextureIndex != -1) attributes.set_occlusion(texturePathPrepend / gltfModel.images[occlusionTextureIndex].uri);
+						if (emissiveTextureIndex != -1) attributes.set_emissive(texturePathPrepend / gltfModel.images[emissiveTextureIndex].uri);
 					}
 				}
-				model.meshes.push_back(mesh);
-				model.meshAttributes.push_back(attributes);
+				model.add_mesh(mesh, attributes);
 			}
 		}
 		return model;

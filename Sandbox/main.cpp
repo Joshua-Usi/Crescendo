@@ -1,13 +1,11 @@
 #define CS_SHOW_TIMINGS
 #include "Crescendo.hpp"
-
 using namespace CrescendoEngine;
 
+#include "cs_std/math/math.hpp"
 #include "cs_std/graphics/algorithms.hpp"
 #include "cs_std/xml/xml.hpp"
-
-#include "glm/gtx/common.hpp"
-#include "glm/gtc/matrix_transform.hpp"
+namespace math = cs_std::math;
 
 #include "CameraController.hpp"
 
@@ -51,12 +49,13 @@ public:
 				this->renderer.meshes.insert(this->renderer.UploadMesh(mesh));
 				if (!attributes.diffuse.empty() && seenTextures.find(attributes.diffuse) == seenTextures.end()) { seenTextures[attributes.diffuse] = textureIndex; textureIndex++; }
 				if (!attributes.normal.empty() && seenTextures.find(attributes.normal) == seenTextures.end()) { seenTextures[attributes.normal] = textureIndex; textureIndex++; }
+
 				this->modelData.emplace_back(
 					cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform),
 					seenTextures[attributes.diffuse] + currentTextureCount, seenTextures[attributes.normal] + currentTextureCount,
 					attributes.isTransparent, attributes.isDoubleSided, true
 				);
-				for (auto& ssbo : this->renderer.ssbo) memcpy(static_cast<char*>(ssbo.buffer.mPtr) + sizeof(glm::mat4) * modelIndex, &attributes.transform, sizeof(glm::mat4));
+				for (auto& ssbo : this->renderer.ssbo) memcpy(static_cast<char*>(ssbo.buffer.mPtr) + sizeof(math::mat4) * modelIndex, &attributes.transform, sizeof(math::mat4));
 				modelIndex++;
 			}
 		}
@@ -78,7 +77,7 @@ public:
 
 		while (!this->taskQueue.finished())
 		{
-			uint32_t local = textureStrings.size() - this->taskQueue.size();
+			uint32_t local = textureStrings.size() - this->taskQueue.pending_task_count();
 			for (uint32_t i = 0; i < local - last; i++) cs_std::console::raw("#");
 			last = local;
 		}
@@ -86,18 +85,20 @@ public:
 		this->taskQueue.sleep();
 
 		for (auto& image : images) this->renderer.textures.insert(this->renderer.UploadTexture(image, true));
+
+		lastTime = this->GetTime();
 	}
 	void OnStartup()
 	{
 		this->GetWindow()->SetCursorLock(true);
 
 		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
-		this->camera.camera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-		this->UICamera = OrthographicCamera(glm::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f), glm::vec2(-1.0f, 1.0f));
-		this->UICamera.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-		this->UICamera.SetRotation(glm::quat(0.0f, 1.0f, 0.0f, 0.0f));
+		this->camera.camera.SetPosition(math::vec3(0.0f, 0.0f, 0.0f));
+		this->UICamera = OrthographicCamera(math::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f), math::vec2(-1.0f, 1.0f));
+		this->UICamera.SetPosition(math::vec3(0.0f, 0.0f, 0.0f));
+		this->UICamera.SetRotation(math::quat(0.0f, 1.0f, 0.0f, 0.0f));
 
-		this->shadowMapCamera = OrthographicCamera(glm::vec4(-12.5f, 12.5f, -20.0f, 20.0f), glm::vec2(0.0f, 100.0f));
+		this->shadowMapCamera = OrthographicCamera(math::vec4(-12.5f, 12.5f, -20.0f, 20.0f), math::vec2(0.0f, 100.0f));
 
 		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
 		struct Shader { std::string name; Vulkan::PipelineVariants variants; };
@@ -130,7 +131,7 @@ public:
 		this->renderer.pipelines[3].CreateDescriptorSets(0, 3); // One per fif
 		this->renderer.pipelines[5].CreateDescriptorSets(0, 3); // One per fif
 
-		this->renderer.pipelines[0].UpdateDescriptorData(0, 1, 0, glm::vec3(0.3f, 0.4f, 1.0f));
+		this->renderer.pipelines[0].UpdateDescriptorData(0, 1, 0, math::vec3(0.3f, 0.4f, 1.0f));
 
 		/* ---------------------------------------------------------------- 1.2 - Mesh data ---------------------------------------------------------------- */
 
@@ -153,7 +154,7 @@ public:
 
 		cs_std::xml::document modelsXML(cs_std::text_file("./models.xml").open().read());
 		std::vector<cs_std::graphics::model> models;
-		
+
 		for (const auto& model : modelsXML)
 		{
 			if (model->tag == "gltf") models.push_back(LoadGLTF(assetPath + model->innerText));
@@ -169,8 +170,8 @@ public:
 		this->camera.Update();
 
 		float currentTime = 0.0f;
-		this->shadowMapCamera.SetPosition(glm::vec3(std::sinf(currentTime) * 75.0f, std::cosf(currentTime) * 75.0f, 0.0f));
-		this->shadowMapCamera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f));
+		this->shadowMapCamera.SetPosition(math::vec3(std::sinf(currentTime) * 75.0f, std::cosf(currentTime) * 75.0f, 0.0f));
+		this->shadowMapCamera.LookAt(math::vec3(0.0f, 0.0f, 0.0f));
 
 		/* ---------------------------------------------------------------- Render preparation ---------------------------------------------------------------- */
 
@@ -182,13 +183,13 @@ public:
 		Vulkan::Pipelines& depthPrepassPipeline = this->renderer.pipelines[5];
 
 		// Render prep
-		const glm::mat4 projections[2]{ this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
-		const glm::vec4 lightingPositions[2]{ glm::vec4(this->shadowMapCamera.GetPosition(), 1.0f), glm::vec4(this->camera.camera.GetPosition(), 1.0f) };
+		const math::mat4 projections[2]{ this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
+		const math::vec4 lightingPositions[2]{ math::vec4(this->shadowMapCamera.GetPosition(), 1.0f), math::vec4(this->camera.camera.GetPosition(), 1.0f) };
 
 		// Arguments in order: set index, set, binding, data
 		defaultPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections);
 		defaultPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 1, lightingPositions);
-		skyboxPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, glm::translate(this->camera.camera.GetViewProjectionMatrix(), this->camera.camera.GetPosition()));
+		skyboxPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, math::translate(this->camera.camera.GetViewProjectionMatrix(), this->camera.camera.GetPosition()));
 		shadowPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[1]);
 		uiPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, this->UICamera.GetViewProjectionMatrix());
 		depthPrepassPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[0]);
@@ -208,6 +209,7 @@ public:
 			this->renderer.CreateSwapchain();
 			currentImage = this->renderer.swapchain.AcquireNextImage(cur.presentReady);
 		}
+
 		const Vulkan::Framebuffer& postProcessing = this->renderer.framebuffers[currentImage];
 		const Vulkan::Framebuffer& offScreen = this->renderer.framebuffers[this->renderer.offscreen.framebufferIndex];
 		const Vulkan::Framebuffer& shadow = this->renderer.framebuffers[this->renderer.shadowMap.framebufferIndex];

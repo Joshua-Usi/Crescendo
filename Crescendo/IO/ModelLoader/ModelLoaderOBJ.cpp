@@ -2,6 +2,8 @@
 
 #include "rapidobj/rapidobj.hpp"
 
+#include "cs_std/math/math.hpp"
+
 CS_NAMESPACE_BEGIN
 {
 	cs_std::graphics::model LoadOBJ(const std::filesystem::path& path)
@@ -27,9 +29,9 @@ CS_NAMESPACE_BEGIN
 
 			size_t indexOffset = 0;
 
-			mesh.add_attribute(cs_std::graphics::Attribute::POSITION, std::vector<float>(3 * VERTICES_PER_FACE * shape.mesh.num_face_vertices.size()));
-			mesh.add_attribute(cs_std::graphics::Attribute::NORMAL, std::vector<float>(3 * VERTICES_PER_FACE * shape.mesh.num_face_vertices.size()));
-			mesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, std::vector<float>(2 * VERTICES_PER_FACE * shape.mesh.num_face_vertices.size()));
+			mesh.add_attribute(cs_std::graphics::Attribute::POSITION, std::vector<float>(3 * VERTICES_PER_FACE * shape.mesh.num_face_vertices.size()))
+				.add_attribute(cs_std::graphics::Attribute::NORMAL, std::vector<float>(3 * VERTICES_PER_FACE * shape.mesh.num_face_vertices.size()))
+				.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, std::vector<float>(2 * VERTICES_PER_FACE * shape.mesh.num_face_vertices.size()));
 
 			mesh.indices.resize(3 * shape.mesh.num_face_vertices.size());
 
@@ -46,17 +48,15 @@ CS_NAMESPACE_BEGIN
 			const std::string& metallic  = materials[shape.mesh.material_ids[0]].metallic_texname;
 			const std::string& roughness = materials[shape.mesh.material_ids[0]].roughness_texname;
 
-			attributes.transform = glm::mat4(1.0f);
-
-			attributes.diffuse =   (ambient.empty()   ? "" : texturePathPrepend) / ambient;
-			attributes.normal =    (normal.empty()    ? "" : texturePathPrepend) / normal;
-			attributes.emissive =  (emissive.empty()  ? "" : texturePathPrepend) / emissive;
-			attributes.metallic =  (metallic.empty()  ? "" : texturePathPrepend) / metallic;
-			attributes.roughness = (roughness.empty() ? "" : texturePathPrepend) / roughness;
-			attributes.metallicRoughness = "";
-
-			attributes.isDoubleSided = false;
-			attributes.isTransparent = false;
+			attributes.set_transform(cs_std::math::mat4(1.0f))
+				.set_diffuse((ambient.empty() ? "" : texturePathPrepend) / ambient)
+				.set_normal((normal.empty() ? "" : texturePathPrepend) / normal)
+				.set_emissive((emissive.empty() ? "" : texturePathPrepend) / emissive)
+				.set_metallic((metallic.empty() ? "" : texturePathPrepend) / metallic)
+				.set_roughness((roughness.empty() ? "" : texturePathPrepend) / roughness)
+				.set_metallic_roughness("")
+				.set_transparent(false)
+				.set_double_sided(false);
 
 			for (uint32_t f = 0, fSize = shape.mesh.num_face_vertices.size(); f < fSize; f++)
 			{
@@ -81,8 +81,7 @@ CS_NAMESPACE_BEGIN
 				}
 				indexOffset += VERTICES_PER_FACE;
 			}
-			model.meshes.push_back(mesh);
-			model.meshAttributes.push_back(attributes);
+			model.add_mesh(mesh, attributes);
 		}
 		return model;
 	}

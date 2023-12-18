@@ -8,7 +8,7 @@ CS_NAMESPACE_BEGIN
 	// Assign self and null as no instance exists yet
 	Application* Application::self = nullptr;
 	Application::Application()
-		: isRunning(true), shouldRestart(false), taskQueue(cs_std::task_queue()), timeManager(cs_std::time_manager()), layerManager(LayerStack())
+		: isRunning(true), shouldRestart(false), taskQueue(cs_std::task_queue()), timestamp(), layerManager(LayerStack())
 	{
 		self = this;
 		CVar::LoadConfigXML("config.xml");
@@ -22,7 +22,7 @@ CS_NAMESPACE_BEGIN
 		const uint32_t refreshRate = this->window->GetRefreshRate();
 		const double secondsPerFrame = (refreshRate == 0 || !CVar::Get<bool>("ec_vsync")) ? 0.0 : 1.0 / double(refreshRate);
 		this->layerManager.Attach(new LayerUpdate(secondsPerFrame));
-		this->layerManager.Init(this->timeManager.now<double>());
+		this->layerManager.Init(this->timestamp.elapsed<double>());
 
 		this->renderer = VulkanInstance({
 			.enableValidationLayers = CVar::Get<bool>("irc_validationlayers"),
@@ -41,7 +41,7 @@ CS_NAMESPACE_BEGIN
 		this->OnStartup();
 		while (this->IsRunning())
 		{
-			const double time = this->timeManager.now<double>();
+			const double time = this->timestamp.elapsed<double>();
 			this->layerManager.QueryForUpdate(time);
 			this->layerManager.Update(time);
 		}
