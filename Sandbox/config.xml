@@ -7,7 +7,7 @@
 	<rc_framesinflight>3</rc_framesinflight>
 	<rc_multisamples>1</rc_multisamples>
 	<rc_anisotropicsamples>1</rc_anisotropicsamples>
-	<rc_renderscale>1</rc_renderscale>
+	<rc_renderscale>1.0</rc_renderscale>
 	<!-- engine config-->
 	<ec_appname>Sandbox</ec_appname>
 	<ec_windowwidth>1600</ec_windowwidth>

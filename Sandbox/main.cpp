@@ -9,22 +9,23 @@ namespace math = cs_std::math;
 
 #include "CameraController.hpp"
 
-struct MeshData
+template<typename T>
+struct SceneGraphNode
 {
-	cs_std::graphics::bounding_aabb bounds;
-	uint32_t meshID, textureID, normalID;
-	bool isTransparent, isDoubleSided, isShadowCasting;
+	SceneGraphNode<T>* parent;
+	std::vector<SceneGraphNode> children;
+	T data;
+
+	void SetParent(SceneGraphNode<T>* parent) { this->parent = parent; }
+
+	uint32_t GetChildCount() const { return this->children.size(); }
 };
 
-struct ModelData
+template<typename T>
+class SceneGraph
 {
-	cs_std::graphics::bounding_aabb bounds;
-	std::vector<MeshData> meshes;
-};
-
-struct SkyboxData
-{
-	uint32_t meshID, textureID;
+public:
+	std::vector<SceneGraphNode<T>> nodes;
 };
 
 class Sandbox : public Application
@@ -34,11 +35,16 @@ private:
 	OrthographicCamera UICamera;
 	OrthographicCamera shadowMapCamera;
 
-	std::vector<ModelData> modelData;
-	SkyboxData skyboxData;
+	EntityManager entityManager;
+
+	cs_std::packed_vector<Entity> entities;
+	SceneGraph<uint32_t> sceneGraph;
+
+	struct SkyboxData { uint32_t meshID = UINT32_MAX, textureID = UINT32_MAX; } skyboxData;
 
 	int frame = 0;
 	double lastTime = 0.0;
+
 public:
 	void LoadModels(std::vector<cs_std::graphics::model>& models)
 	{
@@ -50,27 +56,28 @@ public:
 
 		for (auto& model : models)
 		{
-			ModelData modelData {};
 			for (uint32_t i = 0; i < model.meshes.size(); i++)
 			{
 				auto& mesh = model.meshes[i];
 				auto& attributes = model.meshAttributes[i];
+
 				if (!mesh.has_attribute(cs_std::graphics::Attribute::TANGENT)) cs_std::graphics::generate_tangents(mesh);
-				uint32_t modelIndex = this->renderer.meshes.insert(this->renderer.UploadMesh(mesh));
+				uint32_t meshID = this->renderer.meshes.insert(this->renderer.UploadMesh(mesh));
 				if (!attributes.diffuse.empty() && seenTextures.find(attributes.diffuse) == seenTextures.end()) { seenTextures[attributes.diffuse] = textureIndex; textureIndex++; }
 				if (!attributes.normal.empty() && seenTextures.find(attributes.normal) == seenTextures.end()) { seenTextures[attributes.normal] = textureIndex; textureIndex++; }
 
-				for (auto& ssbo : this->renderer.ssbo) memcpy(static_cast<char*>(ssbo.buffer.mPtr) + sizeof(math::mat4) * modelIndex, &attributes.transform, sizeof(math::mat4));
+				for (auto& ssbo : this->renderer.ssbo) memcpy(static_cast<char*>(ssbo.buffer.mPtr) + sizeof(math::mat4) * meshID, &attributes.transform, sizeof(math::mat4));
 
-				MeshData meshData {
-					cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform),
-					modelIndex, seenTextures[attributes.diffuse] + currentTextureCount, seenTextures[attributes.normal] + currentTextureCount,
+				Entity entity = entityManager.CreateEntity();
+				entity.EmplaceComponent<Name>("Mesh");
+				entity.EmplaceComponent<Transform>(attributes.transform);
+				entity.EmplaceComponent<MeshData>(cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform), meshID);
+				entity.EmplaceComponent<Material>(
+					0, seenTextures[attributes.diffuse] + currentTextureCount, seenTextures[attributes.normal] + currentTextureCount,
 					attributes.isTransparent, attributes.isDoubleSided, true
-				};
-				modelData.bounds = modelData.bounds.merge(meshData.bounds);
-				modelData.meshes.push_back(meshData);
+				);
+				entities.insert(entity);
 			}
-			this->modelData.push_back(modelData);
 		}
 
 		/* ---------------------------------------------------------------- 1.3 - Texture Data ---------------------------------------------------------------- */
@@ -103,6 +110,7 @@ public:
 	}
 	void OnStartup()
 	{
+
 		this->GetWindow()->SetCursorLock(true);
 
 		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
@@ -180,7 +188,7 @@ public:
 
 		this->camera.Update();
 
-		float currentTime = 0.0f;
+		float currentTime = this->GetTime() / 10.0f;
 		this->shadowMapCamera.SetPosition(math::vec3(std::sinf(currentTime) * 75.0f, std::cosf(currentTime) * 75.0f, 0.0f));
 		this->shadowMapCamera.LookAt(math::vec3(0.0f, 0.0f, 0.0f));
 
@@ -229,88 +237,81 @@ public:
 		cs_std::graphics::frustum shadowMapFrustum(this->shadowMapCamera.GetViewProjectionMatrix()), cameraFrustum(this->camera.camera.GetViewProjectionMatrix());
 
 		// Meshes to render
-		std::vector<MeshData*> shadowMapMeshData = {}, meshData = {}, transparentMeshData = {};
+		struct RenderData { MeshData* mesh; Material* material; };
+		std::vector<RenderData> shadowMapRenderData = {}, solidRenderData = {}, transparentRenderData = {};
 
-		for (auto& model : modelData)
+		for (uint32_t i = 0; i < entities.capacity(); i++)
 		{
-			// Shadow map culling
-			if (shadowMapFrustum.contains(model.bounds))
+			auto& entity = entities[i];
+			if (entity.HasComponents<MeshData, Material>())
 			{
-				for (auto& mesh : model.meshes) shadowMapMeshData.push_back(&mesh);
-			}
-			else if (shadowMapFrustum.intersects(model.bounds))
-			{
-				for (auto& mesh : model.meshes)
-				{
-					if (shadowMapFrustum.intersects(mesh.bounds)) shadowMapMeshData.push_back(&mesh);
-				}
-			}
-			// Camera culling
-			if (cameraFrustum.contains(model.bounds))
-			{
-				for (auto& mesh : model.meshes) meshData.push_back(&mesh);
-			}
-			else if (cameraFrustum.intersects(model.bounds))
-			{
-				for (auto& mesh : model.meshes)
-				{
-					if (cameraFrustum.intersects(mesh.bounds))
-					{
-						if (mesh.isTransparent) transparentMeshData.push_back(&mesh);
-						else meshData.push_back(&mesh);
-					}
-				}
-			}
+				auto& meshData = entity.GetComponent<MeshData>();
+				auto& meshMaterial = entity.GetComponent<Material>();
 
+				// Shadow map culling
+				if (meshMaterial.isShadowCasting && shadowMapFrustum.intersects(meshData.bounds))
+				{
+					shadowMapRenderData.emplace_back(&meshData, &meshMaterial);
+				}
+				// Camera culling
+				if (cameraFrustum.intersects(meshData.bounds))
+				{
+					if (meshMaterial.isTransparent) transparentRenderData.emplace_back(&meshData, &meshMaterial);
+					else solidRenderData.emplace_back(&meshData, &meshMaterial);
+				}
+			}
 		}
 
 		cmd.Begin();
 		// Shadowmap pass
 		{
+			const VkRect2D scissor = shadow.GetScissor();
 			cmd.DynamicStateSetViewport(shadow.GetViewport());
-			cmd.DynamicStateSetScissor(shadow.GetScissor());
-			cmd.BeginRenderPass(shadow.renderPass, shadow, shadow.GetScissor(), { Vulkan::Create::DefaultDepthClear() });
+			cmd.DynamicStateSetScissor(scissor);
+			cmd.BeginRenderPass(shadow.renderPass, shadow, scissor, { Vulkan::Create::DefaultDepthClear() });
 			cmd.BindPipeline(shadowPipeline[0]);
 			cmd.BindDescriptorSets(shadowPipeline, { shadowPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
 			cmd.BindDescriptorSet(shadowPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
-			for (auto& mesh : shadowMapMeshData)
+			for (auto& renderData : shadowMapRenderData)
 			{
-				const Vulkan::Mesh& m = this->renderer.meshes[mesh->meshID];
-				std::vector<VkBuffer> buffers = shadowPipeline.GetMatchingBuffers(m);
+				const Vulkan::Mesh& mesh = this->renderer.meshes[renderData.mesh->meshID];
+				std::vector<VkBuffer> buffers = shadowPipeline.GetMatchingBuffers(mesh);
 				const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 				cmd.BindVertexBuffers(buffers, bufferOffsets);
-				cmd.BindIndexBuffer(m.indexBuffer);
-				cmd.DrawIndexed(m.indexCount, 1, 0, 0, mesh->meshID);
+				cmd.BindIndexBuffer(mesh.indexBuffer);
+				cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, renderData.mesh->meshID);
 			}
 			cmd.EndRenderPass();
 		}
 		// Depth pre-pass
 		{
+			const VkRect2D scissor = depthPrepass.GetScissor();
 			cmd.DynamicStateSetViewport(depthPrepass.GetViewport(true));
-			cmd.DynamicStateSetScissor(depthPrepass.GetScissor());
-			cmd.BeginRenderPass(depthPrepass.renderPass, depthPrepass, depthPrepass.GetScissor(), { Vulkan::Create::DefaultDepthClear() });
+			cmd.DynamicStateSetScissor(scissor);
+			cmd.BeginRenderPass(depthPrepass.renderPass, depthPrepass, scissor, { Vulkan::Create::DefaultDepthClear() });
 			cmd.BindPipeline(depthPrepassPipeline[0]);
 			// Normal rendering
 			{
-				for (auto& mesh : meshData)
+				for (auto& renderData : solidRenderData)
 				{
-					const Vulkan::Mesh& m = this->renderer.meshes[mesh->meshID];
+					const Vulkan::Mesh& mesh = this->renderer.meshes[renderData.mesh->meshID];
 					cmd.BindDescriptorSets(depthPrepassPipeline, { depthPrepassPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
 					cmd.BindDescriptorSet(depthPrepassPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
-					std::vector<VkBuffer> buffers = depthPrepassPipeline.GetMatchingBuffers(m);
+					std::vector<VkBuffer> buffers = depthPrepassPipeline.GetMatchingBuffers(mesh);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
-					cmd.BindIndexBuffer(m.indexBuffer);
-					cmd.DrawIndexed(m.indexCount, 1, 0, 0, mesh->meshID);
+					cmd.BindIndexBuffer(mesh.indexBuffer);
+					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, renderData.mesh->meshID);
 				}
 			}
 			cmd.EndRenderPass();
 		}
 		// Normal pass
 		{
+			const VkRect2D scissor = offScreen.GetScissor();
 			cmd.DynamicStateSetViewport(offScreen.GetViewport(true));
-			cmd.DynamicStateSetScissor(offScreen.GetScissor());
-			cmd.BeginRenderPass(offScreen.renderPass, offScreen, offScreen.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f } });
+			cmd.DynamicStateSetScissor(scissor);
+			cmd.BeginRenderPass(offScreen.renderPass, offScreen, scissor, { { 0.0f, 0.0f, 0.0f, 1.0f } });
 			// Skybox rendering
 			{
 				cmd.BindPipeline(skyboxPipeline[0]);
@@ -323,43 +324,44 @@ public:
 			}
 			// Solid objects rendering
 			{
-				for (auto& mesh : meshData)
+				for (auto& renderData : solidRenderData)
 				{
-					const Vulkan::Mesh& m = this->renderer.meshes[mesh->meshID];
-					cmd.BindPipeline(defaultPipeline[mesh->isDoubleSided]);
+					const Vulkan::Mesh& mesh = this->renderer.meshes[renderData.mesh->meshID];
+					cmd.BindPipeline(defaultPipeline[renderData.material->isDoubleSided]);
 					cmd.BindDescriptorSets(defaultPipeline, { defaultPipeline.descriptorSets[0][this->renderer.frameIndex].set, defaultPipeline.descriptorSets[1][0].set }, { 0, 0, 0 });
 					cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
-					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[mesh->textureID].set, this->renderer.textures[mesh->normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
-					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(m);
+					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[renderData.material->diffuseID].set, this->renderer.textures[renderData.material->normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
+					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(mesh);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
-					cmd.BindIndexBuffer(m.indexBuffer);
-					cmd.DrawIndexed(m.indexCount, 1, 0, 0, mesh->meshID);
+					cmd.BindIndexBuffer(mesh.indexBuffer);
+					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, renderData.mesh->meshID);
 				}
 			}
 			// Transparent objects rendering
 			{
-				for (auto& mesh : transparentMeshData)
+				for (auto& renderData : transparentRenderData)
 				{
-					const Vulkan::Mesh& m = this->renderer.meshes[mesh->meshID];
-					cmd.BindPipeline(defaultPipeline[mesh->isDoubleSided]);
+					const Vulkan::Mesh& mesh = this->renderer.meshes[renderData.mesh->meshID];
+					cmd.BindPipeline(defaultPipeline[renderData.material->isDoubleSided]);
 					cmd.BindDescriptorSets(defaultPipeline, { defaultPipeline.descriptorSets[0][this->renderer.frameIndex].set, defaultPipeline.descriptorSets[1][0].set }, { 0, 0, 0 });
 					cmd.BindDescriptorSet(defaultPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 2);
-					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[mesh->textureID].set, this->renderer.textures[mesh->normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
-					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(m);
+					cmd.BindDescriptorSets(defaultPipeline, { this->renderer.textures[renderData.material->diffuseID].set, this->renderer.textures[renderData.material->normalID].set, this->renderer.textures[this->renderer.shadowMap.textureIndices[0]].set }, {}, 3);
+					std::vector<VkBuffer> buffers = defaultPipeline.GetMatchingBuffers(mesh);
 					const std::vector<VkDeviceSize> bufferOffsets(buffers.size(), 0);
 					cmd.BindVertexBuffers(buffers, bufferOffsets);
-					cmd.BindIndexBuffer(m.indexBuffer);
-					cmd.DrawIndexed(m.indexCount, 1, 0, 0, mesh->meshID);
+					cmd.BindIndexBuffer(mesh.indexBuffer);
+					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, renderData.mesh->meshID);
 				}
 			}
 			cmd.EndRenderPass();
 		}
 		// Post-processing step
 		{
+			const VkRect2D scissor = postProcessing.GetScissor();
 			cmd.DynamicStateSetViewport(postProcessing.GetViewport());
-			cmd.DynamicStateSetScissor(postProcessing.GetScissor());
-			cmd.BeginRenderPass(postProcessing.renderPass, postProcessing, postProcessing.GetScissor(), { { 0.0f, 0.0f, 0.0f, 1.0f } });
+			cmd.DynamicStateSetScissor(scissor);
+			cmd.BeginRenderPass(postProcessing.renderPass, postProcessing, scissor, { { 0.0f, 0.0f, 0.0f, 1.0f } });
 			cmd.BindPipeline(postProcessingPipeline[0]);
 			cmd.BindDescriptorSet(postProcessingPipeline, this->renderer.textures[this->renderer.offscreen.textureIndices[0]].set, 0, 0);
 			cmd.Draw(6);
@@ -389,6 +391,7 @@ public:
 	}
 	void OnExit()
 	{
+		cs_std::console::log("Exiting...");
 	}
 };
 

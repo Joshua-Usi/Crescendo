@@ -45,7 +45,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		}
 	public:
 		VkViewport GetViewport(bool flip = false) const { return Create::Viewport(0.0f, (flip) ? static_cast<float>(this->extent.height) : 0, static_cast<float>(this->extent.width), ((flip) ? -1.0f : 1.0f) * static_cast<float>(this->extent.height), 0.0f, 1.0f); }
-		VkRect2D GetScissor() const { return Create::Rect2D({ 0, 0 }, this->extent); }
+		VkRect2D GetScissor(int32_t offsetX = 0, int32_t offsetY = 0, int32_t extentChangeX = 0, int32_t extentChangeY = 0) const { return Create::Rect2D({ offsetX, offsetY }, { this->extent.width + extentChangeX, this->extent.height + extentChangeY }); }
 	public:
 		operator VkFramebuffer() const { return framebuffer; }
 	};

@@ -11,6 +11,8 @@ vendor/
 # Intermediate build files
 bin-intermediate/
 
+.obsidian/
+
 #ignore assets folder
 Sandbox/assets/
 #ignore compiled shaders, leave source
