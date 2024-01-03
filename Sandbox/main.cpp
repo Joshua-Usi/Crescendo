@@ -12,15 +12,11 @@ namespace math = cs_std::math;
 class Sandbox : public Application
 {
 private:
-	CameraController camera;
-	OrthographicCamera UICamera;
-	OrthographicCamera shadowMapCamera;
-
 	EntityManager entityManager;
 
 	cs_std::packed_vector<Entity> entities;
 
-	uint32_t skyboxEntityIdx, activeCameraIdx;
+	uint32_t skyboxEntityIdx, activeCameraIdx, shadowLightIdx;
 
 	int frame = 0;
 	double lastTime = 0.0;
@@ -90,16 +86,32 @@ public:
 	}
 	void OnStartup()
 	{
-
 		this->GetWindow()->SetCursorLock(true);
+		//this->UICamera = OrthographicCamera(math::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f), math::vec2(-1.0f, 1.0f));
+		//this->UICamera.SetPosition(math::vec3(0.0f, 0.0f, 0.0f));
+		//this->UICamera.SetRotation(math::quat(0.0f, 1.0f, 0.0f, 0.0f));
 
-		this->camera = CameraController(70.0f, this->GetWindow()->GetAspectRatio(), { 0.1f, 1000.0f });
-		this->camera.camera.SetPosition(math::vec3(0.0f, 0.0f, 0.0f));
-		this->UICamera = OrthographicCamera(math::vec4(0.0f, this->GetWindow()->GetWidth(), this->GetWindow()->GetHeight(), 0.0f), math::vec2(-1.0f, 1.0f));
-		this->UICamera.SetPosition(math::vec3(0.0f, 0.0f, 0.0f));
-		this->UICamera.SetRotation(math::quat(0.0f, 1.0f, 0.0f, 0.0f));
+		// Create Camera
+		{
+			Entity cameraEntity = entityManager.CreateEntity();
+			cameraEntity.EmplaceComponent<Name>("Main Camera");
+			cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f), math::quat(0.0f, 0.0f, 0.0f, 1.0f));
+			cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, this->GetWindow()->GetAspectRatio(), 0.1f, 1000.0f);
+			cameraEntity.EmplaceComponent<Behaviours>();
+			cameraEntity.GetComponent<Behaviours>()
+				.AddBehaviour(std::make_shared<CameraController>())
+				.OnAttach(cameraEntity);
+			activeCameraIdx = entities.insert(cameraEntity);
+		}
 
-		this->shadowMapCamera = OrthographicCamera(math::vec4(-12.5f, 12.5f, -20.0f, 20.0f), math::vec2(0.0f, 100.0f));
+		// Create shadow casting directional light
+		{
+			Entity lightEntity = entityManager.CreateEntity();
+			lightEntity.EmplaceComponent<Name>("Directional Light");
+			lightEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f), math::quat(0.0f, 0.0f, 0.0f, 1.0f));
+			lightEntity.EmplaceComponent<OrthographicCamera>(-12.5f, 12.5f, -20.0f, 20.0f, 0.0f, 100.0f);
+			shadowLightIdx = entities.insert(lightEntity);
+		}
 
 		/* ---------------------------------------------------------------- 1.0 - Shader data ---------------------------------------------------------------- */
 		struct Shader { std::string name; Vulkan::PipelineVariants variants; };
@@ -171,11 +183,16 @@ public:
 	{
 		/* ---------------------------------------------------------------- Game update ---------------------------------------------------------------- */
 
-		this->camera.OnUpdate();
-
 		float currentTime = this->GetTime() / 10.0f;
-		this->shadowMapCamera.SetPosition(math::vec3(std::sinf(currentTime) * 75.0f, std::cosf(currentTime) * 75.0f, 0.0f));
-		this->shadowMapCamera.LookAt(math::vec3(0.0f, 0.0f, 0.0f));
+
+		Transform& transform = entities[shadowLightIdx].GetComponent<Transform>();
+
+		transform.SetPosition(math::vec3(std::sinf(currentTime) * 75.0f, std::cosf(currentTime) * 75.0f, 0.0f));
+		transform.LookAt(math::vec3(0.0f, 0.0f, 0.0f));
+
+		entityManager.registry.view<Behaviours>().each([&](auto& b) {
+			b.OnUpdate(dt);
+		});
 
 		/* ---------------------------------------------------------------- Render preparation ---------------------------------------------------------------- */
 
@@ -186,16 +203,22 @@ public:
 		Vulkan::Pipelines& postProcessingPipeline = this->renderer.pipelines[4];
 		Vulkan::Pipelines& depthPrepassPipeline = this->renderer.pipelines[5];
 
+		Transform& cameraTransform = entities[activeCameraIdx].GetComponent<Transform>();
+		PerspectiveCamera& camera = entities[activeCameraIdx].GetComponent<PerspectiveCamera>();
+
+		Transform& shadowMapTransform = entities[shadowLightIdx].GetComponent<Transform>();
+		OrthographicCamera& shadowMapCamera = entities[shadowLightIdx].GetComponent<OrthographicCamera>();
+
 		// Render prep
-		const math::mat4 projections[2]{ this->camera.camera.GetViewProjectionMatrix(), this->shadowMapCamera.GetViewProjectionMatrix() };
-		const math::vec4 lightingPositions[2]{ math::vec4(this->shadowMapCamera.GetPosition(), 1.0f), math::vec4(this->camera.camera.GetPosition(), 1.0f) };
+		const math::mat4 projections[2]{ camera.GetViewProjectionMatrix(cameraTransform.GetCameraViewMatrix()), shadowMapCamera.GetViewProjectionMatrix(shadowMapTransform.GetCameraViewMatrix()) };
+		const math::vec4 lightingPositions[2]{ math::vec4(shadowMapTransform.GetPosition(), 1.0f), math::vec4(cameraTransform.GetPosition(), 1.0f) };
 
 		// Arguments in order: set index, set, binding, data
 		defaultPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections);
 		defaultPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 1, lightingPositions);
-		skyboxPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, math::translate(this->camera.camera.GetViewProjectionMatrix(), this->camera.camera.GetPosition()));
+		skyboxPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, math::translate(projections[0], cameraTransform.GetPosition()));
 		shadowPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[1]);
-		uiPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, this->UICamera.GetViewProjectionMatrix());
+		//uiPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, this->UICamera.GetViewProjectionMatrix());
 		depthPrepassPipeline.UpdateDescriptorData(this->renderer.frameIndex, 0, 0, projections[0]);
 
 		/* ---------------------------------------------------------------- Render commands ---------------------------------------------------------------- */
@@ -219,36 +242,26 @@ public:
 		const Vulkan::Framebuffer& shadow = this->renderer.framebuffers[this->renderer.shadowMap.framebufferIndex];
 		const Vulkan::Framebuffer& depthPrepass = this->renderer.framebuffers[this->renderer.depthPrepass.framebufferIndex];
 
-		cs_std::graphics::frustum shadowMapFrustum(this->shadowMapCamera.GetViewProjectionMatrix()), cameraFrustum(this->camera.camera.GetViewProjectionMatrix());
+		cs_std::graphics::frustum cameraFrustum(projections[0]), shadowMapFrustum(projections[1]);
 
 		// Meshes to render
 		struct RenderData { MeshData* mesh; Material* material; };
 		std::vector<RenderData> shadowMapRenderData = {}, solidRenderData = {}, transparentRenderData = {};
 
 
-		//for (auto& entity : entities)
-		for (size_t i = 0; i < entities.size(); i++)
-		{
-			if (!entities.is_valid(i)) continue;
-			Entity& entity = entities[i];
-			if (entity.HasComponents<MeshData, Material>())
+		entityManager.registry.view<MeshData, Material>().each([&](auto& meshData, auto& meshMaterial) {
+			// Shadow map culling
+			if (meshMaterial.isShadowCasting && shadowMapFrustum.intersects(meshData.bounds))
 			{
-				auto& meshData = entity.GetComponent<MeshData>();
-				auto& meshMaterial = entity.GetComponent<Material>();
-
-				// Shadow map culling
-				if (meshMaterial.isShadowCasting && shadowMapFrustum.intersects(meshData.bounds))
-				{
-					shadowMapRenderData.emplace_back(&meshData, &meshMaterial);
-				}
-				// Camera culling
-				if (cameraFrustum.intersects(meshData.bounds))
-				{
-					if (meshMaterial.isTransparent) transparentRenderData.emplace_back(&meshData, &meshMaterial);
-					else solidRenderData.emplace_back(&meshData, &meshMaterial);
-				}
+				shadowMapRenderData.emplace_back(&meshData, &meshMaterial);
 			}
-		}
+			// Camera culling
+			if (cameraFrustum.intersects(meshData.bounds))
+			{
+				if (meshMaterial.isTransparent) transparentRenderData.emplace_back(&meshData, &meshMaterial);
+				else solidRenderData.emplace_back(&meshData, &meshMaterial);
+			}
+		});
 
 		cmd.Begin();
 		// Shadowmap pass
@@ -277,12 +290,12 @@ public:
 			cmd.DynamicStateSetViewport(depthPrepass.GetViewport(true));
 			cmd.DynamicStateSetScissor(scissor);
 			cmd.BeginRenderPass(depthPrepass.renderPass, depthPrepass, scissor, { Vulkan::Create::DefaultDepthClear() });
-			cmd.BindPipeline(depthPrepassPipeline[0]);
 			// Normal rendering
 			{
 				for (auto& renderData : solidRenderData)
 				{
 					const Vulkan::Mesh& mesh = this->renderer.meshes[renderData.mesh->meshID];
+					cmd.BindPipeline(depthPrepassPipeline[renderData.material->isDoubleSided]);
 					cmd.BindDescriptorSets(depthPrepassPipeline, { depthPrepassPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
 					cmd.BindDescriptorSet(depthPrepassPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);
 					std::vector<VkBuffer> buffers = depthPrepassPipeline.GetMatchingBuffers(mesh);
@@ -329,7 +342,7 @@ public:
 				}
 			}
 			// Transparent objects rendering
-			{
+			/*{
 				for (auto& renderData : transparentRenderData)
 				{
 					const Vulkan::Mesh& mesh = this->renderer.meshes[renderData.mesh->meshID];
@@ -343,7 +356,7 @@ public:
 					cmd.BindIndexBuffer(mesh.indexBuffer);
 					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, renderData.mesh->meshID);
 				}
-			}
+			}*/
 			cmd.EndRenderPass();
 		}
 		// Post-processing step

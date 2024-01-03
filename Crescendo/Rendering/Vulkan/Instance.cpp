@@ -39,9 +39,11 @@ CS_NAMESPACE_BEGIN::Vulkan
 		deviceFeatures.sampleRateShading = VK_TRUE;
 
 		// Select physical device
-		const vkb::Result<vkb::PhysicalDevice> physicalDeviceResult = vkb::PhysicalDeviceSelector(instance).set_minimum_version(CS_VK_MAJOR, CS_VK_MINOR).set_surface(this->surface).set_required_features(deviceFeatures).select();
+		// We select multiple because even if the default is to choose discrete
+		// Sometimes it can choose integrated, then we need to determine which one we want
+		auto physicalDeviceResult = vkb::PhysicalDeviceSelector(instance).set_minimum_version(CS_VK_MAJOR, CS_VK_MINOR).set_surface(this->surface).set_required_features(deviceFeatures).select_devices();
 		if (!physicalDeviceResult) cs_std::console::fatal("Failed to select Vulkan physical device!", physicalDeviceResult.error().message());
-		this->vkbPhysicalDevice = physicalDeviceResult.value();
+		this->vkbPhysicalDevice = physicalDeviceResult.value()[1];
 	}
 	Instance::~Instance()
 	{
@@ -81,9 +83,12 @@ CS_NAMESPACE_BEGIN::Vulkan
 		drawParametersFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
 		drawParametersFeatures.shaderDrawParameters = VK_TRUE;
 
-		const vkb::Device deviceResult = vkb::DeviceBuilder(this->vkbPhysicalDevice).add_pNext(&drawParametersFeatures).build().value();
-		volkLoadDevice(deviceResult.device);
-		return Device(deviceResult, this->instance, descriptorSetsPerPool, this->GetPhysicalDeviceProperties().limits.minUniformBufferOffsetAlignment);
+		auto deviceResult = vkb::DeviceBuilder(this->vkbPhysicalDevice).add_pNext(&drawParametersFeatures).build();
+		if (!deviceResult) cs_std::console::error("Failed to build device:", deviceResult.error());
+
+		const vkb::Device device = deviceResult.value();
+		volkLoadDevice(device.device);
+		return Device(device, this->instance, descriptorSetsPerPool, this->GetPhysicalDeviceProperties().limits.minUniformBufferOffsetAlignment);
 	}
 	Swapchain Instance::CreateSwapchain(VkDevice device, VkPresentModeKHR presentMode, VkExtent2D extent)
 	{

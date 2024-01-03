@@ -12,7 +12,6 @@
 #include "entrypoint.hpp"
 
 #include "Engine/Engine.hpp"
-#include "Graphics/Graphics.hpp"
 #include "IO/IO.hpp"
 #include "Libraries/Libraries.hpp"
 #include "Rendering/Rendering.hpp"
