@@ -8,6 +8,10 @@
 namespace CrescendoEngine
 {
 	struct Component {};
+
+	template<typename T>
+	concept ValidComponent = std::derived_from<T, Component>;
+
 	struct Name : public Component
 	{
 		std::string name;
@@ -39,5 +43,23 @@ namespace CrescendoEngine
 
 		MeshData() : bounds(), meshID(0) {}
 		MeshData(const cs_std::graphics::bounding_aabb& bounds, uint32_t meshID) : bounds(bounds), meshID(meshID) {}
+	};
+
+	struct Skybox : public Component
+	{
+		uint32_t meshID, textureID;
+
+		Skybox() : meshID(std::numeric_limits<uint32_t>::max()), textureID(std::numeric_limits<uint32_t>::max()) {}
+		Skybox(uint32_t meshID, uint32_t textureID) : meshID(meshID), textureID(textureID) {}
+	};
+
+	struct Behaviour : public Component
+	{
+		// Pre-render
+		void OnUpdate(double time) {};
+		// Post-render
+		void OnLateUpdate(double time) {};
+		void OnAttach() {};
+		void OnDetach() {};
 	};
 }

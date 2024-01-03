@@ -7,6 +7,8 @@
 
 #include <utility>
 
+#include "Components.hpp"
+
 CS_NAMESPACE_BEGIN
 {
 	struct Entity
@@ -22,12 +24,15 @@ CS_NAMESPACE_BEGIN
 		operator entt::entity& () { return this->entity; };
 		uint32_t GetID() const { return static_cast<uint32_t>(this->entity); }
 
-		template<typename T> T& GetComponent() { return registry->get<T>(this->entity); }
-		template<typename T> bool HasComponent() const { return registry->all_of<T>(this->entity); }
-		template<typename ...T> bool HasComponents() const { return registry->all_of<T...>(this->entity); }
-		template<typename T> T& AddComponent(const T& component) { return registry->emplace<T>(this->entity, component); };
-		template<typename T, typename... Args> T& EmplaceComponent(Args&&... args) { return registry->emplace<T>(this->entity, std::forward<Args>(args)...); };
-		template<typename T> void RemoveComponent() { registry->remove<T>(this->entity); }
+		template<ValidComponent T> T& GetComponent() { return registry->get<T>(this->entity); }
+		template<ValidComponent T> bool HasComponent() const { return registry->all_of<T>(this->entity); }
+		// Return true if the entity has all of the components, false if it has any less
+		template<ValidComponent ...T> bool HasComponents() const { return registry->all_of<T...>(this->entity); }
+		// Return true if the entity has any of the components, false if it has none
+		template<ValidComponent ...T> bool HasAnyComponents() const { return registry->any_of<T...>(this->entity); }
+		template<ValidComponent T> T& AddComponent(const T& component) { return registry->emplace<T>(this->entity, component); };
+		template<ValidComponent T, typename... Args> T& EmplaceComponent(Args&&... args) { return registry->emplace<T>(this->entity, std::forward<Args>(args)...); };
+		template<ValidComponent T> void RemoveComponent() { registry->remove<T>(this->entity); }
 	};
 
 	class EntityManager

@@ -67,7 +67,7 @@ CS_NAMESPACE_BEGIN
 		constexpr VkFormat DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
 		constexpr VkFormat OFFSCREEN_FORMAT = VK_FORMAT_R16G16B16A16_SFLOAT; // For HDR
 		constexpr VkFormat SHADOW_MAP_FORMAT = VK_FORMAT_D16_UNORM;
-		constexpr uint32_t SHADOW_MAP_RES = 4096;
+		constexpr uint32_t SHADOW_MAP_RES = 8192;
 		const VkSampleCountFlagBits multisamplesCount = ConvertSamplesToVkFlag(this->specs.multisamples);
 
 		this->device.WaitIdle();

@@ -9,25 +9,6 @@ namespace math = cs_std::math;
 
 #include "CameraController.hpp"
 
-template<typename T>
-struct SceneGraphNode
-{
-	SceneGraphNode<T>* parent;
-	std::vector<SceneGraphNode> children;
-	T data;
-
-	void SetParent(SceneGraphNode<T>* parent) { this->parent = parent; }
-
-	uint32_t GetChildCount() const { return this->children.size(); }
-};
-
-template<typename T>
-class SceneGraph
-{
-public:
-	std::vector<SceneGraphNode<T>> nodes;
-};
-
 class Sandbox : public Application
 {
 private:
@@ -38,9 +19,8 @@ private:
 	EntityManager entityManager;
 
 	cs_std::packed_vector<Entity> entities;
-	SceneGraph<uint32_t> sceneGraph;
 
-	struct SkyboxData { uint32_t meshID = UINT32_MAX, textureID = UINT32_MAX; } skyboxData;
+	uint32_t skyboxEntityIdx, activeCameraIdx;
 
 	int frame = 0;
 	double lastTime = 0.0;
@@ -166,8 +146,13 @@ public:
 			cs_std::graphics::mesh_attributes skyboxAttributes = cs_std::graphics::mesh_attributes().set_diffuse("./assets/skybox.png");
 			skyboxModel.add_mesh(skyboxMesh, skyboxAttributes);
 
-			this->skyboxData.meshID = this->renderer.meshes.insert(this->renderer.UploadMesh(skyboxMesh));
-			this->skyboxData.textureID = this->renderer.textures.insert(this->renderer.UploadTexture(LoadImage("./assets/skybox.png"), true));
+			uint32_t meshID = this->renderer.meshes.insert(this->renderer.UploadMesh(skyboxMesh));
+			uint32_t textureID = this->renderer.textures.insert(this->renderer.UploadTexture(LoadImage("./assets/skybox.png"), true));
+
+			Entity skyboxEntity = entityManager.CreateEntity();
+			skyboxEntity.EmplaceComponent<Name>("Skybox");
+			skyboxEntity.EmplaceComponent<Skybox>(meshID, textureID);
+			skyboxEntityIdx = entities.insert(skyboxEntity);
 		}
 
 		std::string assetPath = CVar::Get<std::string>("pc_assetpath");
@@ -186,7 +171,7 @@ public:
 	{
 		/* ---------------------------------------------------------------- Game update ---------------------------------------------------------------- */
 
-		this->camera.Update();
+		this->camera.OnUpdate();
 
 		float currentTime = this->GetTime() / 10.0f;
 		this->shadowMapCamera.SetPosition(math::vec3(std::sinf(currentTime) * 75.0f, std::cosf(currentTime) * 75.0f, 0.0f));
@@ -240,9 +225,12 @@ public:
 		struct RenderData { MeshData* mesh; Material* material; };
 		std::vector<RenderData> shadowMapRenderData = {}, solidRenderData = {}, transparentRenderData = {};
 
-		for (uint32_t i = 0; i < entities.capacity(); i++)
+
+		//for (auto& entity : entities)
+		for (size_t i = 0; i < entities.size(); i++)
 		{
-			auto& entity = entities[i];
+			if (!entities.is_valid(i)) continue;
+			Entity& entity = entities[i];
 			if (entity.HasComponents<MeshData, Material>())
 			{
 				auto& meshData = entity.GetComponent<MeshData>();
@@ -314,13 +302,15 @@ public:
 			cmd.BeginRenderPass(offScreen.renderPass, offScreen, scissor, { { 0.0f, 0.0f, 0.0f, 1.0f } });
 			// Skybox rendering
 			{
+				Skybox& skyboxData = entities[skyboxEntityIdx].GetComponent<Skybox>();
+
 				cmd.BindPipeline(skyboxPipeline[0]);
 				cmd.BindDescriptorSets(skyboxPipeline, { skyboxPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
-				cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[this->skyboxData.textureID].set, 0, 1);
-				std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[this->skyboxData.meshID]);
+				cmd.BindDescriptorSet(skyboxPipeline, this->renderer.textures[skyboxData.textureID].set, 0, 1);
+				std::vector<VkBuffer> buffers = skyboxPipeline.GetMatchingBuffers(this->renderer.meshes[skyboxData.meshID]);
 				cmd.BindVertexBuffers(buffers, std::vector<VkDeviceSize>(buffers.size(), 0));
-				cmd.BindIndexBuffer(this->renderer.meshes[this->skyboxData.meshID].indexBuffer);
-				cmd.DrawIndexed(this->renderer.meshes[this->skyboxData.meshID].indexCount, 1, 0, 0, 0);
+				cmd.BindIndexBuffer(this->renderer.meshes[skyboxData.meshID].indexBuffer);
+				cmd.DrawIndexed(this->renderer.meshes[skyboxData.meshID].indexCount, 1, 0, 0, 0);
 			}
 			// Solid objects rendering
 			{

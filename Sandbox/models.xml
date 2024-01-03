@@ -2,11 +2,11 @@
 <config>
 	<!-- <gltf>tristan/TRISTANSEXY.gltf</gltf> -->
 	<gltf>modern-sponza/modern-sponza.gltf</gltf>
-	<!-- <gltf>sponza-curtains/sponza-curtains.gltf</gltf> -->
+	<gltf>sponza-curtains/sponza-curtains.gltf</gltf>
 	<!-- <gltf>sponza-ivy/sponza-ivy.gltf</gltf> -->
 	<!-- <gltf>sponza-candles/sponza-candles.gltf</gltf> -->
 	<!-- <obj>obj-sponza/sponza.obj</obj> -->
 	<!-- <gltf>companion-cube/scene.gltf</gltf> -->
-	<!-- <gltf>tree/tree.gltf</gltf> -->
+	<gltf>tree/tree.gltf</gltf>
 	<!-- <gltf>chair/chair.gltf</gltf> -->
 </config>

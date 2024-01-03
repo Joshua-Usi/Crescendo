@@ -27,26 +27,25 @@ CS_NAMESPACE_BEGIN
 
 		constexpr uint32_t scaleFactor = 1;
 		std::vector<uint8_t> newPixels(width * height * channels / (scaleFactor * scaleFactor));
-		if (scaleFactor == 1)
+		if constexpr (scaleFactor == 1)
 		{
 			memcpy(newPixels.data(), pixels, width * height * channels);
 		}
-		// Dead code for now
-		//else
-		//{
-		//	// Optional downsampling code
-		//	// Nearest neighbour downsampling
-		//	for (uint32_t i = 0; i < height / scaleFactor; i++)
-		//	{
-		//		for (uint32_t j = 0; j < width / scaleFactor; j++)
-		//		{
-		//			for (uint32_t k = 0; k < channels; k++)
-		//			{
-		//				newPixels[(i * width / scaleFactor + j) * channels + k] = pixels[((i * width + j) * scaleFactor) * channels + k];
-		//			}
-		//		}
-		//	}
-		//}
+		else
+		{
+			// Optional downsampling code
+			// Nearest neighbour downsampling
+			for (uint32_t i = 0; i < height / scaleFactor; i++)
+			{
+				for (uint32_t j = 0; j < width / scaleFactor; j++)
+				{
+					for (uint32_t k = 0; k < channels; k++)
+					{
+						newPixels[(i * width / scaleFactor + j) * channels + k] = pixels[((i * width + j) * scaleFactor) * channels + k];
+					}
+				}
+			}
+		}
 		stbi_image_free(pixels);
 		return cs_std::image(newPixels, width / scaleFactor, height / scaleFactor, channels);
 	}

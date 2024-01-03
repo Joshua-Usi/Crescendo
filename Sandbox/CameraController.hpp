@@ -8,7 +8,7 @@
 
 using namespace CrescendoEngine;
 
-class CameraController
+class CameraController : public Behaviour
 {
 public:
 	PerspectiveCamera camera = {};
@@ -19,7 +19,7 @@ public:
 	{
 		this->camera = PerspectiveCamera(fov, aspectRatio, clipPlane);
 	}
-	void Update()
+	void OnUpdate()
 	{
 		// Camera angles
 		double dx = this->pMouseX - Input::GetMouseX(), dy = this->pMouseY - Input::GetMouseY();
