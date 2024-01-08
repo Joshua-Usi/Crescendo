@@ -231,11 +231,11 @@ CS_NAMESPACE_BEGIN::Vulkan
 		// Generates pipelines for double-sided and transparent objects
 		static PipelineVariants GetDefaultVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
-			return PipelineVariants(pass, FillMode::Solid, CullMode::Back | CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::LessEqual, DepthTest::Enabled, DepthWrite::Disabled);
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Back | CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::GreaterEqual, DepthTest::Enabled, DepthWrite::Disabled);
 		}
 		static PipelineVariants GetSkyboxVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
-			return PipelineVariants(pass, FillMode::Solid, CullMode::Back, ConvertSamplesToVariant(samples), DepthFunc::LessEqual, DepthTest::Enabled, DepthWrite::Disabled);
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Back, ConvertSamplesToVariant(samples), DepthFunc::GreaterEqual, DepthTest::Enabled, DepthWrite::Disabled);
 		}
 		static PipelineVariants GetShadowVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
@@ -243,7 +243,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		}
 		static PipelineVariants GetDepthPrepassVariant(VkRenderPass pass, uint32_t samples = 1)
 		{
-			return PipelineVariants(pass, FillMode::Solid, CullMode::Back | CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::LessEqual, DepthTest::Enabled, DepthWrite::Enabled);
+			return PipelineVariants(pass, FillMode::Solid, CullMode::Back | CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::GreaterEqual, DepthTest::Enabled, DepthWrite::Enabled);
 		}
 		static PipelineVariants GetUIVariant(VkRenderPass pass, uint32_t samples = 1)
 		{

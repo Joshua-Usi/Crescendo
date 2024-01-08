@@ -379,7 +379,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 				.depthStencilInfo = Create::PipelineDepthStencilStateCreateInfo(
 					0, PipelineVariants::GetDepthTest(thisVariant.depthTestFlags), PipelineVariants::GetDepthWrite(thisVariant.depthWriteFlags),
 					PipelineVariants::GetDepthFunc(thisVariant.depthFuncFlags),
-					VK_FALSE, VK_FALSE, {}, {}
+					VK_FALSE, VK_FALSE, {}, {},
+					1.0f, 0.0f // For reverse Z
 				),
 				.pipelineLayout = pipelineLayout,
 				.renderPass = thisVariant.renderPass

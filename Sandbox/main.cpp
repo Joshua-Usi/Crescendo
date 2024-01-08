@@ -285,7 +285,7 @@ public:
 			const VkRect2D scissor = shadow.GetScissor();
 			cmd.DynamicStateSetViewport(shadow.GetViewport());
 			cmd.DynamicStateSetScissor(scissor);
-			cmd.BeginRenderPass(shadow.renderPass, shadow, scissor, { Vulkan::Create::DefaultDepthClear() });
+			cmd.BeginRenderPass(shadow.renderPass, shadow, scissor, { Vulkan::Create::DefaultDepthClear(1.0f) });
 			cmd.BindPipeline(shadowPipeline[0]);
 			cmd.BindDescriptorSets(shadowPipeline, { shadowPipeline.descriptorSets[0][this->renderer.frameIndex].set }, { 0 });
 			cmd.BindDescriptorSet(shadowPipeline, this->renderer.ssbo[this->renderer.frameIndex].set, 0, 1);

@@ -814,10 +814,10 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 	{
 		return { x, y, z };
 	}
-	inline constexpr VkClearValue DefaultDepthClear()
+	inline constexpr VkClearValue DefaultDepthClear(float clearValue = 0.0f)
 	{
 		VkClearValue depthClear = {};
-		depthClear.depthStencil.depth = 1.0f;
+		depthClear.depthStencil.depth = clearValue;
 		return depthClear;
 	}
 }
