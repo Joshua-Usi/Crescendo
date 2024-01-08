@@ -26,7 +26,9 @@ public:
 	{
 		uint32_t textureIndex = 0;
 		const uint32_t currentTextureCount = this->renderer.textures.capacity();
-		std::map<std::filesystem::path, uint32_t> seenTextures;
+
+		struct TextureInfo { uint32_t textureIdx; Colorspace colorspace; };
+		std::map<std::filesystem::path, TextureInfo> seenTextures;
 
 		uint32_t indexCount = 0;
 
@@ -39,8 +41,18 @@ public:
 
 				if (!mesh.has_attribute(cs_std::graphics::Attribute::TANGENT)) cs_std::graphics::generate_tangents(mesh);
 				uint32_t meshID = this->renderer.meshes.insert(this->renderer.UploadMesh(mesh));
-				if (!attributes.diffuse.empty() && seenTextures.find(attributes.diffuse) == seenTextures.end()) { seenTextures[attributes.diffuse] = textureIndex; textureIndex++; }
-				if (!attributes.normal.empty() && seenTextures.find(attributes.normal) == seenTextures.end()) { seenTextures[attributes.normal] = textureIndex; textureIndex++; }
+				if (!attributes.diffuse.empty() && seenTextures.find(attributes.diffuse) == seenTextures.end())
+				{
+					seenTextures[attributes.diffuse].textureIdx = textureIndex;
+					seenTextures[attributes.diffuse].colorspace = Colorspace::SRGB;
+					textureIndex++;
+				}
+				if (!attributes.normal.empty() && seenTextures.find(attributes.normal) == seenTextures.end())
+				{
+					seenTextures[attributes.normal].textureIdx = textureIndex;
+					seenTextures[attributes.normal].colorspace = Colorspace::Linear;
+					textureIndex++;
+				}
 
 				for (auto& ssbo : this->renderer.ssbo) memcpy(static_cast<char*>(ssbo.buffer.mPtr) + sizeof(math::mat4) * meshID, &attributes.transform, sizeof(math::mat4));
 
@@ -49,7 +61,7 @@ public:
 				entity.EmplaceComponent<Transform>(attributes.transform);
 				entity.EmplaceComponent<MeshData>(cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform), meshID);
 				entity.EmplaceComponent<Material>(
-					0, seenTextures[attributes.diffuse] + currentTextureCount, seenTextures[attributes.normal] + currentTextureCount,
+					0, seenTextures[attributes.diffuse].textureIdx + currentTextureCount, seenTextures[attributes.normal].textureIdx + currentTextureCount,
 					attributes.isTransparent, attributes.isDoubleSided, true
 				);
 				entities.insert(entity);
@@ -60,17 +72,21 @@ public:
 
 		seenTextures.erase("");
 		std::vector<std::filesystem::path> textureStrings(seenTextures.size());
-		for (const auto& texture : seenTextures) textureStrings[texture.second] = texture.first;
+		for (const auto& texture : seenTextures) textureStrings[texture.second.textureIdx] = texture.first;
+
+		struct TaggedImage
+		{
+			cs_std::image image;
+			Colorspace colorspace;
+		};
 
 		std::vector<cs_std::image> images(textureStrings.size());
-
-		this->taskQueue.wake();
-		uint32_t last = 0;
 		for (uint32_t i = 0; i < textureStrings.size(); i++)
 		{
 			this->taskQueue.push_back([&images, &textureStrings, i]() { images[i] = LoadImage(textureStrings[i]); });
 		}
 
+		uint32_t last = 0;
 		while (!this->taskQueue.finished())
 		{
 			uint32_t local = textureStrings.size() - this->taskQueue.pending_task_count();
@@ -80,7 +96,11 @@ public:
 		cs_std::console::raw('\n');
 		this->taskQueue.sleep();
 
-		for (auto& image : images) this->renderer.textures.insert(this->renderer.UploadTexture(image, true));
+		for (uint32_t i = 0; i < images.size(); i++)
+		{
+			auto& image = images[i];
+			this->renderer.textures.insert(this->renderer.UploadTexture(image, seenTextures[textureStrings[i]].colorspace, true));
+		}
 
 		lastTime = this->GetTime();
 	}
@@ -97,10 +117,7 @@ public:
 			cameraEntity.EmplaceComponent<Name>("Main Camera");
 			cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f), math::quat(0.0f, 0.0f, 0.0f, 1.0f));
 			cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, this->GetWindow()->GetAspectRatio(), 0.1f, 1000.0f);
-			cameraEntity.EmplaceComponent<Behaviours>();
-			cameraEntity.GetComponent<Behaviours>()
-				.AddBehaviour(std::make_shared<CameraController>())
-				.OnAttach(cameraEntity);
+			cameraEntity.EmplaceComponent<Behaviours>(std::make_shared<CameraController>());
 			activeCameraIdx = entities.insert(cameraEntity);
 		}
 
@@ -159,7 +176,7 @@ public:
 			skyboxModel.add_mesh(skyboxMesh, skyboxAttributes);
 
 			uint32_t meshID = this->renderer.meshes.insert(this->renderer.UploadMesh(skyboxMesh));
-			uint32_t textureID = this->renderer.textures.insert(this->renderer.UploadTexture(LoadImage("./assets/skybox.png"), true));
+			uint32_t textureID = this->renderer.textures.insert(this->renderer.UploadTexture(LoadImage("./assets/skybox.png"), Colorspace::SRGB, true));
 
 			Entity skyboxEntity = entityManager.CreateEntity();
 			skyboxEntity.EmplaceComponent<Name>("Skybox");
@@ -247,7 +264,6 @@ public:
 		// Meshes to render
 		struct RenderData { MeshData* mesh; Material* material; };
 		std::vector<RenderData> shadowMapRenderData = {}, solidRenderData = {}, transparentRenderData = {};
-
 
 		entityManager.registry.view<MeshData, Material>().each([&](auto& meshData, auto& meshMaterial) {
 			// Shadow map culling
@@ -342,7 +358,7 @@ public:
 				}
 			}
 			// Transparent objects rendering
-			/*{
+			{
 				for (auto& renderData : transparentRenderData)
 				{
 					const Vulkan::Mesh& mesh = this->renderer.meshes[renderData.mesh->meshID];
@@ -356,7 +372,7 @@ public:
 					cmd.BindIndexBuffer(mesh.indexBuffer);
 					cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, renderData.mesh->meshID);
 				}
-			}*/
+			}
 			cmd.EndRenderPass();
 		}
 		// Post-processing step

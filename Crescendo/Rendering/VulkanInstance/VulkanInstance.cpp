@@ -6,6 +6,30 @@
 
 CS_NAMESPACE_BEGIN
 {
+	VkFormat GetImageFormat(Colorspace colorSpace, uint16_t channels)
+	{
+		switch (colorSpace)
+		{
+			case Colorspace::SRGB:
+				switch (channels)
+				{
+					case 1: return VK_FORMAT_R8_SRGB;
+					case 2: return VK_FORMAT_R8G8_SRGB;
+					case 3: return VK_FORMAT_R8G8B8_SRGB;
+					case 4: return VK_FORMAT_R8G8B8A8_SRGB;
+				}
+				[[fallthrough]];
+			case Colorspace::Linear:
+				switch (channels)
+				{
+					case 1: return VK_FORMAT_R8_UNORM;
+					case 2: return VK_FORMAT_R8G8_UNORM;
+					case 3: return VK_FORMAT_R8G8B8_UNORM;
+					case 4: return VK_FORMAT_R8G8B8A8_UNORM;
+				}
+		}
+		return VK_FORMAT_UNDEFINED;
+	}
 	VkSampleCountFlagBits MaxMultisampleCount(const VkPhysicalDeviceProperties& properties) {
 		VkSampleCountFlags counts = properties.limits.framebufferColorSampleCounts & properties.limits.framebufferDepthSampleCounts;
 		if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
@@ -67,7 +91,7 @@ CS_NAMESPACE_BEGIN
 		constexpr VkFormat DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
 		constexpr VkFormat OFFSCREEN_FORMAT = VK_FORMAT_R16G16B16A16_SFLOAT; // For HDR
 		constexpr VkFormat SHADOW_MAP_FORMAT = VK_FORMAT_D16_UNORM;
-		constexpr uint32_t SHADOW_MAP_RES = 8192;
+		constexpr uint32_t SHADOW_MAP_RES = 4096;
 		const VkSampleCountFlagBits multisamplesCount = ConvertSamplesToVkFlag(this->specs.multisamples);
 
 		this->device.WaitIdle();
@@ -215,11 +239,9 @@ CS_NAMESPACE_BEGIN
 		});
 		return gpuMesh;
 	}
-	Vulkan::Texture VulkanInstance::UploadTexture(const cs_std::image & image, bool generateMipmaps)
+	Vulkan::Texture VulkanInstance::UploadTexture(const cs_std::image & image, Colorspace colorSpace, bool generateMipmaps)
 	{
-		// For now every image uses the same format. This can be very wasteful, at least until variable formats are implemented
-		// Or we have texture compression
-		constexpr VkFormat DEFAULT_FORMAT = VK_FORMAT_R8G8B8A8_SRGB;
+		VkFormat format = GetImageFormat(colorSpace, image.channels);
 		/* ----------------------------------------------------------------  0 - Dynamic sampler creation ---------------------------------------------------------------- */
 		const size_t imageSize = static_cast<size_t>(image.width) * static_cast<size_t>(image.height) * static_cast<size_t>(image.channels);
 		const uint8_t mipLevels = 1 + generateMipmaps ? static_cast<uint8_t>(std::log2(std::max(image.width, image.height))) : 0;
@@ -236,7 +258,7 @@ CS_NAMESPACE_BEGIN
 		Vulkan::Buffer staging = this->device.CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY).Fill(0, image.data.data(), imageSize);
 		const VkExtent3D extent = Vulkan::Create::Extent3D(image.width, image.height, 1);
 		Vulkan::Image texture = this->device.CreateImage(Vulkan::Create::ImageCreateInfo(
-			VK_IMAGE_TYPE_2D, DEFAULT_FORMAT, extent,
+			VK_IMAGE_TYPE_2D, format, extent,
 			mipLevels, 1, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			VK_SHARING_MODE_EXCLUSIVE, 0, nullptr, VK_IMAGE_LAYOUT_UNDEFINED

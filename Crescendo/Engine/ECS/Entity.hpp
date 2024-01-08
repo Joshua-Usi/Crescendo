@@ -6,9 +6,10 @@
 #include "libraries/Thirdparty/entt/entt.hpp"
 
 #include <utility>
-
 CS_NAMESPACE_BEGIN
 {
+	struct Behaviours;
+
 	struct Entity
 	{
 	private:
@@ -29,7 +30,12 @@ CS_NAMESPACE_BEGIN
 		// Return true if the entity has any of the components, false if it has none
 		template<ValidComponent ...T> bool HasAnyComponents() const { return registry->any_of<T...>(this->entity); }
 		template<ValidComponent T> T& AddComponent(const T& component) { return registry->emplace<T>(this->entity, component); };
-		template<ValidComponent T, typename... Args> T& EmplaceComponent(Args&&... args) { return registry->emplace<T>(this->entity, std::forward<Args>(args)...); };
+		template<ValidComponent T, typename... Args> T& EmplaceComponent(Args&&... args)
+		{
+			T& component = registry->emplace<T>(this->entity, std::forward<Args>(args)...);
+			if constexpr (std::is_same_v<T, Behaviours>) component.OnAttach(*this);
+			return component;
+		};
 		template<ValidComponent T> void RemoveComponent() { registry->remove<T>(this->entity); }
 	};
 

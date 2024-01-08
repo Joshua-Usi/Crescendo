@@ -167,6 +167,7 @@ namespace CrescendoEngine
 
 		Behaviours() : behaviours() {}
 		Behaviours(std::vector<std::shared_ptr<Behaviour>> behaviours) : behaviours(behaviours) {}
+		template<typename ...T> Behaviours(T... behaviours) : behaviours({ behaviours... }) {}
 
 		Behaviours& AddBehaviour(std::shared_ptr<Behaviour> behaviour) { behaviours.push_back(behaviour); return *this; }
 		Behaviours& AddBehaviour(Behaviour* behaviour) { behaviours.push_back(std::shared_ptr<Behaviour>(behaviour)); return *this; }

@@ -38,6 +38,13 @@ CS_NAMESPACE_BEGIN
 
 		SamplableFramebuffer() : sampler(nullptr), textureIndices(0), framebufferIndex(0) {}
 	};
+
+	enum class Colorspace
+	{
+		SRGB,
+		Linear
+	};
+
 	class VulkanInstance
 	{
 	public:
@@ -83,7 +90,7 @@ CS_NAMESPACE_BEGIN
 		SamplableFramebuffer CreateDepthPrepass(VkRenderPass renderPass, VkFormat format, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height);
 
 		Vulkan::Mesh UploadMesh(const cs_std::graphics::mesh& mesh);
-		Vulkan::Texture UploadTexture(const cs_std::image& image, bool generateMipmaps);
+		Vulkan::Texture UploadTexture(const cs_std::image& image, Colorspace colorSpace = Colorspace::SRGB, bool generateMipmaps = false);
 
 		Vulkan::RenderCommandQueue& GetCurrentRenderCommandQueue() { return renderCommandQueues[frameIndex]; }
 		void NextFrame() { frameIndex = (frameIndex + 1) % specs.framesInFlight; }

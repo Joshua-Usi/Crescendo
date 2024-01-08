@@ -84,7 +84,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		drawParametersFeatures.shaderDrawParameters = VK_TRUE;
 
 		auto deviceResult = vkb::DeviceBuilder(this->vkbPhysicalDevice).add_pNext(&drawParametersFeatures).build();
-		if (!deviceResult) cs_std::console::error("Failed to build device:", deviceResult.error());
+		if (!deviceResult) cs_std::console::error("Failed to build device:", deviceResult.error().message());
 
 		const vkb::Device device = deviceResult.value();
 		volkLoadDevice(device.device);
