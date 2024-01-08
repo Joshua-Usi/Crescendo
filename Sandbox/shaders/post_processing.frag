@@ -21,6 +21,9 @@ void main()
 	// Tonemapped with ACES
 	oColor = vec4(ACESFilm(hdrColor), 1.0f);
 
+	// Gamma correction
+	// oColor = pow(oColor, vec4(2.2f));
+
 	// Unmodified
 	// oColor = vec4(texture(image, iTexCoord).rgb, 1.0f);
 	
