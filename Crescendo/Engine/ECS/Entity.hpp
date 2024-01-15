@@ -6,6 +6,10 @@
 #include "libraries/Thirdparty/entt/entt.hpp"
 
 #include <utility>
+#include <functional>
+
+#include "Components/Component.hpp"
+
 CS_NAMESPACE_BEGIN
 {
 	struct Behaviours;
@@ -19,6 +23,10 @@ CS_NAMESPACE_BEGIN
 		entt::entity entity;
 	public:
 		Entity(entt::registry* registry, entt::entity entity) : registry(registry), entity(entity) {};
+		Entity(const Entity& other) : registry(other.registry), entity(other.entity) {};
+		Entity(Entity&& other) noexcept : registry(other.registry), entity(other.entity) {};
+		Entity& operator=(const Entity& other) { this->registry = other.registry; this->entity = other.entity; return *this; };
+		Entity& operator=(Entity&& other) noexcept { this->registry = other.registry; this->entity = other.entity; return *this; };
 
 		operator entt::entity& () { return this->entity; };
 		uint32_t GetID() const { return static_cast<uint32_t>(this->entity); }
@@ -48,10 +56,22 @@ CS_NAMESPACE_BEGIN
 		EntityManager() : registry({}) {};
 
 		Entity CreateEntity() { return Entity(&registry, registry.create()); }
-		void DestroyEntity(Entity entity) { registry.destroy(entity); }
+		void DestroyEntity(Entity& entity) { registry.destroy(entity); }
+
+		Entity CopyEntity(Entity& entity)
+		{
+			Entity other = CreateEntity();
+			for (auto [id, storage] : registry.storage())
+			{
+				if (storage.contains(entity)) storage.push(other, storage.value(entity));
+			}
+			return other;
+		}
 
 		Entity GetEntity(entt::entity entity) { return Entity(&registry, entity); }
 
-		//template<ValidComponent ...T> entt::view<T...> GetView() { return registry.view<T...>(); }
+		template<ValidComponent T> size_t GetComponentCount() const { return registry.view<T>().size(); }
+
+		template<ValidComponent ...T> void ForEach(std::function<void(entt::entity, T&...)> func) { registry.view<T...>().each(func); }
 	};
 }

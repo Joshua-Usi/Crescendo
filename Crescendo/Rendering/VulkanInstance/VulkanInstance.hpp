@@ -8,14 +8,21 @@
 
 #include "cs_std/image.hpp"
 
+#define CS_VULKAN_HANDLE(name, type, storageName) \
+	class name\
+	{\
+	private:\
+		VulkanInstance* instance; uint32_t id;\
+	public:\
+		name() : instance(nullptr), id(0) {};\
+		name(VulkanInstance* instance, uint32_t id) : instance(instance), id(id) {};\
+		operator uint32_t() const { return id; };\
+		operator type& () { return instance->storageName[id]; };\
+		operator const type& () const { return instance->storageName[id]; };\
+	}
+
 CS_NAMESPACE_BEGIN
 {
-	class Texture { private: uint32_t id; };
-	class Mesh { private: uint32_t id; };
-	class Model { private: std::vector<Mesh> meshes; };
-	class Pipeline { private: uint32_t id; };
-	class Framebuffer { private: uint32_t id; };
-	class RenderPass { private: uint32_t id; };
 
 	struct VulkanInstanceSpecification
 	{
@@ -57,6 +64,7 @@ CS_NAMESPACE_BEGIN
 		uint8_t frameIndex = 0;
 		std::vector<Vulkan::RenderCommandQueue> renderCommandQueues;
 		Vulkan::Swapchain swapchain;
+		std::vector<uint32_t> swapchainFrameBufferIdx;
 
 		// Resources
 		cs_std::packed_vector<Vulkan::RenderPass> renderPasses;
@@ -64,11 +72,13 @@ CS_NAMESPACE_BEGIN
 		cs_std::packed_vector<Vulkan::Pipelines> pipelines;
 		cs_std::packed_vector<Vulkan::Mesh> meshes;
 		cs_std::packed_vector<Vulkan::Texture> textures;
+		cs_std::packed_vector<Vulkan::SSBO> SSBOs;
+		cs_std::packed_vector<SamplableFramebuffer> samplableFramebuffers;
 		std::vector<VkSampler> samplers;
 
-		std::vector<Vulkan::SSBO> ssbo;
+		uint32_t depthPrepassIdx, offscreenIdx;
 
-		SamplableFramebuffer shadowMap, depthPrepass, offscreen;
+		uint32_t defaultRenderPassIdx, postProcessRenderPassIdx, shadowMapRenderPassIdx, depthPrepassRenderPassIdx;
 
 		 VulkanInstanceSpecification specs;
 	public:
@@ -85,14 +95,21 @@ CS_NAMESPACE_BEGIN
 		~VulkanInstance();
 	public:
 		void CreateSwapchain();
-		SamplableFramebuffer CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, uint32_t depthTextureIndex, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height);
-		SamplableFramebuffer CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height);
-		SamplableFramebuffer CreateDepthPrepass(VkRenderPass renderPass, VkFormat format, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height);
+		uint32_t CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, uint32_t depthTextureIndex, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height);
+		uint32_t CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height);
+		uint32_t CreateDepthPrepass(VkRenderPass renderPass, VkFormat format, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height);
+		uint32_t CreateSSBO(size_t size, VkShaderStageFlags shaderStage);
 
-		Vulkan::Mesh UploadMesh(const cs_std::graphics::mesh& mesh);
-		Vulkan::Texture UploadTexture(const cs_std::image& image, Colorspace colorSpace = Colorspace::SRGB, bool generateMipmaps = false);
+		uint32_t UploadMesh(const cs_std::graphics::mesh& mesh);
+		uint32_t UploadTexture(const cs_std::image& image, Colorspace colorSpace = Colorspace::SRGB, bool generateMipmaps = false);
 
 		Vulkan::RenderCommandQueue& GetCurrentRenderCommandQueue() { return renderCommandQueues[frameIndex]; }
 		void NextFrame() { frameIndex = (frameIndex + 1) % specs.framesInFlight; }
 	};
+
+	CS_VULKAN_HANDLE(TextureHandle, Vulkan::Texture, textures);
+	CS_VULKAN_HANDLE(MeshHandle, Vulkan::Mesh, meshes);
+	CS_VULKAN_HANDLE(PipelinesHandle, Vulkan::Pipelines, pipelines);
+	CS_VULKAN_HANDLE(FramebufferHandle, Vulkan::Framebuffer, framebuffers);
+	CS_VULKAN_HANDLE(SSBOHandle, Vulkan::SSBO, SSBOs);
 }

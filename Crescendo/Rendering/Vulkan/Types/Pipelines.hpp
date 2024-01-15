@@ -21,9 +21,11 @@ CS_NAMESPACE_BEGIN::Vulkan
 		// Minimal descriptor set metadata
 		struct Set
 		{
+			enum class DescriptorType : uint32_t { Unknown = 0, Block, Sampler, Storage };
 			struct Binding { uint32_t binding, size; };
 			std::vector<Binding> bindings;
 			uint32_t set;
+			DescriptorType type;
 			// Get the size of the set in bytes
 			uint32_t SetSize() const
 			{

@@ -13,6 +13,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	{
 		Buffer buffer;
 		VkDescriptorSet set;
+		size_t size;
 	};
 
 	struct Mesh

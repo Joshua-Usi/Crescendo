@@ -105,11 +105,11 @@ CS_NAMESPACE_BEGIN::Vulkan
 	{
 		vkCmdBindIndexBuffer(this->commandBuffer, indexBuffer, 0, indexType);
 	}
-	void GraphicsCommandQueue::BindDescriptorSet(VkPipelineLayout layout, VkDescriptorSet set, uint32_t offset, uint32_t setIndex, VkPipelineBindPoint bindPoint) const
+	void GraphicsCommandQueue::BindDescriptorSet(VkPipelineLayout layout, VkDescriptorSet set, uint32_t setIndex, uint32_t offset, bool isDynamic, VkPipelineBindPoint bindPoint) const
 	{
-		vkCmdBindDescriptorSets(this->commandBuffer, bindPoint, layout, setIndex, 1, &set, (offset == 0) ? 0 : 1, &offset);
+		vkCmdBindDescriptorSets(this->commandBuffer, bindPoint, layout, setIndex, 1, &set, static_cast<uint32_t>(isDynamic), &offset);
 	}
-	void GraphicsCommandQueue::BindDescriptorSets(VkPipelineLayout layout, const std::vector<VkDescriptorSet>& sets, const std::vector<uint32_t>& offsets, uint32_t firstSet, VkPipelineBindPoint bindPoint) const
+	void GraphicsCommandQueue::BindDescriptorSets(VkPipelineLayout layout, const std::vector<VkDescriptorSet>& sets, uint32_t firstSet, const std::vector<uint32_t>& offsets, VkPipelineBindPoint bindPoint) const
 	{
 		vkCmdBindDescriptorSets(this->commandBuffer, bindPoint, layout, firstSet, static_cast<uint32_t>(sets.size()), sets.data(), static_cast<uint32_t>(offsets.size()), offsets.data());
 	}

@@ -64,6 +64,16 @@ CS_NAMESPACE_BEGIN::Vulkan
 		}
 		return bindings;
 	}
+	std::vector<VkDescriptorSetLayoutBinding> ShaderReflection::GetDescriptorSetLayoutBindings(uint32_t shaderStage, uint32_t idx) const
+	{
+		std::vector<VkDescriptorSetLayoutBinding> setBindings;
+		for (const auto& binding : this->descriptorSetLayouts[idx].bindings)
+		{
+			VkDescriptorType descriptorType = GetType(binding.type);
+			setBindings.emplace_back(binding.binding, descriptorType, 1, shaderStage, nullptr);
+		}
+		return setBindings;
+	}
 	ShaderReflection::ShaderReflection(const std::vector<uint8_t>& code)
 	{
 		if (code.size() == 0) return;
@@ -119,7 +129,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 					ShaderReflection::DescriptorSetBinding bindingSet;
 					bindingSet.binding = binding->binding;
 					bindingSet.type = GetType(binding->descriptor_type);
-					
 
 					for (uint32_t k = 0; k < binding->block.member_count; k++)
 					{

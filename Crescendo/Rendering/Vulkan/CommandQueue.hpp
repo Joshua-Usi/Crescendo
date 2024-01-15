@@ -119,9 +119,9 @@ CS_NAMESPACE_BEGIN::Vulkan
 		/// <param name="layout">The layout</param>
 		/// <param name="set">The set</param>
 		/// <param name="offset">Offset of the set in it's buffer</param>
-		/// <param name="setIndex">The index of the set, assumes 0</param>
+		/// <param name="setIndex">The index of the set</param>
 		/// <param name="bindPoint">Automatically presumes GRAPHICS</param>
-		void BindDescriptorSet(VkPipelineLayout layout, VkDescriptorSet set, uint32_t offset, uint32_t setIndex = 0, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
+		void BindDescriptorSet(VkPipelineLayout layout, VkDescriptorSet set, uint32_t setIndex, uint32_t offset, bool isDynamic = true, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
 		/// <summary>
 		/// Bind a bunch of descriptor sets at once
 		/// </summary>
@@ -130,7 +130,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		/// <param name="offsets">Offsets of each set</param>
 		/// <param name="firstSet">The index of the first set</param>
 		/// <param name="bindPoint">Automatically presumes GRAPHICS</param>
-		void BindDescriptorSets(VkPipelineLayout layout, const std::vector<VkDescriptorSet>& sets, const std::vector<uint32_t>& offsets, uint32_t firstSet = 0, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
+		void BindDescriptorSets(VkPipelineLayout layout, const std::vector<VkDescriptorSet>& sets, uint32_t firstSet, const std::vector<uint32_t>& offsets, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS) const;
 		/// <summary>
 		/// Bind a pipeline to the command buffer
 		/// </summary>

@@ -11,7 +11,7 @@ CS_NAMESPACE_BEGIN
 		: isRunning(true), shouldRestart(false), taskQueue(cs_std::task_queue()), timestamp(), layerManager(LayerStack())
 	{
 		self = this;
-		CVar::LoadConfigXML("config.xml");
+		CVar::LoadConfigXML("./configs/config.xml");
 
 		window = Window::Create({
 			CVar::Get<std::string>("ec_appname"),

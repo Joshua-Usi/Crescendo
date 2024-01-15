@@ -2,7 +2,7 @@
 
 While my engine is still in pre-alpha days, I still dream of a time where I can render metaverse-scale open worlds in my engine. Alas for now, I have to start small and am stuck with this small sponza scene.
 
-![[Reverse-Z - Sponza Scene.jpg]]
+![[Reverse-Z.jpg]]
 
 However even at this small scale. Z-fighting issues can still occur and that's with pitiful render distances. With a near and far plane of `0.1f` and `1000.0f` respectively. Z-fighting still occurs.
 
@@ -81,6 +81,6 @@ const PipelineBuilderInfo pipelineBuilderInfo = {
 };
 ```
 
-![[Reverse-Z - Sponza Scene.jpg]]
+![[Reverse-Z.jpg]]
 
 While there is no visible change yet, larger scenes will benefit greatly from this technique.

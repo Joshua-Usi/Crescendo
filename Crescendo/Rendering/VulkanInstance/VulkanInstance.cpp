@@ -73,7 +73,6 @@ CS_NAMESPACE_BEGIN
 		for (uint32_t i = 0; i < specs.framesInFlight; i++)
 		{
 			this->renderCommandQueues.emplace_back(this->device.CreateGraphicsCommandQueue(), this->device.CreateSemaphore(), this->device.CreateSemaphore());
-			this->ssbo.emplace_back(this->device.CreateSSBO(sizeof(cs_std::math::mat4) * SSBO_OBJECT_COUNT, VMA_MEMORY_USAGE_CPU_TO_GPU));
 		}
 		this->CreateSwapchain();
 	}
@@ -83,15 +82,16 @@ CS_NAMESPACE_BEGIN
 		this->device.WaitIdle();
 		// Destroy samplers
 		for (auto& sampler : this->samplers) vkDestroySampler(this->device, sampler, nullptr);
+		// Destroy SSBOs
 	}
 	void VulkanInstance::CreateSwapchain()
 	{
 		/* ---------------------------------------------------------------- 0. - Wait for resize finish ---------------------------------------------------------------- */
 
 		constexpr VkFormat DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
-		constexpr VkFormat OFFSCREEN_FORMAT = VK_FORMAT_R16G16B16A16_SFLOAT; // For HDR
+		//constexpr VkFormat OFFSCREEN_FORMAT = VK_FORMAT_R16G16B16A16_SFLOAT; // For HDR
+		constexpr VkFormat OFFSCREEN_FORMAT = VK_FORMAT_B10G11R11_UFLOAT_PACK32; // For lower memory HDR
 		constexpr VkFormat SHADOW_MAP_FORMAT = VK_FORMAT_D16_UNORM;
-		constexpr uint32_t SHADOW_MAP_RES = 4096;
 		const VkSampleCountFlagBits multisamplesCount = ConvertSamplesToVkFlag(this->specs.multisamples);
 
 		this->device.WaitIdle();
@@ -105,15 +105,20 @@ CS_NAMESPACE_BEGIN
 
 		/* ---------------------------------------------------------------- 1. - Resource deletion ---------------------------------------------------------------- */
 
-		this->framebuffers.clear();
-		if (this->renderPasses.capacity() > 0) this->renderPasses.erase(0);
 		// Explicitly destroy swapchain and depth buffer
 		this->swapchain.~Swapchain();
 		if (this->textures.capacity() > 0)
 		{
-			for (const auto& index : this->offscreen.textureIndices) this->textures.erase(index);
-			for (const auto& index : this->shadowMap.textureIndices) this->textures.erase(index);
+			for (const auto& index : this->samplableFramebuffers[this->offscreenIdx].textureIndices) this->textures.erase(index);
+			this->framebuffers.erase(this->samplableFramebuffers[this->offscreenIdx].framebufferIndex);
+			this->samplableFramebuffers.erase(this->offscreenIdx);
+
+			for (const auto& index : this->samplableFramebuffers[this->depthPrepassIdx].textureIndices) this->textures.erase(index);
+			this->framebuffers.erase(this->samplableFramebuffers[this->depthPrepassIdx].framebufferIndex);
+			this->samplableFramebuffers.erase(this->depthPrepassIdx);
 		}
+		for (auto& idx : swapchainFrameBufferIdx) this->framebuffers.erase(idx);
+		this->renderPasses.clear();
 
 		/* ---------------------------------------------------------------- 2 - Swapchain framebuffers ---------------------------------------------------------------- */
 
@@ -121,15 +126,8 @@ CS_NAMESPACE_BEGIN
 
 		// Create renderpasses
 		const uint32_t drpIdx = this->renderPasses.insert(this->device.CreateDefaultRenderPass(OFFSCREEN_FORMAT, DEPTH_FORMAT, multisamplesCount));
-		const uint32_t pprpIdx = this->renderPasses.insert(this->device.CreateDefaultPostProcessingRenderPass(this->swapchain.GetImageFormat()));
-		const uint32_t smrpIdx = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(SHADOW_MAP_FORMAT));
 		const uint32_t dpprpIdx = this->renderPasses.insert(this->device.CreateDefaultDepthPrePassRenderPass(DEPTH_FORMAT, multisamplesCount));
-
-		// Create the swapchain frame buffers
-		for (const auto& swapChainImage : this->swapchain)
-		{
-			this->framebuffers.insert(this->device.CreateFramebuffer(this->renderPasses[pprpIdx], { swapChainImage.imageView }, this->swapchain.GetExtent(), true, false));
-		}
+		const uint32_t smrpIdx = this->renderPasses.insert(this->device.CreateDefaultShadowRenderPass(SHADOW_MAP_FORMAT));
 
 		// Create offscreen images and framebuffers
 		VkExtent3D offscreenExtent = this->swapchain.GetExtent3D();
@@ -137,13 +135,11 @@ CS_NAMESPACE_BEGIN
 		offscreenExtent.height = static_cast<uint32_t>(static_cast<float>(offscreenExtent.height) * specs.renderScale);
 
 		// Create depth prepass framebuffer
-		this->depthPrepass = this->CreateDepthPrepass(this->renderPasses[dpprpIdx], DEPTH_FORMAT, multisamplesCount, offscreenExtent.width, offscreenExtent.height);
+		this->depthPrepassIdx = this->CreateDepthPrepass(this->renderPasses[dpprpIdx], DEPTH_FORMAT, multisamplesCount, offscreenExtent.width, offscreenExtent.height);
 		// Create offscreen framebuffer
-		this->offscreen = this->CreateOffscreen(this->renderPasses[drpIdx], OFFSCREEN_FORMAT, this->depthPrepass.textureIndices[0], multisamplesCount, offscreenExtent.width, offscreenExtent.height);
-		// Create shadow map
-		this->shadowMap = this->CreateShadowMap(this->renderPasses[smrpIdx], SHADOW_MAP_FORMAT, SHADOW_MAP_RES, SHADOW_MAP_RES);
+		this->offscreenIdx = this->CreateOffscreen(this->renderPasses[drpIdx], OFFSCREEN_FORMAT, this->samplableFramebuffers[depthPrepassIdx].textureIndices[0], multisamplesCount, offscreenExtent.width, offscreenExtent.height);
 	}
-	SamplableFramebuffer VulkanInstance::CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, uint32_t depthTextureIndex, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height)
+	uint32_t VulkanInstance::CreateOffscreen(VkRenderPass pass, VkFormat colorFormat, uint32_t depthTextureIndex, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height)
 	{
 		bool isMultisampling = multisamples != VK_SAMPLE_COUNT_1_BIT;
 
@@ -169,9 +165,9 @@ CS_NAMESPACE_BEGIN
 		offscreen.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(pass, attachments, { width, height }, true, true));
 		offscreen.textureIndices = textureIndices;
 			
-		return offscreen;
+		return static_cast<uint32_t>(this->samplableFramebuffers.insert(offscreen));
 	}
-	SamplableFramebuffer VulkanInstance::CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height)
+	uint32_t VulkanInstance::CreateShadowMap(VkRenderPass renderPass, VkFormat format, uint32_t width, uint32_t height)
 	{
 		SamplableFramebuffer map {};
 
@@ -182,9 +178,9 @@ CS_NAMESPACE_BEGIN
 		map.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(renderPass, { shadowTexture.image.imageView }, { width, height }, false, true));
 		map.textureIndices.push_back(this->textures.insert(std::move(shadowTexture)));
 
-		return map;
+		return static_cast<uint32_t>(this->samplableFramebuffers.insert(map));
 	}
-	SamplableFramebuffer VulkanInstance::CreateDepthPrepass(VkRenderPass renderPass, VkFormat format, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height)
+	uint32_t VulkanInstance::CreateDepthPrepass(VkRenderPass renderPass, VkFormat format, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height)
 	{
 		SamplableFramebuffer depthPrepass {};
 
@@ -195,9 +191,13 @@ CS_NAMESPACE_BEGIN
 		depthPrepass.framebufferIndex = this->framebuffers.insert(this->device.CreateFramebuffer(renderPass, { depthTexture.image.imageView }, { width, height }, false, true));
 		depthPrepass.textureIndices.push_back(this->textures.insert(std::move(depthTexture)));
 
-		return depthPrepass;
+		return static_cast<uint32_t>(this->samplableFramebuffers.insert(depthPrepass));
 	}
-	Vulkan::Mesh VulkanInstance::UploadMesh(const cs_std::graphics::mesh & mesh)
+	uint32_t VulkanInstance::CreateSSBO(size_t size, VkShaderStageFlags shaderStage)
+	{
+		return static_cast<uint32_t>(this->SSBOs.insert(this->device.CreateSSBO(size, shaderStage, VMA_MEMORY_USAGE_CPU_TO_GPU)));
+	}
+	uint32_t VulkanInstance::UploadMesh(const cs_std::graphics::mesh & mesh)
 	{
 		constexpr size_t ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(cs_std::graphics::Attribute::ATTRIBUTE_COUNT)]{
 			3, // POSITION
@@ -237,9 +237,9 @@ CS_NAMESPACE_BEGIN
 				cmd.CopyBuffer(staging.buffer, gpuMesh.vertexAttributes[i].buffer, Vulkan::Create::BufferCopy(bufferOffsets[i + 1], 0, gpuMesh.vertexAttributes[i].elements * sizeof(float)));
 			}
 		});
-		return gpuMesh;
+		return this->meshes.insert(std::move(gpuMesh));
 	}
-	Vulkan::Texture VulkanInstance::UploadTexture(const cs_std::image & image, Colorspace colorSpace, bool generateMipmaps)
+	uint32_t VulkanInstance::UploadTexture(const cs_std::image & image, Colorspace colorSpace, bool generateMipmaps)
 	{
 		VkFormat format = GetImageFormat(colorSpace, image.channels);
 		/* ----------------------------------------------------------------  0 - Dynamic sampler creation ---------------------------------------------------------------- */
@@ -306,6 +306,6 @@ CS_NAMESPACE_BEGIN
 		});
 		/* ----------------------------------------------------------------  3 - Create descriptor set ---------------------------------------------------------------- */
 		VkDescriptorSet descriptorSet = this->device.CreateTextureDescriptorSet(this->samplers[mipLevels - 1], texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		return Vulkan::Texture(std::move(texture), descriptorSet);
+		return this->textures.insert(Vulkan::Texture(std::move(texture), descriptorSet));
 	}
 }

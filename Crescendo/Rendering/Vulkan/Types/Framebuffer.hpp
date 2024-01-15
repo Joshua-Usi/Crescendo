@@ -21,7 +21,11 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Framebuffer() = default;
 		Framebuffer(VkDevice device, VkFramebuffer framebuffer, VkRenderPass renderPass, VkExtent2D extent, bool hasColorAttachment, bool hasDepthAttachment) : device(device), framebuffer(framebuffer), renderPass(renderPass), extent(extent), hasColorAttachment(hasColorAttachment), hasDepthAttachment(hasDepthAttachment) {}
 		// Destructors
-		~Framebuffer() { vkDestroyFramebuffer(this->device, this->framebuffer, nullptr); }
+		~Framebuffer()
+		{
+			if (this->device == nullptr) return;
+			vkDestroyFramebuffer(this->device, this->framebuffer, nullptr);
+		}
 		// No copy
 		Framebuffer(const Framebuffer&) = delete;
 		Framebuffer& operator=(const Framebuffer&) = delete;

@@ -18,7 +18,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 	{
 		// Create universal descriptor sets
 		this->fragmentSamplerSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT));
-		this->ssboSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT));
+		this->vertexSSBOSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT));
+		this->fragmentSSBOSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT));
 		this->directionalShadowMapSampler = this->CreateSampler(Create::SamplerCreateInfo(VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE));
 		this->postProcessingSampler = this->CreateSampler(Create::SamplerCreateInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK));
 	}
@@ -28,7 +29,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 		vkDeviceWaitIdle(this->device);
 		// Destroy universal resources
 		vkDestroyDescriptorSetLayout(this->device, this->fragmentSamplerSetLayout, nullptr);
-		vkDestroyDescriptorSetLayout(this->device, this->ssboSetLayout, nullptr);
+		vkDestroyDescriptorSetLayout(this->device, this->vertexSSBOSetLayout, nullptr);
+		vkDestroyDescriptorSetLayout(this->device, this->fragmentSSBOSetLayout, nullptr);
 		vkDestroySampler(this->device, this->directionalShadowMapSampler, nullptr);
 		vkDestroySampler(this->device, this->postProcessingSampler, nullptr);
 
@@ -39,12 +41,13 @@ CS_NAMESPACE_BEGIN::Vulkan
 	Device::Device(Device&& other) noexcept
 		: allocator(std::move(other.allocator)), descriptorManager(std::move(other.descriptorManager)),
 		device(other.device), queues(other.queues),
-		fragmentSamplerSetLayout(fragmentSamplerSetLayout), ssboSetLayout(ssboSetLayout), directionalShadowMapSampler(directionalShadowMapSampler), postProcessingSampler(postProcessingSampler),
+		fragmentSamplerSetLayout(fragmentSamplerSetLayout), vertexSSBOSetLayout(vertexSSBOSetLayout), fragmentSSBOSetLayout(fragmentSSBOSetLayout), directionalShadowMapSampler(directionalShadowMapSampler), postProcessingSampler(postProcessingSampler),
 		minUniformBufferOffsetAlignment(other.minUniformBufferOffsetAlignment)
 	{
 		other.device = nullptr;
 		other.fragmentSamplerSetLayout = nullptr;
-		other.ssboSetLayout = nullptr;
+		other.vertexSSBOSetLayout = nullptr;
+		other.fragmentSSBOSetLayout = nullptr;
 		other.directionalShadowMapSampler = nullptr;
 		other.postProcessingSampler = nullptr;
 
@@ -58,7 +61,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 			this->device = other.device; other.device = nullptr;
 			this->queues = other.queues;
 			this->fragmentSamplerSetLayout = other.fragmentSamplerSetLayout; other.fragmentSamplerSetLayout = nullptr;
-			this->ssboSetLayout = other.ssboSetLayout; other.ssboSetLayout = nullptr;
+			this->vertexSSBOSetLayout = other.vertexSSBOSetLayout; other.vertexSSBOSetLayout = nullptr;
+			this->fragmentSSBOSetLayout = other.fragmentSSBOSetLayout; other.fragmentSSBOSetLayout = nullptr;
 			this->directionalShadowMapSampler = other.directionalShadowMapSampler; other.directionalShadowMapSampler = nullptr;
 			this->postProcessingSampler = other.postProcessingSampler; other.postProcessingSampler = nullptr;
 			this->minUniformBufferOffsetAlignment = other.minUniformBufferOffsetAlignment;
@@ -292,45 +296,44 @@ CS_NAMESPACE_BEGIN::Vulkan
 			}
 		}
 
-		/* ---------------------------------------------------------------- 1.0 - Data descriptor sets ---------------------------------------------------------------- */
+		/* ---------------------------------------------------------------- 1 -Descriptor layouts ---------------------------------------------------------------- */
 
-		// Generate set layouts
-		std::vector<std::vector<VkDescriptorSetLayoutBinding>> dataLayoutsBindings = cs_std::combine(
-			vertexReflection.GetDescriptorSetLayoutBindings(ShaderReflection::DescriptorType::Block, VK_SHADER_STAGE_VERTEX_BIT),
-			fragmentReflection.GetDescriptorSetLayoutBindings(ShaderReflection::DescriptorType::Block, VK_SHADER_STAGE_FRAGMENT_BIT)
-		);
-		std::vector<VkDescriptorSetLayout> dataLayouts;
-		for (const auto& binding : dataLayoutsBindings) dataLayouts.push_back(this->CreateDescriptorSetLayout(binding));
-
-		// Generate the metadata required to build sets for the layout
-		std::vector<ShaderReflection::DescriptorSetLayout> dataSets = cs_std::combine(
-			vertexReflection.GetDescriptorSetLayouts(ShaderReflection::DescriptorType::Block),
-			fragmentReflection.GetDescriptorSetLayouts(ShaderReflection::DescriptorType::Block)
-		);
+		std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
 		std::vector<Pipelines::Set> setData;
-		for (const auto& set : dataSets)
+
+		auto separateDescriptors = [&](const ShaderReflection& reflection, uint32_t shaderStage, uint32_t setOffset)
 		{
-			std::vector<Pipelines::Set::Binding> bindings;
-			for (const auto& binding : set.bindings)
+			for (const auto& set : reflection.descriptorSetLayouts)
 			{
-				bindings.emplace_back(binding.binding, CalculatePaddedSizeForAlignment(binding.GetSize(), this->minUniformBufferOffsetAlignment));
+				switch (set.bindings[0].type)
+				{
+					case ShaderReflection::DescriptorType::Block:
+					{
+						std::vector<VkDescriptorSetLayoutBinding> binding = reflection.GetDescriptorSetLayoutBindings(shaderStage, set.set + setOffset);
+						descriptorSetLayouts.push_back(this->CreateDescriptorSetLayout(binding));
+						std::vector<Pipelines::Set::Binding> bindings;
+						for (const auto& binding : set.bindings) bindings.emplace_back(binding.binding, CalculatePaddedSizeForAlignment(binding.GetSize(), this->minUniformBufferOffsetAlignment));
+						setData.emplace_back(bindings, set.set, Pipelines::Set::DescriptorType::Block);
+						break;
+					}
+					case ShaderReflection::DescriptorType::Storage:
+					{
+						descriptorSetLayouts.push_back(this->GetSSBOLayout(shaderStage));
+						setData.emplace_back(std::vector<Pipelines::Set::Binding>(), set.set, Pipelines::Set::DescriptorType::Storage);
+						break;
+					}
+					case ShaderReflection::DescriptorType::Sampler:
+					{
+						descriptorSetLayouts.push_back(this->GetFragmentSamplerLayout());
+						setData.emplace_back(std::vector<Pipelines::Set::Binding>(), set.set, Pipelines::Set::DescriptorType::Sampler);
+						break;
+					}
+				}
 			}
-			setData.emplace_back(bindings, set.set);
-		}
+		};
 
-		/* ---------------------------------------------------------------- 1.1 - Shader storage descriptor sets ---------------------------------------------------------------- */
-
-		uint32_t vertexStorageCount = vertexReflection.GetDescriptorSetLayoutCount(ShaderReflection::DescriptorType::Storage);
-
-		// A set layout is independent of the sets themselves, hence, SSBOs will just use the same layouts
-		std::vector<VkDescriptorSetLayout> storageLayouts(vertexStorageCount, this->ssboSetLayout);
-
-		/* ---------------------------------------------------------------- 1.2 - Sampler descriptor sets ---------------------------------------------------------------- */
-
-		uint32_t fragmentSamplerCount = fragmentReflection.GetDescriptorSetLayoutCount(ShaderReflection::DescriptorType::Sampler);
-
-		// A set layout is independent of the sets themselves, hence, samplers will just use the same layouts
-		std::vector<VkDescriptorSetLayout> samplerLayouts(fragmentSamplerCount, this->fragmentSamplerSetLayout);
+		separateDescriptors(vertexReflection, VK_SHADER_STAGE_VERTEX_BIT, 0);
+		separateDescriptors(fragmentReflection, VK_SHADER_STAGE_FRAGMENT_BIT, -vertexReflection.descriptorSetLayouts.size());
 
 		/* ---------------------------------------------------------------- 2 - Variant building ---------------------------------------------------------------- */
 
@@ -343,8 +346,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 			vertexReflection.GetPushConstantRanges(VK_SHADER_STAGE_VERTEX_BIT),
 			fragmentReflection.GetPushConstantRanges(VK_SHADER_STAGE_FRAGMENT_BIT)
 		);
-
-		const std::vector<VkDescriptorSetLayout> descriptorSetLayouts = cs_std::combine(dataLayouts, storageLayouts, samplerLayouts);
 
 		// Create the pipeline layout
 		const VkPipelineLayout pipelineLayout = this->CreatePipelineLayout(descriptorSetLayouts, pushConstantRanges);
@@ -389,13 +390,14 @@ CS_NAMESPACE_BEGIN::Vulkan
 			pipelines.push_back(this->CreatePipeline(pipelineBuilderInfo));
 		}
 
-		return Pipelines(*this, pipelines, dataLayouts, setData, vertexAttributes, variant, pipelineLayout);
+		return Pipelines(*this, pipelines, descriptorSetLayouts, setData, vertexAttributes, variant, pipelineLayout);
 	}
-	SSBO Device::CreateSSBO(size_t allocationSize, VmaMemoryUsage memoryUsage)
+	SSBO Device::CreateSSBO(size_t allocationSize, VkShaderStageFlags shaderStage, VmaMemoryUsage memoryUsage)
 	{
 		Vulkan::SSBO ssbo(
 			this->CreateBuffer(allocationSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU),
-			this->AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->GetSSBOLayout())
+			this->AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->GetSSBOLayout(shaderStage)),
+			allocationSize
 		);
 		VkDescriptorBufferInfo bufferInfo = Create::DescriptorBufferInfo(ssbo.buffer, 0, allocationSize);
 		VkWriteDescriptorSet write = Create::WriteDescriptorSet(ssbo.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);

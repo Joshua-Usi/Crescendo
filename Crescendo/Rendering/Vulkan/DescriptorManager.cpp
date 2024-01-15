@@ -33,7 +33,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	DescriptorManager::Pool* DescriptorManager::FindCompatibleAndOpenPool(VkDescriptorType poolType)
 	{
-		for (auto& pool : this->pools)
+ 		for (auto& pool : this->pools)
 		{
 			if (pool.poolType == poolType && pool.descriptorsUsed < this->maxDescriptorsPerPool)
 			{

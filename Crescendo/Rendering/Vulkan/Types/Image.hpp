@@ -21,11 +21,15 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Image() : image(nullptr), imageView(nullptr), device(nullptr), allocator(nullptr), allocation(nullptr) {}
 		Image(VkImage image, VkImageView imageView, VkDevice device, VmaAllocator allocator = nullptr, VmaAllocation allocation = nullptr) :
 			image(image), imageView(imageView), device(device), allocator(allocator), allocation(allocation) {}
+		// Constructor for swapchain images
+		Image(VkDevice, VkImage image, VkImageView imageView) :
+			image(image), imageView(imageView), device(nullptr), allocator(nullptr), allocation(nullptr) {}
 		// Destructors
 		~Image()
 		{
 			if (this->device == nullptr) return;
 			vkDestroyImageView(this->device, this->imageView, nullptr);
+			if (this->allocator == nullptr) return;
 			vmaDestroyImage(this->allocator, this->image, this->allocation);
 		}
 		// No copy

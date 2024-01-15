@@ -4,6 +4,7 @@
 
 #include "Engine/LayerStack/LayerStack.hpp"
 #include "Engine/interfaces/Window.hpp"
+#include "Engine/ECS/ECS.hpp"
 
 #include "cs_std/task_queue.hpp"
 #include "cs_std/timestamp.hpp"
@@ -16,14 +17,12 @@ CS_NAMESPACE_BEGIN
 	{
 	private:
 		static Application* self;
-
 		std::unique_ptr<Window> window;
-
 		LayerStack layerManager;
 		cs_std::timestamp timestamp;
-
 		bool isRunning, shouldRestart;
 	protected:
+		EntityManager entityManager;
 		VulkanInstance renderer;
 		cs_std::task_queue taskQueue;
 	public:

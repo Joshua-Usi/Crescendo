@@ -32,7 +32,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 
 		// Universally shared resources
 		VkDescriptorSetLayout fragmentSamplerSetLayout;
-		VkDescriptorSetLayout ssboSetLayout;
+		VkDescriptorSetLayout vertexSSBOSetLayout, fragmentSSBOSetLayout;
 		VkSampler directionalShadowMapSampler;
 		VkSampler postProcessingSampler;
 
@@ -80,7 +80,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		ShaderModule CreateShaderModule(const std::vector<uint8_t>& code);
 		ShaderReflection CreateShaderReflection(const std::vector<uint8_t>& code);
 		Pipelines CreatePipelines(const std::vector<uint8_t>& vertexCode, const std::vector<uint8_t>& fragmentCode, const PipelineVariants& variant);
-		SSBO CreateSSBO(size_t allocationSize, VmaMemoryUsage memoryUsage);
+		SSBO CreateSSBO(size_t allocationSize, VkShaderStageFlags shaderStage, VmaMemoryUsage memoryUsage);
 
 		// Creates a set writes the texture
 		VkDescriptorSet CreateTextureDescriptorSet(VkSampler sampler, const Vulkan::Image& image, VkImageLayout layout);
@@ -103,7 +103,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		void WaitIdle() const;
 
 		VkDescriptorSetLayout GetFragmentSamplerLayout() const { return fragmentSamplerSetLayout; }
-		VkDescriptorSetLayout GetSSBOLayout() const { return ssboSetLayout; }
+		VkDescriptorSetLayout GetSSBOLayout(VkShaderStageFlags shaderStage) const { return (shaderStage == VK_SHADER_STAGE_VERTEX_BIT) ? vertexSSBOSetLayout : fragmentSSBOSetLayout; }
 		VkSampler GetDirectionalShadowMapSampler() const { return directionalShadowMapSampler; }
 		VkSampler GetPostProcessingSampler() const { return postProcessingSampler; }
 	public:

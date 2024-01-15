@@ -52,6 +52,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		size_t GetDescriptorSetLayoutCount(DescriptorType descriptorType) const;
 
 		std::vector<std::vector<VkDescriptorSetLayoutBinding>> GetDescriptorSetLayoutBindings(DescriptorType descriptorType, uint32_t shaderStage) const;
+		std::vector<VkDescriptorSetLayoutBinding> GetDescriptorSetLayoutBindings(uint32_t shaderStage, uint32_t idx) const;
 		std::vector<VkVertexInputBindingDescription> GetVertexBindings() const;
 		std::vector<VkVertexInputAttributeDescription> GetVertexAttributes() const;
 		std::vector<VkPushConstantRange> GetPushConstantRanges(uint32_t shaderStage) const;

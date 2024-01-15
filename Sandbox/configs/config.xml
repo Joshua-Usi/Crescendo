@@ -3,6 +3,10 @@
 	<!-- internal render config (usually not modified by end-users) -->
 	<irc_descriptorsetsperpool>32</irc_descriptorsetsperpool>
 	<irc_validationlayers>true</irc_validationlayers>
+	<irc_maxobjectcount>8192</irc_maxobjectcount>
+	<irc_maxdirectionallightcount>16</irc_maxdirectionallightcount>
+	<irc_maxpointlightcount>256</irc_maxpointlightcount>
+	<irc_maxspotlightcount>256</irc_maxspotlightcount>
 	<!-- render config-->
 	<rc_framesinflight>3</rc_framesinflight>
 	<rc_multisamples>1</rc_multisamples>
@@ -10,8 +14,8 @@
 	<rc_renderscale>1.0</rc_renderscale>
 	<!-- engine config-->
 	<ec_appname>Sandbox</ec_appname>
-	<ec_windowwidth>1600</ec_windowwidth>
-	<ec_windowheight>900</ec_windowheight>
+	<ec_windowwidth>1280</ec_windowwidth>
+	<ec_windowheight>720</ec_windowheight>
 	<ec_vsync>true</ec_vsync>
 	<!-- path configs -->
 	<pc_assetpath>./assets/</pc_assetpath>

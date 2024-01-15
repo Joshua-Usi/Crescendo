@@ -4,67 +4,27 @@ layout (location = 1) in vec3 iNormal;
 layout (location = 2) in vec4 iTangent;
 layout (location = 3) in vec2 iTexCoord;
 
-layout (location = 0) out vec2 oTexCoord;
-layout (location = 1) out vec3 oNormal;
-layout (location = 2) out vec3 oTanFragPos;
-layout (location = 3) out vec3 oTanLightPos;
-layout (location = 4) out vec3 oTanViewPos;
-layout (location = 5) out vec4 oFragPosLightSpace;
+layout (location = 0) out vec3 oPosition_ws;
+layout (location = 1) out vec2 oTexCoord;
+layout (location = 2) out mat3 oTBN;
 
-layout(set = 0, binding = 0) uniform ViewProjection {
-	mat4 viewProjection;
-	mat4 lightSpaceMatrix;
-};
+layout(set = 0, binding = 0) uniform ViewProjection { mat4 viewProjection; };
 
-layout(set = 0, binding = 1) uniform LightData {
-	vec4 lightPosition;
-	vec4 viewPosition;
-};
-
-layout(std140, set = 2, binding = 0) readonly buffer ShaderStorage {
-	mat4 modelBuffer[];
-};
-
-layout(push_constant) uniform constants
-{
-	// Time used as a wind shader to offset vertices
-	float time;
-};
-
-const mat4 bias = mat4( 
-	0.5, 0.0, 0.0, 0.0,
-	0.0, 0.5, 0.0, 0.0,
-	0.0, 0.0, 1.0, 0.0,
-	0.5, 0.5, 0.0, 1.0
-);
+layout(std140, set = 1, binding = 0) readonly buffer ShaderStorage { mat4 modelBuffer[]; };
 
 void main()
 {
-	oTexCoord = iTexCoord;
+	const mat4 modelMatrix = modelBuffer[gl_InstanceIndex];
 
-	const mat4 model = modelBuffer[gl_InstanceIndex];
-
-	mat3 normalMatrix = transpose(inverse(mat3(model)));
+	mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));
 	vec3 T = normalize(normalMatrix * iTangent.xyz);
 	vec3 N = normalize(normalMatrix * iNormal);
-	oNormal = N;
 	T = normalize(T - dot(T, N) * N);
 	vec3 B = cross(N, T);
 
-	mat3 TBN = transpose(mat3(T, B, N));
-	oTanLightPos = TBN * lightPosition.xyz;
-	oTanViewPos = TBN * viewPosition.xyz;
-	oTanFragPos = TBN * vec3(model * vec4(iPosition, 1.0));
-
-	oFragPosLightSpace = (bias * lightSpaceMatrix * model) * vec4(iPosition, 1.0f);
+	oPosition_ws = (modelMatrix * vec4(iPosition, 1.0f)).xyz;
+	oTexCoord = iTexCoord;
+	oTBN = transpose(mat3(T, B, N));
 	
-	gl_Position = viewProjection * model * vec4(iPosition, 1.0f);
-	
-	// wind shader, offsets in every direction
-	// vec3 pos = iPosition;
-	// pos.x += sin(time * 1.0f + pos.y * 8.0f) * 0.025f;
-	// pos.y += sin(time * 1.0f + pos.x * 8.0f) * 0.025f;
-	// pos.z += sin(time * 1.0f + pos.y * 8.0f) * 0.025f;
-	// gl_Position = viewProjection * model * vec4(pos, 1.0f);
-
+	gl_Position = viewProjection * modelMatrix * vec4(iPosition, 1.0f);
 }
