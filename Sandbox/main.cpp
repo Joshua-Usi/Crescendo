@@ -116,7 +116,7 @@ public:
 			cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
 			cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, this->GetWindow()->GetAspectRatio(), 0.1f, 1000.0f);
 			cameraEntity.EmplaceComponent<Behaviours>(std::make_shared<CameraController>());
-			cameraEntity.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 100.0f, math::radians(1.0f), math::radians(12.5f), true);
+			cameraEntity.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 25.0f, math::radians(1.0f), math::radians(30.0f), true);
 			activeCameraIdx = entities.insert(cameraEntity);
 		}
 
@@ -126,7 +126,7 @@ public:
 			skyLight1.EmplaceComponent<Name>("Default Sunlight");
 			skyLight1.EmplaceComponent<Transform>(math::vec3(0.0f, 75.0f, 45.0f)).LookAt(math::vec3(0.0f, 0.0f, 0.0f));
 			// skyLight1.EmplaceComponent<OrthographicCamera>(-12.5f, 12.5f, -20.0f, 20.0f, 0.0f, 100.0f);
-			skyLight1.EmplaceComponent<DirectionalLight>(glm::vec3(0.992f, 0.984f, 0.827f), 0.1f, true);
+			skyLight1.EmplaceComponent<DirectionalLight>(glm::vec3(0.992f, 0.984f, 0.827f), 0.25f, true);
 			entities.insert(skyLight1);
 
 			std::vector<math::vec3> pointLights =
@@ -164,7 +164,7 @@ public:
 				Entity pointLight = entityManager.CreateEntity();
 				pointLight.EmplaceComponent<Name>("Default Pointlight");
 				pointLight.EmplaceComponent<Transform>(light);
-				pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 1.0f, true);
+				pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 2.5f, true);
 				entities.insert(pointLight);
 			}
 
@@ -172,7 +172,7 @@ public:
 			spotLight.EmplaceComponent<Name>("Default Spotlight");
 			spotLight.EmplaceComponent<Transform>(math::vec3(15.0f, 1.0f, 0.0f));
 			spotLight.GetComponent<Transform>().LookAt(math::vec3(0.0f, 1.0f, 0.0f));
-			spotLight.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 50000.0f, math::radians(1.0f), math::radians(12.5f), true);
+			spotLight.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 500.0f, math::radians(1.0f), math::radians(12.5f), true);
 			entities.insert(spotLight);
 
 		}
