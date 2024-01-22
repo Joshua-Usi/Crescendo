@@ -122,7 +122,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkAttachmentReference colorAttachmentResolveRef = Create::AttachmentReference((isMultiSampling) ? 2 : VK_ATTACHMENT_UNUSED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 		const VkSubpassDescription subpass = Create::SubpassDescription(
-			VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &colorAttachmentRef, (isMultiSampling) ? &colorAttachmentResolveRef : nullptr, &depthAttachmentRef, 0, nullptr
+			VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, &colorAttachmentRef, (isMultiSampling) ? &colorAttachmentResolveRef : nullptr, &depthAttachmentRef, nullptr
 		);
 
 		VkSubpassDependency colorDependency = Create::SubpassDependency(
@@ -157,7 +157,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkAttachmentReference shadowMapAttachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 		VkSubpassDescription shadowMapSubpass = Create::SubpassDescription(
-			VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 0, nullptr, nullptr, &shadowMapAttachmentRef, 0, nullptr
+			VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, nullptr, nullptr, &shadowMapAttachmentRef, nullptr
 		);
 
 		VkSubpassDependency shadowMapDependency = Create::SubpassDependency(
@@ -190,7 +190,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkAttachmentReference depthAttachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 		VkSubpassDescription depthSubpass = Create::SubpassDescription(
-			VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 0, nullptr, nullptr, &depthAttachmentRef, 0, nullptr
+			VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, nullptr, nullptr, &depthAttachmentRef, nullptr
 		);
 
 		VkSubpassDependency depthDependency = Create::SubpassDependency(
@@ -223,7 +223,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkAttachmentReference attachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 		VkSubpassDescription subpass = Create::SubpassDescription(
-			VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &attachmentRef, nullptr, nullptr, 0, nullptr
+			VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, &attachmentRef, nullptr, nullptr, nullptr
 		);
 
 		VkSubpassDependency dependency = Create::SubpassDependency(
@@ -360,7 +360,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 
 		for (const auto& thisVariant : variant)
 		{
-			const PipelineBuilderInfo pipelineBuilderInfo = {
+			PipelineBuilderInfo pipelineBuilderInfo = {
 				.dynamicState = Create::PipelineDynamicStateCreateInfo(dynamicStates),
 				.shaderStagesInfo = stages,
 				.vertexInputInfo = Create::PipelineVertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions),
@@ -446,11 +446,13 @@ CS_NAMESPACE_BEGIN::Vulkan
 	{
 		VkPipeline pipeline = nullptr;
 		// We use always use dynamic states for viewports and scissors
-		const VkPipelineViewportStateCreateInfo viewportState = Create::PipelineViewportStateCreateInfo(nullptr, 1, nullptr, 1, nullptr);
+		const VkPipelineViewportStateCreateInfo viewportState = Create::PipelineViewportStateCreateInfo();
+
+		const std::array<float, 4> blendConstants { 0.0f, 0.0f, 0.0f, 0.0f };
 
 		// Blending ops
 		const VkPipelineColorBlendStateCreateInfo colorBlending = Create::PipelineColorBlendStateCreateInfo(
-			VK_FALSE, VK_LOGIC_OP_COPY, 1, &info.colorBlendAttachment, { 0.0f, 0.0f, 0.0f, 0.0f }
+			VK_FALSE, VK_LOGIC_OP_COPY, const_cast<VkPipelineColorBlendAttachmentState*>(&info.colorBlendAttachment), blendConstants
 		);
 
 		// Fill pipeline info
@@ -469,16 +471,14 @@ CS_NAMESPACE_BEGIN::Vulkan
 	VkPipelineLayout Device::CreatePipelineLayout(const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts, const std::vector<VkPushConstantRange>& pushConstantRanges)
 	{
 		VkPipelineLayout pipelineLayout = nullptr;
-		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(
-			descriptorSetLayouts, pushConstantRanges
-		);
+		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(descriptorSetLayouts, pushConstantRanges);
 		CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &pipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout!");
 		return pipelineLayout;
 	}
 	VkDescriptorSetLayout Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutBinding& binding)
 	{
 		VkDescriptorSetLayout layout = nullptr;
-		const VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(binding);
+		const VkDescriptorSetLayoutCreateInfo setInfo = Create::DescriptorSetLayoutCreateInfo(const_cast<VkDescriptorSetLayoutBinding*>(&binding));
 		vkCreateDescriptorSetLayout(this->device, &setInfo, nullptr, &layout);
 		return layout;
 	}

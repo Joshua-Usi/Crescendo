@@ -18,7 +18,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	protected:
 		VkDevice device;
 		VkCommandPool commandPool;
-		VkCommandBuffer commandBuffer;
+		mutable VkCommandBuffer commandBuffer;
 		VkFence completionFence;
 		VkQueue queue;
 		uint32_t queueFamily;

@@ -63,7 +63,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	{
 		Pool* pool = this->GetPool(type);
 
-		VkDescriptorSetAllocateInfo allocInfo = Create::DescriptorSetAllocateInfo(pool->pool, { layout });
+		VkDescriptorSetAllocateInfo allocInfo = Create::DescriptorSetAllocateInfo(pool->pool, &layout);
 		VkDescriptorSet set;
 		vkAllocateDescriptorSets(this->device, &allocInfo, &set);
 		pool->descriptorsUsed++;

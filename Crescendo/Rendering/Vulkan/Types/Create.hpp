@@ -4,76 +4,73 @@
 
 #include "Volk/volk.h"
 
+#include <concepts>
+#include <cstddef>
+#include <type_traits>
+
+#define CS_CREATE_SET_CONCEPT_FIELD(field, concept_t, type, on_container, on_value)\
+if constexpr (ContainerType<concept_t, type>) {\
+	field = on_container;\
+} else if constexpr (PointerType<concept_t, type*>) {\
+	field = on_value;\
+}
+
 /// <summary>
 /// Argument order is defined exactly as in the Vulkan API.
 /// </summary>
 CS_NAMESPACE_BEGIN::Vulkan::Create
 {
-	template<typename T = std::vector<VkSemaphore>, typename U = std::vector<uint32_t>, typename V = std::vector<VkCommandBuffer>, typename W = std::vector<VkSemaphore>>
-	inline constexpr VkSubmitInfo SubmitInfo(const T& waitSemaphores, const U& waitDstStageMask, const V& commandBuffers, const W& signalSemaphores)
-	{
+	// Any container that has a data() function that returns a pointer to the first element and
+	// a size() function that returns the number of elements
+	// Preferably a container that has contiguous storage
+	template<typename T, typename ValueType>
+	concept ContainerType = requires(T a) {
+		typename T::value_type;
+		requires std::same_as<typename T::value_type, ValueType>;
+		{ a.data() } -> std::same_as<ValueType*>;
+		{ a.size() } -> std::same_as<std::size_t>;
+	};
+	template<typename T, typename ValueType>
+	concept PointerType = requires(T a) {
+		requires std::same_as<T, ValueType> || std::same_as<T, std::nullptr_t>;
+	};
+	template<typename T, typename ValueType>
+	concept ValidType = requires(T a) {
+		requires PointerType<T, ValueType*> || ContainerType<T, ValueType>;
+	};
+
+	template<ValidType<VkSemaphore> WaitSemaphores, ValidType<VkPipelineStageFlags> WaitDstStageMask, ValidType<VkCommandBuffer> CommandBuffers, ValidType<VkSemaphore> SignalSemaphores>
+	inline constexpr VkSubmitInfo SubmitInfo(const WaitSemaphores& waitSemaphores, const WaitDstStageMask& waitDstStageMask, const CommandBuffers& commandBuffers, const SignalSemaphores& signalSemaphores) {
 		VkSubmitInfo submitInfo = {};
 
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		submitInfo.pNext = nullptr;
-		submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size());
-		submitInfo.pWaitSemaphores = waitSemaphores.data();
-		submitInfo.pWaitDstStageMask = waitDstStageMask.data();
-		submitInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
-		submitInfo.pCommandBuffers = commandBuffers.data();
-		submitInfo.signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size());
-		submitInfo.pSignalSemaphores = signalSemaphores.data();
+		CS_CREATE_SET_CONCEPT_FIELD(submitInfo.waitSemaphoreCount, WaitSemaphores, VkSemaphore, static_cast<uint32_t>(waitSemaphores.size()), waitSemaphores != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(submitInfo.pWaitSemaphores, WaitSemaphores, VkSemaphore, waitSemaphores.data(), waitSemaphores);
+		CS_CREATE_SET_CONCEPT_FIELD(submitInfo.pWaitDstStageMask, WaitDstStageMask, VkPipelineStageFlags, waitDstStageMask.data(), waitDstStageMask);
+		CS_CREATE_SET_CONCEPT_FIELD(submitInfo.commandBufferCount, CommandBuffers, VkCommandBuffer, static_cast<uint32_t>(commandBuffers.size()), commandBuffers != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(submitInfo.pCommandBuffers, CommandBuffers, VkCommandBuffer, commandBuffers.data(), commandBuffers);
+		CS_CREATE_SET_CONCEPT_FIELD(submitInfo.signalSemaphoreCount, SignalSemaphores, VkSemaphore, static_cast<uint32_t>(signalSemaphores.size()), signalSemaphores != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(submitInfo.pSignalSemaphores, SignalSemaphores, VkSemaphore, signalSemaphores.data(), signalSemaphores);
 
 		return submitInfo;
 	}
-	inline constexpr VkSubmitInfo SubmitInfo(const VkSemaphore& waitSemaphore, const uint32_t& waitDstStageMask, const VkCommandBuffer& commandBuffer, const VkSemaphore& signalSemaphore)
-	{
-		VkSubmitInfo submitInfo = {};
-
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.pNext = nullptr;
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = &waitSemaphore;
-		submitInfo.pWaitDstStageMask = &waitDstStageMask;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &commandBuffer;
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = &signalSemaphore;
-
-		return submitInfo;
-	}
-	inline constexpr VkPresentInfoKHR PresentInfoKHR(uint32_t waitSemaphoreCount, const VkSemaphore* pWaitSemaphores, uint32_t swapchainCount, const VkSwapchainKHR* pSwapchains, const uint32_t* pImageIndices, VkResult* pResults)
-	{
+	template<ValidType<VkSemaphore> WaitSemaphores, ValidType<VkSwapchainKHR> Swapchains, ValidType<uint32_t> ImageIndices>
+	inline constexpr VkPresentInfoKHR PresentInfoKHR(const WaitSemaphores& waitSemaphores, const Swapchains& swapchains, const ImageIndices& imageIndices) {
 		VkPresentInfoKHR presentInfo = {};
 
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 		presentInfo.pNext = nullptr;
-		presentInfo.waitSemaphoreCount = waitSemaphoreCount;
-		presentInfo.pWaitSemaphores = pWaitSemaphores;
-		presentInfo.swapchainCount = swapchainCount;
-		presentInfo.pSwapchains = pSwapchains;
-		presentInfo.pImageIndices = pImageIndices;
-		presentInfo.pResults = pResults;
-
-		return presentInfo;
-	}
-	inline constexpr VkPresentInfoKHR PresentInfoKHR(const VkSemaphore& waitSemaphore, const VkSwapchainKHR& swapchain, const uint32_t& imageIndex)
-	{
-		VkPresentInfoKHR presentInfo = {};
-
-		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-		presentInfo.pNext = nullptr;
-		presentInfo.waitSemaphoreCount = 1;
-		presentInfo.pWaitSemaphores = &waitSemaphore;
-		presentInfo.swapchainCount = 1;
-		presentInfo.pSwapchains = &swapchain;
-		presentInfo.pImageIndices = &imageIndex;
+		CS_CREATE_SET_CONCEPT_FIELD(presentInfo.waitSemaphoreCount, WaitSemaphores, VkSemaphore, static_cast<uint32_t>(waitSemaphores.size()), waitSemaphores != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(presentInfo.pWaitSemaphores, WaitSemaphores, VkSemaphore, waitSemaphores.data(), waitSemaphores);
+		CS_CREATE_SET_CONCEPT_FIELD(presentInfo.swapchainCount, Swapchains, VkSwapchainKHR, static_cast<uint32_t>(swapchains.size()), swapchains != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(presentInfo.pSwapchains, Swapchains, VkSwapchainKHR, swapchains.data(), swapchains);
+		CS_CREATE_SET_CONCEPT_FIELD(presentInfo.pImageIndices, ImageIndices, uint32_t, imageIndices.data(), imageIndices);
 		presentInfo.pResults = nullptr;
 
 		return presentInfo;
 	}
-	inline constexpr VkPipelineShaderStageCreateInfo PipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module, const char* pName = "main", const VkSpecializationInfo* pSpecializationInfo = nullptr)
-	{
+	inline constexpr VkPipelineShaderStageCreateInfo PipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule module, const char* pName = "main", const VkSpecializationInfo* pSpecializationInfo = nullptr) {
 		VkPipelineShaderStageCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -86,7 +83,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return createInfo;
 	}
-	inline constexpr VkFramebufferCreateInfo FramebufferCreateInfo(VkRenderPass renderPass, uint32_t attachmentCount, const VkImageView* pAttachments, VkExtent2D extent, uint32_t layers)
+	template<ValidType<VkImageView> Attachments>
+	inline constexpr VkFramebufferCreateInfo FramebufferCreateInfo(VkRenderPass renderPass, const Attachments& pAttachments, VkExtent2D extent, uint32_t layers)
 	{
 		VkFramebufferCreateInfo createInfo = {};
 
@@ -94,39 +92,28 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
 		createInfo.renderPass = renderPass;
-		createInfo.attachmentCount = attachmentCount;
-		createInfo.pAttachments = pAttachments;
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.attachmentCount, Attachments, VkImageView, static_cast<uint32_t>(pAttachments.size()), pAttachments != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pAttachments, Attachments, VkImageView, pAttachments.data(), pAttachments);
 		createInfo.width = extent.width;
 		createInfo.height = extent.height;
 		createInfo.layers = layers;
 
 		return createInfo;
 	}
-	inline constexpr VkFramebufferCreateInfo FramebufferCreateInfo(VkRenderPass renderPass, const VkImageView& attachment, VkExtent2D extent, uint32_t layers)
-	{
-		return FramebufferCreateInfo(renderPass, 1, &attachment, extent, layers);
-	}
-	inline constexpr VkFramebufferCreateInfo FramebufferCreateInfo(VkRenderPass renderPass, const std::vector<VkImageView>& attachments, VkExtent2D extent, uint32_t layers)
-	{
-		return FramebufferCreateInfo(renderPass, static_cast<uint32_t>(attachments.size()), attachments.data(), extent, layers);
-	}
-	inline constexpr VkPipelineVertexInputStateCreateInfo PipelineVertexInputStateCreateInfo(uint32_t vertexBindingDescriptionCount, const VkVertexInputBindingDescription* pVertexBindingDescriptions, uint32_t vertexAttributeDescriptionCount, const VkVertexInputAttributeDescription* pVertexAttributeDescriptions)
+	template<ValidType<VkVertexInputBindingDescription> VertexBindingDescriptions, ValidType<VkVertexInputAttributeDescription> VertexAttributeDescriptions>
+	inline constexpr VkPipelineVertexInputStateCreateInfo PipelineVertexInputStateCreateInfo(const VertexBindingDescriptions& pVertexBindingDescriptions, const VertexAttributeDescriptions& pVertexAttributeDescriptions)
 	{
 		VkPipelineVertexInputStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
-		createInfo.vertexBindingDescriptionCount = vertexBindingDescriptionCount;
-		createInfo.pVertexBindingDescriptions = pVertexBindingDescriptions;
-		createInfo.vertexAttributeDescriptionCount = vertexAttributeDescriptionCount;
-		createInfo.pVertexAttributeDescriptions = pVertexAttributeDescriptions;
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.vertexBindingDescriptionCount, VertexBindingDescriptions, VkVertexInputBindingDescription, static_cast<uint32_t>(pVertexBindingDescriptions.size()), pVertexBindingDescriptions != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pVertexBindingDescriptions, VertexBindingDescriptions, VkVertexInputBindingDescription, pVertexBindingDescriptions.data(), pVertexBindingDescriptions);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.vertexAttributeDescriptionCount, VertexAttributeDescriptions, VkVertexInputAttributeDescription, static_cast<uint32_t>(pVertexAttributeDescriptions.size()), pVertexAttributeDescriptions != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pVertexAttributeDescriptions, VertexAttributeDescriptions, VkVertexInputAttributeDescription, pVertexAttributeDescriptions.data(), pVertexAttributeDescriptions);
 
 		return createInfo;
-	}
-	inline constexpr VkPipelineVertexInputStateCreateInfo PipelineVertexInputStateCreateInfo(const std::vector<VkVertexInputBindingDescription>& vertexBindingDescriptions, const std::vector<VkVertexInputAttributeDescription>& vertexAttributeDescriptions)
-	{
-		return PipelineVertexInputStateCreateInfo(static_cast<uint32_t>(vertexBindingDescriptions.size()), vertexBindingDescriptions.data(), static_cast<uint32_t>(vertexAttributeDescriptions.size()), vertexAttributeDescriptions.data());
 	}
 	inline constexpr VkPipelineInputAssemblyStateCreateInfo PipelineInputAssemblyStateCreateInfo(VkPrimitiveTopology topology, VkBool32 primitiveRestartEnable)
 	{
@@ -140,17 +127,32 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return createInfo;
 	}
-	inline constexpr VkPipelineViewportStateCreateInfo PipelineViewportStateCreateInfo(const void* pNext, uint32_t viewportCount, const VkViewport* pViewports, uint32_t scissorCount, const VkRect2D* pScissors)
+	inline constexpr VkPipelineViewportStateCreateInfo PipelineViewportStateCreateInfo()
 	{
 		VkPipelineViewportStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-		createInfo.pNext = pNext;
+		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
-		createInfo.viewportCount = viewportCount;
-		createInfo.pViewports = pViewports;
-		createInfo.scissorCount = scissorCount;
-		createInfo.pScissors = pScissors;
+		createInfo.viewportCount = 1;
+		createInfo.pViewports = nullptr;
+		createInfo.scissorCount = 1;
+		createInfo.pScissors = nullptr;
+
+		return createInfo;
+	}
+	template<ValidType<VkViewport> Viewports, ValidType<VkRect2D> Scissors>
+	inline constexpr VkPipelineViewportStateCreateInfo PipelineViewportStateCreateInfo(const Viewports& pViewports, const Scissors& pScissors)
+	{
+		VkPipelineViewportStateCreateInfo createInfo = {};
+
+		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+		createInfo.pNext = nullptr;
+		createInfo.flags = 0;
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.viewportCount, Viewports, VkViewport, static_cast<uint32_t>(pViewports.size()), pViewports != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pViewports, Viewports, VkViewport, pViewports.data(), pViewports);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.scissorCount, Scissors, VkRect2D, static_cast<uint32_t>(pScissors.size()), pScissors != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pScissors, Scissors, VkRect2D, pScissors.data(), pScissors);
 
 		return createInfo;
 	}
@@ -205,7 +207,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return attachmentState;
 	}
-	inline VkPipelineColorBlendStateCreateInfo PipelineColorBlendStateCreateInfo(VkBool32 logicOpEnable, VkLogicOp logicOp, uint32_t attachmentCount, const VkPipelineColorBlendAttachmentState* pAttachments, const std::array<float, 4>& blendConstants)
+	template<ValidType<VkPipelineColorBlendAttachmentState> Attachments>
+	inline VkPipelineColorBlendStateCreateInfo PipelineColorBlendStateCreateInfo(VkBool32 logicOpEnable, VkLogicOp logicOp, const Attachments& attachments, const std::array<float, 4>& blendConstants)
 	{
 		VkPipelineColorBlendStateCreateInfo createInfo = {};
 
@@ -214,60 +217,54 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 		createInfo.flags = 0;
 		createInfo.logicOpEnable = logicOpEnable;
 		createInfo.logicOp = logicOp;
-		createInfo.attachmentCount = attachmentCount;
-		createInfo.pAttachments = pAttachments;
-		memcpy(createInfo.blendConstants, blendConstants.data(), sizeof(float) * blendConstants.size());
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.attachmentCount, Attachments, VkPipelineColorBlendAttachmentState, static_cast<uint32_t>(attachments.size()), attachments != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pAttachments, Attachments, VkPipelineColorBlendAttachmentState, attachments.data(), attachments);
+		//memcpy(createInfo.blendConstants, blendConstants.data(), sizeof(float) * blendConstants.size());
+		createInfo.blendConstants[0] = blendConstants[0];
+		createInfo.blendConstants[1] = blendConstants[1];
+		createInfo.blendConstants[2] = blendConstants[2];
+		createInfo.blendConstants[3] = blendConstants[3];
 
 		return createInfo;
 	}
-	inline constexpr VkPipelineDynamicStateCreateInfo PipelineDynamicStateCreateInfo(uint32_t dynamicStateCount, const VkDynamicState* pDynamicStates)
+	template<ValidType<VkDynamicState> DynamicStates>
+	inline constexpr VkPipelineDynamicStateCreateInfo PipelineDynamicStateCreateInfo(const DynamicStates& dynamicStates)
 	{
 		VkPipelineDynamicStateCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
-		createInfo.dynamicStateCount = dynamicStateCount;
-		createInfo.pDynamicStates = pDynamicStates;
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.dynamicStateCount, DynamicStates, VkDynamicState, static_cast<uint32_t>(dynamicStates.size()), dynamicStates != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pDynamicStates, DynamicStates, VkDynamicState, dynamicStates.data(), dynamicStates);
 
 		return createInfo;
 	}
-	inline constexpr VkPipelineDynamicStateCreateInfo PipelineDynamicStateCreateInfo(const std::vector<VkDynamicState>& dynamicStates)
-	{
-		return PipelineDynamicStateCreateInfo(dynamicStates.size(), dynamicStates.data());
-	}
-	template<size_t size>
-	inline constexpr VkPipelineDynamicStateCreateInfo PipelineDynamicStateCreateInfo(const std::array<VkDynamicState, size>& dynamicStates)
-	{
-		return PipelineDynamicStateCreateInfo(dynamicStates.size(), dynamicStates.data());
-	}
-	inline constexpr VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo(uint32_t setLayoutCount, const VkDescriptorSetLayout* pSetLayouts, uint32_t pushConstantRangeCount, const VkPushConstantRange* pPushConstantRanges)
+	template<ValidType<VkDescriptorSetLayout> SetLayouts, ValidType<VkPushConstantRange> PushConstantRanges>
+	inline constexpr VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo(const SetLayouts& pSetLayouts, const PushConstantRanges& pPushConstantRanges)
 	{
 		VkPipelineLayoutCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
-		createInfo.setLayoutCount = setLayoutCount;
-		createInfo.pSetLayouts = pSetLayouts;
-		createInfo.pushConstantRangeCount = pushConstantRangeCount;
-		createInfo.pPushConstantRanges = pPushConstantRanges;
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.setLayoutCount, SetLayouts, VkDescriptorSetLayout, static_cast<uint32_t>(pSetLayouts.size()), pSetLayouts != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pSetLayouts, SetLayouts, VkDescriptorSetLayout, pSetLayouts.data(), pSetLayouts);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pushConstantRangeCount, PushConstantRanges, VkPushConstantRange, static_cast<uint32_t>(pPushConstantRanges.size()), pPushConstantRanges != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pPushConstantRanges, PushConstantRanges, VkPushConstantRange, pPushConstantRanges.data(), pPushConstantRanges);
 
 		return createInfo;
 	}
-	inline constexpr VkPipelineLayoutCreateInfo PipelineLayoutCreateInfo(const std::vector<VkDescriptorSetLayout>& setLayouts, const std::vector<VkPushConstantRange>& pushConstantRange)
-	{
-		return PipelineLayoutCreateInfo(static_cast<uint32_t>(setLayouts.size()), setLayouts.data(), static_cast<uint32_t>(pushConstantRange.size()), pushConstantRange.data());
-	}
-	inline constexpr VkGraphicsPipelineCreateInfo GraphicsPipelineCreateInfo(uint32_t stageCount, const VkPipelineShaderStageCreateInfo* pStages, const VkPipelineVertexInputStateCreateInfo* pVertexInputState, const VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState, const VkPipelineTessellationStateCreateInfo* pTessellationState, const VkPipelineViewportStateCreateInfo* pViewportState, const VkPipelineRasterizationStateCreateInfo* pRasterizationState, const VkPipelineMultisampleStateCreateInfo* pMultisampleState, const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState, const VkPipelineColorBlendStateCreateInfo* pColorBlendState, const VkPipelineDynamicStateCreateInfo* pDynamicState, VkPipelineLayout layout, VkRenderPass renderPass, uint32_t subpass, VkPipeline basePipelineHandle, int32_t basePipelineIndex)
+	template<ValidType<VkPipelineShaderStageCreateInfo> PipelineShaderStageCreateInfo>
+	inline constexpr VkGraphicsPipelineCreateInfo GraphicsPipelineCreateInfo(const PipelineShaderStageCreateInfo& stages, const VkPipelineVertexInputStateCreateInfo* pVertexInputState, const VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState, const VkPipelineTessellationStateCreateInfo* pTessellationState, const VkPipelineViewportStateCreateInfo* pViewportState, const VkPipelineRasterizationStateCreateInfo* pRasterizationState, const VkPipelineMultisampleStateCreateInfo* pMultisampleState, const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState, const VkPipelineColorBlendStateCreateInfo* pColorBlendState, const VkPipelineDynamicStateCreateInfo* pDynamicState, VkPipelineLayout layout, VkRenderPass renderPass, uint32_t subpass, VkPipeline basePipelineHandle, int32_t basePipelineIndex)
 	{
 		VkGraphicsPipelineCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
-		createInfo.stageCount = stageCount;
-		createInfo.pStages = pStages;
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.stageCount, PipelineShaderStageCreateInfo, VkPipelineShaderStageCreateInfo, static_cast<uint32_t>(stages.size()), stages != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pStages, PipelineShaderStageCreateInfo, VkPipelineShaderStageCreateInfo, stages.data(), stages);
 		createInfo.pVertexInputState = pVertexInputState;
 		createInfo.pInputAssemblyState = pInputAssemblyState;
 		createInfo.pTessellationState = pTessellationState;
@@ -285,11 +282,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return createInfo;
 	}
-	inline constexpr VkGraphicsPipelineCreateInfo GraphicsPipelineCreateInfo(const std::vector<VkPipelineShaderStageCreateInfo>& stages, const VkPipelineVertexInputStateCreateInfo* pVertexInputState, const VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState, const VkPipelineTessellationStateCreateInfo* pTessellationState, const VkPipelineViewportStateCreateInfo* pViewportState, const VkPipelineRasterizationStateCreateInfo* pRasterizationState, const VkPipelineMultisampleStateCreateInfo* pMultisampleState, const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState, const VkPipelineColorBlendStateCreateInfo* pColorBlendState, const VkPipelineDynamicStateCreateInfo* pDynamicState, VkPipelineLayout layout, VkRenderPass renderPass, uint32_t subpass, VkPipeline basePipelineHandle, int32_t basePipelineIndex)
-	{
-		return GraphicsPipelineCreateInfo(static_cast<uint32_t>(stages.size()), stages.data(), pVertexInputState, pInputAssemblyState, pTessellationState, pViewportState, pRasterizationState, pMultisampleState, pDepthStencilState, pColorBlendState, pDynamicState, layout, renderPass, subpass, basePipelineHandle, basePipelineIndex);
-	}
-	inline	 VkShaderModuleCreateInfo ShaderModuleCreateInfo(const std::vector<uint8_t>& code)
+	inline VkShaderModuleCreateInfo ShaderModuleCreateInfo(const std::vector<uint8_t>& code)
 	{
 		VkShaderModuleCreateInfo createInfo = {};
 
@@ -326,36 +319,38 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return reference;
 	}
-	inline constexpr VkSubpassDescription SubpassDescription(VkPipelineBindPoint pipelineBindPoint, uint32_t inputAttachmentCount, const VkAttachmentReference* pInputAttachments, uint32_t colorAttachmentCount, const VkAttachmentReference* pColorAttachments, const VkAttachmentReference* pResolveAttachments, const VkAttachmentReference* pDepthStencilAttachment, uint32_t preserveAttachmentCount, const uint32_t* pPreserveAttachments)
+	template<ValidType<VkAttachmentReference> InputAttachments, ValidType<VkAttachmentReference> ColorAttachments, ValidType<VkAttachmentReference> ResolveAttachments, ValidType<VkAttachmentReference> DepthStencilAttachment, ValidType<uint32_t> PreserveAttachments>
+	inline constexpr VkSubpassDescription SubpassDescription(VkPipelineBindPoint pipelineBindPoint, const InputAttachments& pInputAttachments, const ColorAttachments& pColorAttachments, const ResolveAttachments& pResolveAttachments, const DepthStencilAttachment& pDepthStencilAttachment, const PreserveAttachments& pPreserveAttachments)
 	{
 		VkSubpassDescription description = {};
 
 		description.flags = 0;
 		description.pipelineBindPoint = pipelineBindPoint;
-		description.inputAttachmentCount = inputAttachmentCount;
-		description.pInputAttachments = pInputAttachments;
-		description.colorAttachmentCount = colorAttachmentCount;
-		description.pColorAttachments = pColorAttachments;
-		description.pResolveAttachments = pResolveAttachments;
-		description.pDepthStencilAttachment = pDepthStencilAttachment;
-		description.preserveAttachmentCount = preserveAttachmentCount;
-		description.pPreserveAttachments = pPreserveAttachments;
+		CS_CREATE_SET_CONCEPT_FIELD(description.inputAttachmentCount, InputAttachments, VkAttachmentReference, static_cast<uint32_t>(pInputAttachments.size()), pInputAttachments != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(description.pInputAttachments, InputAttachments, VkAttachmentReference, pInputAttachments.data(), pInputAttachments);
+		CS_CREATE_SET_CONCEPT_FIELD(description.colorAttachmentCount, ColorAttachments, VkAttachmentReference, static_cast<uint32_t>(pColorAttachments.size()), pColorAttachments != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(description.pColorAttachments, ColorAttachments, VkAttachmentReference, pColorAttachments.data(), pColorAttachments);
+		CS_CREATE_SET_CONCEPT_FIELD(description.pResolveAttachments, ResolveAttachments, VkAttachmentReference, pResolveAttachments.data(), pResolveAttachments);
+		CS_CREATE_SET_CONCEPT_FIELD(description.pDepthStencilAttachment, DepthStencilAttachment, VkAttachmentReference, pDepthStencilAttachment.data(), pDepthStencilAttachment);
+		CS_CREATE_SET_CONCEPT_FIELD(description.preserveAttachmentCount, PreserveAttachments, uint32_t, static_cast<uint32_t>(pPreserveAttachments.size()), pPreserveAttachments != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(description.pPreserveAttachments, PreserveAttachments, uint32_t, pPreserveAttachments.data(),	pPreserveAttachments);
 
 		return description;
 	}
-	inline constexpr VkRenderPassCreateInfo RenderPassCreateInfo(const std::vector<VkAttachmentDescription>& attachments, const std::vector<VkSubpassDescription>& subpasses, const std::vector<VkSubpassDependency>& subpassDependencies)
+	template<ValidType<VkSubpassDescription> Subpasses, ValidType<VkAttachmentDescription> Attachments, ValidType<VkSubpassDependency> Dependencies>
+	inline constexpr VkRenderPassCreateInfo RenderPassCreateInfo(const Attachments& pAttachments, const Subpasses& pSubpasses, const Dependencies& pDependencies)
 	{
 		VkRenderPassCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
-		createInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-		createInfo.pAttachments = attachments.data();
-		createInfo.subpassCount = static_cast<uint32_t>(subpasses.size());
-		createInfo.pSubpasses = subpasses.data();
-		createInfo.dependencyCount = static_cast<uint32_t>(subpassDependencies.size());
-		createInfo.pDependencies = subpassDependencies.data();
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.attachmentCount, Attachments, VkAttachmentDescription, static_cast<uint32_t>(pAttachments.size()), pAttachments != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pAttachments, Attachments, VkAttachmentDescription, pAttachments.data(), pAttachments);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.subpassCount, Subpasses, VkSubpassDescription, static_cast<uint32_t>(pSubpasses.size()), pSubpasses != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pSubpasses, Subpasses, VkSubpassDescription, pSubpasses.data(), pSubpasses);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.dependencyCount, Dependencies, VkSubpassDependency, static_cast<uint32_t>(pDependencies.size()), pDependencies != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pDependencies, Dependencies, VkSubpassDependency, pDependencies.data(), pDependencies);
 
 		return createInfo;
 	}
@@ -623,27 +618,16 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return layoutBinding;
 	}
-	inline constexpr VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo(const VkDescriptorSetLayoutBinding& binding)
+	template<ValidType<VkDescriptorSetLayoutBinding> Bindings>
+	inline constexpr VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo(const Bindings& pBindings)
 	{
 		VkDescriptorSetLayoutCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
-		createInfo.bindingCount = 1;
-		createInfo.pBindings = &binding;
-
-		return createInfo;
-	}
-	inline constexpr VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo(const std::vector<VkDescriptorSetLayoutBinding>& bindings)
-	{
-		VkDescriptorSetLayoutCreateInfo createInfo = {};
-
-		createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		createInfo.pNext = nullptr;
-		createInfo.flags = 0;
-		createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-		createInfo.pBindings = bindings.data();
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.bindingCount, Bindings, VkDescriptorSetLayoutBinding, static_cast<uint32_t>(pBindings.size()), pBindings != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pBindings, Bindings, VkDescriptorSetLayoutBinding, pBindings.data(), pBindings);
 
 		return createInfo;
 	}
@@ -656,39 +640,33 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return descriptorPoolSize;
 	}
-	inline constexpr VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo(VkDescriptorPoolCreateFlags flags, uint32_t maxSets, const std::vector<VkDescriptorPoolSize>& poolSizes) {
+	template<ValidType<VkDescriptorPoolSize> PoolSizes>
+	inline constexpr VkDescriptorPoolCreateInfo DescriptorPoolCreateInfo(VkDescriptorPoolCreateFlags flags, uint32_t maxSets, const PoolSizes& pPoolSizes)
+	{
 		VkDescriptorPoolCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		createInfo.pNext = nullptr;
 		createInfo.flags = flags;
 		createInfo.maxSets = maxSets;
-		createInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-		createInfo.pPoolSizes = poolSizes.data();
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.poolSizeCount, PoolSizes, VkDescriptorPoolSize, static_cast<uint32_t>(pPoolSizes.size()), pPoolSizes != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pPoolSizes, PoolSizes, VkDescriptorPoolSize, pPoolSizes.data(), pPoolSizes);
 
 		return createInfo;
 	}
-	inline constexpr VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo(VkDescriptorPool descriptorPool, const std::vector<VkDescriptorSetLayout>& setLayouts) {
+	template<ValidType<VkDescriptorSetLayout> SetLayouts>
+	inline constexpr VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo(VkDescriptorPool descriptorPool, const SetLayouts& pSetLayouts)
+	{
 		VkDescriptorSetAllocateInfo allocateInfo = {};
 
 		allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		allocateInfo.pNext = nullptr;
 		allocateInfo.descriptorPool = descriptorPool;
-		allocateInfo.descriptorSetCount = static_cast<uint32_t>(setLayouts.size());
-		allocateInfo.pSetLayouts = setLayouts.data();
+		CS_CREATE_SET_CONCEPT_FIELD(allocateInfo.descriptorSetCount, SetLayouts, VkDescriptorSetLayout, static_cast<uint32_t>(pSetLayouts.size()), pSetLayouts != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(allocateInfo.pSetLayouts, SetLayouts, VkDescriptorSetLayout, pSetLayouts.data(), pSetLayouts);
 
 		return allocateInfo;
-	}
-	inline constexpr VkDescriptorSetAllocateInfo DescriptorSetAllocateInfo(VkDescriptorPool descriptorPool, const VkDescriptorSetLayout& setLayout) {
-		VkDescriptorSetAllocateInfo allocateInfo = {};
-
-		allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		allocateInfo.pNext = nullptr;
-		allocateInfo.descriptorPool = descriptorPool;
-		allocateInfo.descriptorSetCount = 1;
-		allocateInfo.pSetLayouts = &setLayout;
-
-		return allocateInfo;
+	
 	}
 	inline constexpr VkDescriptorBufferInfo DescriptorBufferInfo(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range)
 	{

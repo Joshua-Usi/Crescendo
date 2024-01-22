@@ -21,7 +21,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkExtent2D extent;
 		bool needsRecreation;
 	public:
-		Swapchain() : device(nullptr), swapchain(nullptr), imageFormat(VK_FORMAT_UNDEFINED), renderPass(nullptr), framebuffers(0), extent({ 0, 0 }), needsRecreation(false) {}
+		Swapchain() : device(nullptr), swapchain(nullptr), imageFormat(VK_FORMAT_UNDEFINED), renderPass(nullptr), framebuffers(), extent({ 0, 0 }), needsRecreation(false) {}
 		Swapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkPresentModeKHR presentMode, VkExtent2D windowExtent);
 		~Swapchain();
 		// No copy

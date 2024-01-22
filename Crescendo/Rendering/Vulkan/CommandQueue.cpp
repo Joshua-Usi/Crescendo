@@ -68,13 +68,12 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	void BaseCommandQueue::Submit(const std::vector<VkSemaphore>& waitSemaphores, const std::vector<VkPipelineStageFlags>& waitStages, const std::vector<VkSemaphore>& signalSemaphores) const
 	{
-		const std::vector<VkCommandBuffer> cmd = { this->commandBuffer };
-		VkSubmitInfo submit = Create::SubmitInfo(waitSemaphores, waitStages, cmd, signalSemaphores);
+		VkSubmitInfo submit = Create::SubmitInfo(waitSemaphores, waitStages, &this->commandBuffer, signalSemaphores);
 		CS_ASSERT(vkQueueSubmit(this->queue, 1, &submit, this->completionFence) == VK_SUCCESS, "Failed to submit command buffer!");
 	}
 	void BaseCommandQueue::Submit(VkSemaphore waitSemaphore, VkPipelineStageFlags waitStage, VkSemaphore signalSemaphore)
 	{
-		VkSubmitInfo submit = Create::SubmitInfo(waitSemaphore, waitStage, this->commandBuffer, signalSemaphore);
+		VkSubmitInfo submit = Create::SubmitInfo(&waitSemaphore, &waitStage, &this->commandBuffer, &signalSemaphore);
 		CS_ASSERT(vkQueueSubmit(this->queue, 1, &submit, this->completionFence) == VK_SUCCESS, "Failed to submit command buffer!");
 	}
 	//////////////////////////////////////////////////////////////// GraphicsCommandQueue commands ////////////////////////////////////////////////////////////////
@@ -131,7 +130,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	VkResult GraphicsCommandQueue::Present(VkSwapchainKHR swapchain, uint32_t imageIndex, VkSemaphore renderFinishSemaphore) const
 	{
-		const VkPresentInfoKHR presentInfo = Create::PresentInfoKHR(renderFinishSemaphore, swapchain, imageIndex);
+		const VkPresentInfoKHR presentInfo = Create::PresentInfoKHR(&renderFinishSemaphore, &swapchain, &imageIndex);
 		return vkQueuePresentKHR(this->GetQueue(), &presentInfo);
 	}
 	void GraphicsCommandQueue::InstantSubmit(std::function<void(const GraphicsCommandQueue& cmd)>&& function, uint64_t timeout) const

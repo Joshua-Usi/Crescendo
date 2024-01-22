@@ -25,7 +25,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		for (size_t i = 0; i < imageCount; i++)
 		{
 			VkFramebuffer fb = nullptr;
-			VkFramebufferCreateInfo framebufferInfo = Create::FramebufferCreateInfo(this->renderPass, SCimageViews[i], this->extent, 1);
+			VkFramebufferCreateInfo framebufferInfo = Create::FramebufferCreateInfo(this->renderPass, &SCimageViews[i], this->extent, 1);
 			CS_ASSERT(vkCreateFramebuffer(this->device, &framebufferInfo, nullptr, &fb) == VK_SUCCESS, "Failed to create framebuffer!");
 			this->framebuffers[i] = Framebuffer(fb, SCimages[i], SCimageViews[i]);
 		}
@@ -81,7 +81,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		);
 		VkAttachmentReference attachmentRef = Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 		VkSubpassDescription subpass = Create::SubpassDescription(
-			VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, &attachmentRef, nullptr, nullptr, 0, nullptr
+			VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, &attachmentRef, nullptr, nullptr, nullptr
 		);
 		VkSubpassDependency dependency = Create::SubpassDependency(
 			VK_SUBPASS_EXTERNAL, 0,
@@ -89,8 +89,14 @@ CS_NAMESPACE_BEGIN::Vulkan
 			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0
 		);
+
+		std::vector<VkAttachmentDescription> attachments = { attachment };
+		std::vector<VkSubpassDescription> subpasses = { subpass };
+		std::vector<VkSubpassDependency> dependencies = { dependency };
+
+		const VkRenderPassCreateInfo renderPassInfo = Create::RenderPassCreateInfo(attachments, subpasses, dependencies);
+
 		VkRenderPass renderPass;
-		const VkRenderPassCreateInfo renderPassInfo = Create::RenderPassCreateInfo({ attachment }, { subpass }, { dependency });
 		CS_ASSERT(vkCreateRenderPass(this->device, &renderPassInfo, nullptr, &renderPass) == VK_SUCCESS, "Failed to create render pass");
 		return renderPass;
 	}
