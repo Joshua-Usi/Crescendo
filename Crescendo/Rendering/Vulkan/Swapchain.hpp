@@ -8,6 +8,10 @@
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
+	// Forward declarations
+	class Instance;
+	class Device;
+
 	class Swapchain
 	{
 	public:
@@ -22,6 +26,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		bool needsRecreation;
 	public:
 		Swapchain() : device(nullptr), swapchain(nullptr), imageFormat(VK_FORMAT_UNDEFINED), renderPass(nullptr), framebuffers(), extent({ 0, 0 }), needsRecreation(false) {}
+		Swapchain(const Instance& instance, const Device& device, VkPresentModeKHR presentMode, VkExtent2D windowExtent);
 		Swapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkPresentModeKHR presentMode, VkExtent2D windowExtent);
 		~Swapchain();
 		// No copy

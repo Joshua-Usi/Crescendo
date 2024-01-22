@@ -5,21 +5,38 @@
 #include "cs_std/graphics/model.hpp"
 #include "cs_std/algorithms.hpp"
 
+#include "Instance.hpp"
+
 CS_NAMESPACE_BEGIN::Vulkan
 {
 	size_t CalculatePaddedSizeForAlignment(size_t size, size_t alignmentRequirement)
 	{
 		return (alignmentRequirement > 0) ? (size + alignmentRequirement - 1) & ~(alignmentRequirement - 1) : size;
 	}
-	Device::Device(const vkb::Device& device, VkInstance instance, uint32_t descriptorSetsPerPool, uint32_t minUniformBufferOffsetAlignment)
-		: allocator(Allocator(instance, device.physical_device, device)), descriptorManager(device, descriptorSetsPerPool),
-		device(device.device), queues(device),
-		minUniformBufferOffsetAlignment(minUniformBufferOffsetAlignment)
+	Device::Device(const Instance& instance, uint32_t descriptorSetsPerPool)
 	{
+		VkPhysicalDeviceShaderDrawParametersFeatures drawParametersFeatures = {};
+		drawParametersFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+		drawParametersFeatures.shaderDrawParameters = VK_TRUE;
+
+		auto deviceResult = vkb::DeviceBuilder(instance.vkbPhysicalDevice).add_pNext(&drawParametersFeatures).build();
+		if (!deviceResult) cs_std::console::error("Failed to build device:", deviceResult.error().message());
+
+		auto& vkbDevice = deviceResult.value();
+		this->device = vkbDevice;
+
+		this->allocator = Allocator(instance, instance.GetPhysicalDevice(), this->device);
+		this->descriptorManager = DescriptorManager(this->device, descriptorSetsPerPool);
+		this->queues = Queues(vkbDevice);
+		this->minUniformBufferOffsetAlignment = instance.vkbPhysicalDevice.properties.limits.minUniformBufferOffsetAlignment;
+
 		// Create universal descriptor sets
+		this->vertexSamplerSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT));
 		this->fragmentSamplerSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT));
+		
 		this->vertexSSBOSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT));
 		this->fragmentSSBOSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT));
+		
 		this->directionalShadowMapSampler = this->CreateSampler(Create::SamplerCreateInfo(VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE));
 		this->postProcessingSampler = this->CreateSampler(Create::SamplerCreateInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK));
 	}
@@ -28,9 +45,12 @@ CS_NAMESPACE_BEGIN::Vulkan
 		if (this->device == nullptr) return;
 		vkDeviceWaitIdle(this->device);
 		// Destroy universal resources
+		vkDestroyDescriptorSetLayout(this->device, this->vertexSamplerSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(this->device, this->fragmentSamplerSetLayout, nullptr);
+
 		vkDestroyDescriptorSetLayout(this->device, this->vertexSSBOSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(this->device, this->fragmentSSBOSetLayout, nullptr);
+
 		vkDestroySampler(this->device, this->directionalShadowMapSampler, nullptr);
 		vkDestroySampler(this->device, this->postProcessingSampler, nullptr);
 
@@ -40,11 +60,12 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	Device::Device(Device&& other) noexcept
 		: allocator(std::move(other.allocator)), descriptorManager(std::move(other.descriptorManager)),
-		device(other.device), queues(other.queues),
-		fragmentSamplerSetLayout(fragmentSamplerSetLayout), vertexSSBOSetLayout(vertexSSBOSetLayout), fragmentSSBOSetLayout(fragmentSSBOSetLayout), directionalShadowMapSampler(directionalShadowMapSampler), postProcessingSampler(postProcessingSampler),
+		device(other.device), queues(other.queues), 
+		vertexSamplerSetLayout(vertexSamplerSetLayout), fragmentSamplerSetLayout(fragmentSamplerSetLayout), vertexSSBOSetLayout(vertexSSBOSetLayout), fragmentSSBOSetLayout(fragmentSSBOSetLayout), directionalShadowMapSampler(directionalShadowMapSampler), postProcessingSampler(postProcessingSampler),
 		minUniformBufferOffsetAlignment(other.minUniformBufferOffsetAlignment)
 	{
 		other.device = nullptr;
+		other.vertexSamplerSetLayout = nullptr;
 		other.fragmentSamplerSetLayout = nullptr;
 		other.vertexSSBOSetLayout = nullptr;
 		other.fragmentSSBOSetLayout = nullptr;
@@ -60,6 +81,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 			this->descriptorManager = std::move(other.descriptorManager);
 			this->device = other.device; other.device = nullptr;
 			this->queues = other.queues;
+			this->vertexSamplerSetLayout = other.vertexSamplerSetLayout; other.vertexSamplerSetLayout = nullptr;
 			this->fragmentSamplerSetLayout = other.fragmentSamplerSetLayout; other.fragmentSamplerSetLayout = nullptr;
 			this->vertexSSBOSetLayout = other.vertexSSBOSetLayout; other.vertexSSBOSetLayout = nullptr;
 			this->fragmentSSBOSetLayout = other.fragmentSSBOSetLayout; other.fragmentSSBOSetLayout = nullptr;
@@ -324,7 +346,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 					}
 					case ShaderReflection::DescriptorType::Sampler:
 					{
-						descriptorSetLayouts.push_back(this->GetFragmentSamplerLayout());
+						descriptorSetLayouts.push_back(this->GetSamplerLayout(shaderStage));
 						setData.emplace_back(std::vector<Pipelines::Set::Binding>(), set.set, Pipelines::Set::DescriptorType::Sampler);
 						break;
 					}
@@ -407,7 +429,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	VkDescriptorSet Device::CreateTextureDescriptorSet(VkSampler sampler, const Vulkan::Image& image, VkImageLayout layout)
 	{
-		const VkDescriptorSet set = this->AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->GetFragmentSamplerLayout());
+		const VkDescriptorSet set = this->AllocateDescriptorSet(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, this->GetSamplerLayout(VK_SHADER_STAGE_FRAGMENT_BIT));
 		const VkDescriptorImageInfo imageInfo = Create::DescriptorImageInfo(sampler, image.imageView, layout);
 		const VkWriteDescriptorSet write = Create::WriteDescriptorSet(set, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo);
 		this->WriteDescriptorSet(write);

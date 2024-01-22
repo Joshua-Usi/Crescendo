@@ -22,6 +22,9 @@
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
+	// Forward declarations
+	class Instance;
+
 	class Device
 	{
 	private:
@@ -31,7 +34,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkDevice device;
 
 		// Universally shared resources
-		VkDescriptorSetLayout fragmentSamplerSetLayout;
+		VkDescriptorSetLayout vertexSamplerSetLayout, fragmentSamplerSetLayout;
 		VkDescriptorSetLayout vertexSSBOSetLayout, fragmentSSBOSetLayout;
 		VkSampler directionalShadowMapSampler;
 		VkSampler postProcessingSampler;
@@ -56,7 +59,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	public:
 		// Constructors
 		Device() = default;
-		Device(const vkb::Device& device, VkInstance instance, uint32_t descriptorSetsPerPool, uint32_t minUniformBufferOffsetAlignment);
+		Device(const Instance& instance, uint32_t descriptorSetsPerPool);
 		// Destructors
 		~Device();
 		// No copy
@@ -102,7 +105,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 
 		void WaitIdle() const;
 
-		VkDescriptorSetLayout GetFragmentSamplerLayout() const { return fragmentSamplerSetLayout; }
+		VkDescriptorSetLayout GetSamplerLayout(VkShaderStageFlags shaderStage) const { return (shaderStage == VK_SHADER_STAGE_VERTEX_BIT) ? vertexSamplerSetLayout : fragmentSamplerSetLayout; }
 		VkDescriptorSetLayout GetSSBOLayout(VkShaderStageFlags shaderStage) const { return (shaderStage == VK_SHADER_STAGE_VERTEX_BIT) ? vertexSSBOSetLayout : fragmentSSBOSetLayout; }
 		VkSampler GetDirectionalShadowMapSampler() const { return directionalShadowMapSampler; }
 		VkSampler GetPostProcessingSampler() const { return postProcessingSampler; }

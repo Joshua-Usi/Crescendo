@@ -2,16 +2,21 @@
 #include "VkBootstrap/VkBootstrap.h"
 #include "Types/Create.hpp"
 
+#include "Instance.hpp"
+#include "Device.hpp"
+
 CS_NAMESPACE_BEGIN::Vulkan
 {
-	Swapchain::Swapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkPresentModeKHR presentMode, VkExtent2D windowExtent) : device(device), renderPass(nullptr), needsRecreation(false)
+	Swapchain::Swapchain(const Instance& instance, const Device& device, VkPresentModeKHR presentMode, VkExtent2D windowExtent)
+	: renderPass(nullptr)
 	{
-		vkb::Swapchain vkbSwapchain = vkb::SwapchainBuilder(physicalDevice, device, surface)
+		vkb::Swapchain vkbSwapchain = vkb::SwapchainBuilder(instance.GetPhysicalDevice(), device, instance.GetSurface())
 			.use_default_format_selection()
 			.set_desired_present_mode(presentMode)
 			.set_desired_extent(windowExtent.width, windowExtent.height)
 			.build().value();
 
+		this->device = device;
 		this->swapchain = vkbSwapchain.swapchain;
 		this->imageFormat = vkbSwapchain.image_format;
 		this->extent = vkbSwapchain.extent;

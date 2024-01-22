@@ -60,7 +60,7 @@ CS_NAMESPACE_BEGIN
 		const size_t SSBO_OBJECT_COUNT = 8192;
 
 		this->instance = Vulkan::Instance(specs.enableValidationLayers, specs.appName, specs.engineName, static_cast<GLFWwindow*>(specs.window));
-		this->device = this->instance.CreateDevice(specs.descriptorSetsPerPool);
+		this->device = Vulkan::Device(this->instance, specs.descriptorSetsPerPool);
 		this->transferQueue = this->device.CreateTransferCommandQueue();
 
 		// Modify spec if some values are invalid
@@ -105,8 +105,6 @@ CS_NAMESPACE_BEGIN
 
 		/* ---------------------------------------------------------------- 1. - Resource deletion ---------------------------------------------------------------- */
 
-		// Explicitly destroy swapchain and depth buffer
-		this->swapchain.~Swapchain();
 		if (this->textures.capacity() > 0)
 		{
 			for (const auto& index : this->samplableFramebuffers[this->offscreenIdx].textureIndices) this->textures.erase(index);
@@ -120,9 +118,11 @@ CS_NAMESPACE_BEGIN
 		for (auto& idx : swapchainFrameBufferIdx) this->framebuffers.erase(idx);
 		this->renderPasses.clear();
 
-		/* ---------------------------------------------------------------- 2 - Swapchain framebuffers ---------------------------------------------------------------- */
+		this->swapchain.~Swapchain();
 
-		this->swapchain = this->instance.CreateSwapchain(this->device, VK_PRESENT_MODE_MAILBOX_KHR, VkExtent2D(width, height));
+		/* ---------------------------------------------------------------- 2 - Swapchain framebuffers ---------------------------------------------------------------- */
+		
+ 		this->swapchain = Vulkan::Swapchain(this->instance, this->device, VK_PRESENT_MODE_MAILBOX_KHR, VkExtent2D(width, height));
 
 		// Create renderpasses
 		const uint32_t drpIdx = this->renderPasses.insert(this->device.CreateDefaultRenderPass(OFFSCREEN_FORMAT, DEPTH_FORMAT, multisamplesCount));

@@ -5,13 +5,13 @@
 #include "Volk/volk.h"
 #include "VkBootstrap/VkBootstrap.h"
 
-#include "Device.hpp"
-#include "Swapchain.hpp"
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
 	class Instance
 	{
+	friend class Device;
+	friend class Swapchain;
 	private:
 		static bool isVolkInitialised;
 		/* 
@@ -34,14 +34,11 @@ CS_NAMESPACE_BEGIN::Vulkan
 		// Move
 		Instance(Instance&& other) noexcept;
 		Instance& operator=(Instance&& other) noexcept;
-		// Create a new device, the device will destroy itself implicitly
-		Device CreateDevice(uint32_t descriptorSetsPerPool);
-		// Create a new swapchain, the swapchain will destroy itself implicitly
-		Swapchain CreateSwapchain(VkDevice device, VkPresentModeKHR presentMode, VkExtent2D extent);
 
 		VkSurfaceKHR GetSurface() const { return surface; }
 		VkPhysicalDevice GetPhysicalDevice() const { return vkbPhysicalDevice.physical_device; }
 		void* GetWindow() const { return windowPtr; }
+
 		operator VkInstance() const { return instance; }
 
 		const VkPhysicalDeviceProperties& GetPhysicalDeviceProperties() const { return vkbPhysicalDevice.properties; }

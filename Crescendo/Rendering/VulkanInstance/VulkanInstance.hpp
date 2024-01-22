@@ -3,6 +3,8 @@
 #include "common.hpp"
 
 #include "../Vulkan/Instance.hpp"
+#include "../Vulkan/Device.hpp"
+#include "../Vulkan/Swapchain.hpp"
 #include "cs_std/packed_vector.hpp"
 #include "../Vulkan/Types/Types.hpp"
 
@@ -46,11 +48,7 @@ CS_NAMESPACE_BEGIN
 		SamplableFramebuffer() : sampler(nullptr), textureIndices(0), framebufferIndex(0) {}
 	};
 
-	enum class Colorspace
-	{
-		SRGB,
-		Linear
-	};
+	enum class Colorspace : uint8_t { SRGB, Linear };
 
 	class VulkanInstance
 	{

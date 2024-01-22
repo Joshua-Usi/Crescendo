@@ -4,6 +4,8 @@
 
 #include "Volk/volk.h"
 
+#include "vulkan/vulkan_raii.hpp"
+
 CS_NAMESPACE_BEGIN::Vulkan
 {
 	struct RenderPass

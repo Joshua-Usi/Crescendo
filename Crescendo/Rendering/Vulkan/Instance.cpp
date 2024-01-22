@@ -94,21 +94,4 @@ CS_NAMESPACE_BEGIN::Vulkan
 		}
 		return *this;
 	}
-	Device Instance::CreateDevice(uint32_t descriptorSetsPerPool)
-	{
-		VkPhysicalDeviceShaderDrawParametersFeatures drawParametersFeatures = {};
-		drawParametersFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
-		drawParametersFeatures.shaderDrawParameters = VK_TRUE;
-
-		auto deviceResult = vkb::DeviceBuilder(this->vkbPhysicalDevice).add_pNext(&drawParametersFeatures).build();
-		if (!deviceResult) cs_std::console::error("Failed to build device:", deviceResult.error().message());
-
-		const vkb::Device device = deviceResult.value();
-		volkLoadDevice(device.device);
-		return Device(device, this->instance, descriptorSetsPerPool, this->GetPhysicalDeviceProperties().limits.minUniformBufferOffsetAlignment);
-	}
-	Swapchain Instance::CreateSwapchain(VkDevice device, VkPresentModeKHR presentMode, VkExtent2D extent)
-	{
-		return Swapchain(this->vkbPhysicalDevice, device, this->surface, presentMode, extent);
-	}
 }
