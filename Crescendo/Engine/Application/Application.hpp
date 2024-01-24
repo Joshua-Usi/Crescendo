@@ -22,8 +22,8 @@ CS_NAMESPACE_BEGIN
 		cs_std::timestamp timestamp;
 		bool isRunning, shouldRestart;
 	protected:
-		EntityManager entityManager;
 		VulkanInstance renderer;
+		EntityManager entityManager;
 		cs_std::task_queue taskQueue;
 	public:
 		Application();

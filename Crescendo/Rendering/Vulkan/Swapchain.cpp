@@ -2,15 +2,15 @@
 #include "VkBootstrap/VkBootstrap.h"
 #include "Types/Create.hpp"
 
-#include "Instance.hpp"
+#include "Surface.hpp"
 #include "Device.hpp"
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
-	Swapchain::Swapchain(const Instance& instance, const Device& device, VkPresentModeKHR presentMode, VkExtent2D windowExtent)
+	Swapchain::Swapchain(const Surface& surface, const Device& device, VkPresentModeKHR presentMode, VkExtent2D windowExtent)
 	: renderPass(nullptr)
 	{
-		vkb::Swapchain vkbSwapchain = vkb::SwapchainBuilder(instance.GetPhysicalDevice(), device, instance.GetSurface())
+		vkb::Swapchain vkbSwapchain = vkb::SwapchainBuilder(surface.GetVkPhysicalDevice(), device, surface)
 			.use_default_format_selection()
 			.set_desired_present_mode(presentMode)
 			.set_desired_extent(windowExtent.width, windowExtent.height)

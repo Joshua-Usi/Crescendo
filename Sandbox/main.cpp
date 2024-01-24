@@ -195,13 +195,13 @@ public:
 			{ "default", Vulkan::PipelineVariants::GetDefaultVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
 			{ "skybox", Vulkan::PipelineVariants::GetSkyboxVariant(this->renderer.renderPasses[0], this->renderer.specs.multisamples) },
 			{ "depth", Vulkan::PipelineVariants::GetShadowVariant(this->renderer.renderPasses[2]) }, // Shadowmap
-			{ "post_processing", Vulkan::PipelineVariants::GetPostProcessingVariant(this->renderer.swapchain.GetRenderPass()) },
+			{ "post_processing", Vulkan::PipelineVariants::GetPostProcessingVariant(this->renderer.instance.GetSurface(0).GetSwapchain().GetRenderPass())},
 			{ "depth", Vulkan::PipelineVariants::GetDepthPrepassVariant(this->renderer.renderPasses[1], this->renderer.specs.multisamples) } // Depth pre-pass
 		};
 
 		for (const auto& shader : shaderList)
 		{
-			this->renderer.pipelines.insert(this->renderer.device.CreatePipelines(
+			this->renderer.pipelines.insert(this->renderer.deviceRef->CreatePipelines(
 				cs_std::binary_file(shaderPath + shader.name + ".vert.spv").open().read_if_exists(),
 				cs_std::binary_file(shaderPath + shader.name + ".frag.spv").open().read_if_exists(),
 				shader.variants
@@ -309,23 +309,25 @@ public:
 
 		Vulkan::RenderCommandQueue& cur = this->renderer.GetCurrentRenderCommandQueue();
 		Vulkan::GraphicsCommandQueue& cmd = cur.cmd;
+		Vulkan::Surface& surface = this->renderer.instance.GetSurface(0);
+		Vulkan::Swapchain& swapchain = surface.GetSwapchain();
 
 		cmd.WaitCompletion();
 		cmd.Reset();
 
 		// Get the next image
-		uint32_t currentImage = this->renderer.swapchain.AcquireNextImage(cur.presentReady);
-		if (this->renderer.swapchain.NeedsRecreation())
+		uint32_t currentImage = swapchain.AcquireNextImage(cur.presentReady);
+		if (swapchain.NeedsRecreation())
 		{
 			// noop the current frame
 			cmd.Begin();
 			cmd.End();
 			cmd.Submit(cur.presentReady, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, cur.renderFinish);
-			cmd.Present(this->renderer.swapchain, currentImage, cur.renderFinish);
+			cmd.Present(swapchain, currentImage, cur.renderFinish);
 			cmd.WaitCompletion();
 			cmd.Reset();
-			this->renderer.CreateSwapchain();
-			currentImage = this->renderer.swapchain.AcquireNextImage(cur.presentReady);
+			surface.RecreateSwapchain();
+			currentImage = swapchain.AcquireNextImage(cur.presentReady);
 		}
 
 		cs_std::graphics::frustum cameraFrustum(cameraProjection);
@@ -478,10 +480,10 @@ public:
 		}
 		// Post-processing step
 		{
-			const VkRect2D scissor = Vulkan::Create::Rect2D({ 0, 0 }, this->renderer.swapchain.GetExtent());
-			cmd.DynamicStateSetViewport(Vulkan::Create::Viewport(0.0f, 0.0f, static_cast<float>(this->renderer.swapchain.GetExtent().width), static_cast<float>(this->renderer.swapchain.GetExtent().height), 0.0f, 1.0f));
+			const VkRect2D scissor = Vulkan::Create::Rect2D({ 0, 0 }, swapchain.GetExtent());
+			cmd.DynamicStateSetViewport(Vulkan::Create::Viewport(0.0f, 0.0f, static_cast<float>(swapchain.GetExtent().width), static_cast<float>(swapchain.GetExtent().height), 0.0f, 1.0f));
 			cmd.DynamicStateSetScissor(scissor);
-			cmd.BeginRenderPass(this->renderer.swapchain.GetRenderPass(), this->renderer.swapchain.GetFramebuffer(currentImage), scissor, {{0.0f, 0.0f, 0.0f, 1.0f}});
+			cmd.BeginRenderPass(swapchain.GetRenderPass(), swapchain.GetFramebuffer(currentImage), scissor, {{0.0f, 0.0f, 0.0f, 1.0f}});
 			cmd.BindPipeline(postProcessingPipeline[0]);
 			cmd.BindDescriptorSet(postProcessingPipeline, this->renderer.textures[this->renderer.samplableFramebuffers[this->renderer.offscreenIdx].textureIndices[0]].set, 0, 0, false);
 			cmd.Draw(6);
@@ -492,7 +494,7 @@ public:
 
 		/* ---------------------------------------------------------------- Post-render and present ---------------------------------------------------------------- */
 
-		cmd.Present(this->renderer.swapchain, currentImage, cur.renderFinish);
+		cmd.Present(swapchain, currentImage, cur.renderFinish);
 		this->renderer.NextFrame();
 
 		// Frame counter

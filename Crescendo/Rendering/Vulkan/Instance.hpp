@@ -5,28 +5,22 @@
 #include "Volk/volk.h"
 #include "VkBootstrap/VkBootstrap.h"
 
+#include "Surface.hpp"
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
 	class Instance
 	{
+	friend class Surface;
 	friend class Device;
 	friend class Swapchain;
 	private:
 		static bool isVolkInitialised;
-		/* 
-		 *	Stores useful information about the physical device
-		 *	As well as allows us to construct devices, Takes up 2kb of stack space
-		 *	But I reckon it's fine
-		 */
-		vkb::PhysicalDevice vkbPhysicalDevice;
-		VkInstance instance;
-		VkDebugUtilsMessengerEXT debugMessenger;
-		VkSurfaceKHR surface;
-		void* windowPtr;
+		vkb::Instance vkbInstance;
+		std::vector<Surface> surfaces;
 	public:
 		Instance() = default;
-		Instance(bool useValidationLayers, const std::string& appName, const std::string& engineName, void* windowPtr);
+		Instance(bool useValidationLayers, const std::string& appName, const std::string& engineName, const std::vector<void*>& windows);
 		~Instance();
 		// No copy
 		Instance(const Instance&) = delete;
@@ -35,12 +29,10 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Instance(Instance&& other) noexcept;
 		Instance& operator=(Instance&& other) noexcept;
 
-		VkSurfaceKHR GetSurface() const { return surface; }
-		VkPhysicalDevice GetPhysicalDevice() const { return vkbPhysicalDevice.physical_device; }
-		void* GetWindow() const { return windowPtr; }
+		operator VkInstance() const { return vkbInstance.instance; }
+		operator const vkb::Instance&() const { return vkbInstance; }
+		VkInstance GetInstance() const { return vkbInstance.instance; }
 
-		operator VkInstance() const { return instance; }
-
-		const VkPhysicalDeviceProperties& GetPhysicalDeviceProperties() const { return vkbPhysicalDevice.properties; }
+		Surface& GetSurface(uint32_t index) { return surfaces[index]; }
 	};
 }

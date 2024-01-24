@@ -24,6 +24,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 {
 	// Forward declarations
 	class Instance;
+	class Surface;
 
 	class Device
 	{
@@ -59,7 +60,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	public:
 		// Constructors
 		Device() = default;
-		Device(const Instance& instance, uint32_t descriptorSetsPerPool);
+		Device(Instance& instance, Surface& surface, uint32_t descriptorSetsPerPool);
 		// Destructors
 		~Device();
 		// No copy

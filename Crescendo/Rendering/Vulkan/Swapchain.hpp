@@ -4,12 +4,10 @@
 
 #include "volk/volk.h"
 
-#include "Types/Image.hpp"
-
 CS_NAMESPACE_BEGIN::Vulkan
 {
 	// Forward declarations
-	class Instance;
+	class Surface;
 	class Device;
 
 	class Swapchain
@@ -26,8 +24,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		bool needsRecreation;
 	public:
 		Swapchain() : device(nullptr), swapchain(nullptr), imageFormat(VK_FORMAT_UNDEFINED), renderPass(nullptr), framebuffers(), extent({ 0, 0 }), needsRecreation(false) {}
-		Swapchain(const Instance& instance, const Device& device, VkPresentModeKHR presentMode, VkExtent2D windowExtent);
-		Swapchain(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkPresentModeKHR presentMode, VkExtent2D windowExtent);
+		Swapchain(const Surface& surface, const Device& device, VkPresentModeKHR presentMode, VkExtent2D windowExtent);
 		~Swapchain();
 		// No copy
 		Swapchain(const Swapchain&) = delete;
@@ -37,6 +34,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Swapchain& operator=(Swapchain&& other) noexcept;
 
 		operator VkSwapchainKHR() const { return swapchain; }
+		VkSwapchainKHR GetSwapchain() const { return swapchain; }
 
 		uint32_t AcquireNextImage(VkSemaphore signalSemaphore, uint64_t timeout = std::numeric_limits<uint64_t>::max());
 		bool NeedsRecreation() const { return needsRecreation; }
@@ -46,7 +44,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkRenderPass GetRenderPass() const { return renderPass; }
 		const VkExtent2D& GetExtent() const { return extent; }
 		VkExtent3D GetExtent3D() const { return { extent.width, extent.height, 1 }; }
-		VkSwapchainKHR GetSwapchain() const { return swapchain; }
 
 		VkRenderPass CreateRenderpass(VkSampleCountFlagBits samples);
 	};

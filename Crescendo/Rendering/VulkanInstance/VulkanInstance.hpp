@@ -55,14 +55,12 @@ CS_NAMESPACE_BEGIN
 	public:
 		// Fixed setup
 		Vulkan::Instance instance;
-		Vulkan::Device device;
+		Vulkan::Device* deviceRef;
 		Vulkan::TransferCommandQueue transferQueue;
 
 		// Variable setup
 		uint8_t frameIndex = 0;
 		std::vector<Vulkan::RenderCommandQueue> renderCommandQueues;
-		Vulkan::Swapchain swapchain;
-		std::vector<uint32_t> swapchainFrameBufferIdx;
 
 		// Resources
 		cs_std::packed_vector<Vulkan::RenderPass> renderPasses;

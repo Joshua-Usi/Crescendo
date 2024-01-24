@@ -6,6 +6,7 @@
 #include "cs_std/algorithms.hpp"
 
 #include "Instance.hpp"
+#include "Surface.hpp"
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
@@ -13,22 +14,22 @@ CS_NAMESPACE_BEGIN::Vulkan
 	{
 		return (alignmentRequirement > 0) ? (size + alignmentRequirement - 1) & ~(alignmentRequirement - 1) : size;
 	}
-	Device::Device(const Instance& instance, uint32_t descriptorSetsPerPool)
+	Device::Device(Instance& instance, Surface& surface, uint32_t descriptorSetsPerPool)
 	{
 		VkPhysicalDeviceShaderDrawParametersFeatures drawParametersFeatures = {};
 		drawParametersFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
 		drawParametersFeatures.shaderDrawParameters = VK_TRUE;
 
-		auto deviceResult = vkb::DeviceBuilder(instance.vkbPhysicalDevice).add_pNext(&drawParametersFeatures).build();
+		auto deviceResult = vkb::DeviceBuilder(surface.GetPhysicalDevice()).add_pNext(&drawParametersFeatures).build();
 		if (!deviceResult) cs_std::console::error("Failed to build device:", deviceResult.error().message());
 
 		auto& vkbDevice = deviceResult.value();
 		this->device = vkbDevice;
 
-		this->allocator = Allocator(instance, instance.GetPhysicalDevice(), this->device);
+		this->allocator = Allocator(instance, surface.GetPhysicalDevice(), this->device);
 		this->descriptorManager = DescriptorManager(this->device, descriptorSetsPerPool);
 		this->queues = Queues(vkbDevice);
-		this->minUniformBufferOffsetAlignment = instance.vkbPhysicalDevice.properties.limits.minUniformBufferOffsetAlignment;
+		this->minUniformBufferOffsetAlignment = surface.GetPhysicalDevice().GetProperties().limits.minUniformBufferOffsetAlignment;
 
 		// Create universal descriptor sets
 		this->vertexSamplerSetLayout = this->CreateDescriptorSetLayout(Create::DescriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT));
@@ -56,6 +57,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 
 		this->allocator.Destroy();
 		this->descriptorManager.Destroy();
+
 		vkDestroyDevice(this->device, nullptr);
 	}
 	Device::Device(Device&& other) noexcept

@@ -4,7 +4,8 @@ This is just a log of what I do, how I implement stuff and what I learn in my en
 ## Table of Contents:
 ### Pre-Alpha
 1. [[Reverse-Z]]
-3. [[Lights pt.1]]
+2. [[Lights pt.1]]
+3. [[Vulkan Resource Associations]] 
 ### Alpha
 TBA
 ### Beta
