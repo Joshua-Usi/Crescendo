@@ -29,6 +29,12 @@ flags_optimised = {
 	"MultiProcessorCompile",
 	"NoMinimalRebuild",
 }
+universal_defines = {
+	"CS_PLATFORM_WINDOWS",
+	"_CRT_SECURE_NO_WARNINGS",
+	"GLFW_INCLUDE_NONE",
+	"VK_NO_PROTOTYPES",
+}
 sandbox_project_name = "Sandbox"
 
 workspace "Crescendo"
@@ -55,12 +61,7 @@ project "Crescendo"
 	links {}
 	filter "system:windows"
 		systemversion "latest"
-		defines {
-			"CS_PLATFORM_WINDOWS",
-			"_CRT_SECURE_NO_WARNINGS",
-			"GLFW_INCLUDE_NONE",
-			"VK_NO_PROTOTYPES",
-		}
+		defines(universal_defines)
 	filter "configurations:Debug"
 		defines "CS_DEBUG"
 		symbols "on"
@@ -95,10 +96,7 @@ project(sandbox_project_name)
 	filter "system:windows"
 		cppdialect "C++20"
 		systemversion "latest"
-		defines {
-			"CS_PLATFORM_WINDOWS",
-			"VK_NO_PROTOTYPES",
-		}
+		defines(universal_defines)
 	filter "configurations:Debug"
 		defines "CS_DEBUG"
 		symbols "on"

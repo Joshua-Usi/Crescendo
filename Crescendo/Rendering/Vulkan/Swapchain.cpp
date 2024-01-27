@@ -42,6 +42,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		{
 			vkDestroyFramebuffer(this->device, framebuffer.framebuffer, nullptr);
 			vkDestroyImageView(this->device, framebuffer.imageView, nullptr);
+			// Swapchain images are not owned by us, it will be destroyed by the swapchain
 		}
 		vkDestroyRenderPass(this->device, this->renderPass, nullptr);
 		vkDestroySwapchainKHR(this->device, this->swapchain, nullptr);
@@ -95,11 +96,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 			0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0
 		);
 
-		std::vector<VkAttachmentDescription> attachments = { attachment };
-		std::vector<VkSubpassDescription> subpasses = { subpass };
-		std::vector<VkSubpassDependency> dependencies = { dependency };
-
-		const VkRenderPassCreateInfo renderPassInfo = Create::RenderPassCreateInfo(attachments, subpasses, dependencies);
+		const VkRenderPassCreateInfo renderPassInfo = Create::RenderPassCreateInfo(&attachment, &subpass, &dependency);
 
 		VkRenderPass renderPass;
 		CS_ASSERT(vkCreateRenderPass(this->device, &renderPassInfo, nullptr, &renderPass) == VK_SUCCESS, "Failed to create render pass");

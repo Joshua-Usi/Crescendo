@@ -11,7 +11,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	public:
 		// We only ever use block and sampler descriptors
 		enum class DescriptorType : uint32_t { Unknown = 0, Block, Sampler, Storage};
-		struct InterfaceVariable { std::string name;  uint32_t location, size; };
+		struct InterfaceVariable { std::string name; uint32_t location, size; };
 		struct BlockMember { uint32_t offset, size; };
 		struct DescriptorSetBinding
 		{

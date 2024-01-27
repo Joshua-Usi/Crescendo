@@ -24,7 +24,7 @@ CS_NAMESPACE_BEGIN
 		this->layerManager.Attach(new LayerUpdate(secondsPerFrame));
 		this->layerManager.Init(this->timestamp.elapsed<double>());
 
-		this->renderer = VulkanInstance({
+		/*this->renderer = VulkanInstance({
 			.enableValidationLayers = CVar::Get<bool>("irc_validationlayers"),
 			.appName = CVar::Get<std::string>("ec_appname"),
 			.engineName = "Crescendo",
@@ -34,7 +34,7 @@ CS_NAMESPACE_BEGIN
 			.anisotropicSamples = CVar::Get<uint32_t>("rc_anisotropicsamples"),
 			.multisamples = CVar::Get<uint32_t>("rc_multisamples"),
 			.renderScale = CVar::Get<float>("rc_renderscale")
-		});
+		});*/
 	}
 	void Application::Run()
 	{

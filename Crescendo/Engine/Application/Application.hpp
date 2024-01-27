@@ -9,7 +9,7 @@
 #include "cs_std/task_queue.hpp"
 #include "cs_std/timestamp.hpp"
 
-#include "Rendering/VulkanInstance/VulkanInstance.hpp"
+//#include "Rendering/VulkanInstance/VulkanInstance.hpp"
 
 CS_NAMESPACE_BEGIN
 {
@@ -22,7 +22,7 @@ CS_NAMESPACE_BEGIN
 		cs_std::timestamp timestamp;
 		bool isRunning, shouldRestart;
 	protected:
-		VulkanInstance renderer;
+		// VulkanInstance renderer;
 		EntityManager entityManager;
 		cs_std::task_queue taskQueue;
 	public:

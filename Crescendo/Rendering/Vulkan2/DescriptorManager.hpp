@@ -1,8 +1,8 @@
 #pragma once
 
 #include "common.hpp"
-
-#include "volk/volk.h"
+#include "vulkan/vulkan.h"
+#include <vector>
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
@@ -25,16 +25,13 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Pool* AllocatePool(VkDescriptorType poolType);
 		Pool* GetPool(VkDescriptorType type);
 	public:
-		DescriptorManager() = default;
+		DescriptorManager();
 		DescriptorManager(VkDevice device, uint32_t maxDescriptorsPerPool);
 		~DescriptorManager();
 		DescriptorManager(const DescriptorManager&) = delete;
-		DescriptorManager &operator=(const DescriptorManager&) = delete;
+		DescriptorManager& operator=(const DescriptorManager&) = delete;
 		DescriptorManager(DescriptorManager&& other) noexcept;
-		DescriptorManager &operator=(DescriptorManager&& other) noexcept;
-
-		void Destroy();
-
+		DescriptorManager& operator=(DescriptorManager&& other) noexcept;
 		VkDescriptorSet AllocateSet(VkDescriptorType type, VkDescriptorSetLayout layout);
 		std::vector<VkDescriptorSet> AllocateSets(VkDescriptorType type, VkDescriptorSetLayout layout, uint32_t count);
 	};

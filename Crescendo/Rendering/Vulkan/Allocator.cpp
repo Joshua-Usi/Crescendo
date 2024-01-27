@@ -1,9 +1,5 @@
 #include "Allocator.hpp"
-
 #include "Types/Create.hpp"
-
-#define VMA_IMPLEMENTATION
-#include "VMA/vk_mem_alloc.h"
 
 CS_NAMESPACE_BEGIN::Vulkan
 {

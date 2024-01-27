@@ -1,30 +1,33 @@
 #pragma once
 
 #include "common.hpp"
-#include "Volk/volk.h"
+#include "RAII.hpp"
+#include "Surface.hpp"
+#include <functional>
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
-	class Swapchain
+	struct InstanceSpecification
 	{
-	private:
-		struct Framebuffer { VkFramebuffer framebuffer; VkImage image; VkImageView imageView; };
-		VkSwapchainKHR swapchain;
-		VkFormat imageFormat;
-		VkRenderPass renderPass;
-		std::vector<Framebuffer> framebuffers;
-		VkExtent2D extent;
-		bool needsRecreation;
-	public:
+		bool useValidationLayers;
+		std::string appName, engineName;
+		std::vector<void*> windows;
 	};
 
 	class Instance
 	{
 	private:
-		VkInstance instance;
-		VkDebugUtilsMessengerEXT debugMessenger;
-		VkPhysicalDevice physicalDevice;
-		Surface surface;
+		Vk::Instance instance;
+		std::vector<Surface> surfaces;
 	public:
+		Instance() = default;
+		Instance(const InstanceSpecification& spec);
+		Instance(const Instance&) = delete;
+		Instance& operator=(const Instance&) = delete;
+		Instance(Instance&& other) noexcept;
+		Instance& operator=(Instance&& other) noexcept;
+		Surface& GetSurface(size_t index);
+		void AddSurface(void* window, std::function<void()> swapchainRecreationCallback = nullptr);
+		void RemoveSurface(size_t index);
 	};
 }

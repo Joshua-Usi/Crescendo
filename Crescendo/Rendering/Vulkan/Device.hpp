@@ -108,8 +108,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 
 		VkDescriptorSetLayout GetSamplerLayout(VkShaderStageFlags shaderStage) const { return (shaderStage == VK_SHADER_STAGE_VERTEX_BIT) ? vertexSamplerSetLayout : fragmentSamplerSetLayout; }
 		VkDescriptorSetLayout GetSSBOLayout(VkShaderStageFlags shaderStage) const { return (shaderStage == VK_SHADER_STAGE_VERTEX_BIT) ? vertexSSBOSetLayout : fragmentSSBOSetLayout; }
-		VkSampler GetDirectionalShadowMapSampler() const { return directionalShadowMapSampler; }
 		VkSampler GetPostProcessingSampler() const { return postProcessingSampler; }
+		VkSampler GetDirectionalShadowMapSampler() const { return directionalShadowMapSampler; }
 	public:
 		operator VkDevice() const { return device; }
 	};

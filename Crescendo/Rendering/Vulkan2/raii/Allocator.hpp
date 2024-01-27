@@ -1,14 +1,10 @@
 #pragma once
 
 #include "common.hpp"
-
-#include "volk/volk.h"
+#include "Volk/volk.h"
 #include "vma/vk_mem_alloc.h"
 
-#include "Types/Buffer.hpp"
-#include "Types/Image.hpp"
-
-CS_NAMESPACE_BEGIN::Vulkan
+CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
 	class Allocator
 	{
@@ -16,19 +12,15 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkDevice device;
 		VmaAllocator allocator;
 	public:
-		Allocator() = default;
+		Allocator();
 		Allocator(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device);
 		~Allocator();
-		// No copy
 		Allocator(const Allocator&) = delete;
 		Allocator& operator=(const Allocator&) = delete;
-		// Move
 		Allocator(Allocator&& other) noexcept;
 		Allocator& operator=(Allocator&& other) noexcept;
-
-		void Destroy();
-
-		Buffer CreateBuffer(size_t allocationSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-		Image CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage);
+		operator VmaAllocator() const;
+		VmaAllocator GetAllocator() const;
+		VkDevice GetDevice() const;
 	};
 }

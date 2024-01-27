@@ -1,6 +1,7 @@
 #include "Instance.hpp"
 
 #include "GLFW/glfw3.h"
+#include "Instance.hpp"
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
