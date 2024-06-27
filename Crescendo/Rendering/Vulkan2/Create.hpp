@@ -376,7 +376,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 		return createInfo;
 	}
 	template<ValidType<uint32_t> QueueFamilyIndices>
-	inline constexpr VkBufferCreateInfo BufferCreateInfo(const const void* pNext, VkBufferCreateFlags flags, VkDeviceSize size, VkBufferUsageFlags usage, VkSharingMode sharingMode, const QueueFamilyIndices& queueFamilyIndices)
+	inline constexpr VkBufferCreateInfo BufferCreateInfo(const void* pNext, VkBufferCreateFlags flags, VkDeviceSize size, VkBufferUsageFlags usage, VkSharingMode sharingMode, const QueueFamilyIndices& queueFamilyIndices)
 	{
 		VkBufferCreateInfo createInfo = {};
 
@@ -391,7 +391,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return createInfo;
 	}
-	inline constexpr VkMemoryAllocateInfo MemoryAllocateInfo(const const void* pNext, VkDeviceSize allocationSize, uint32_t memoryTypeIndex)
+	inline constexpr VkMemoryAllocateInfo MemoryAllocateInfo(const void* pNext, VkDeviceSize allocationSize, uint32_t memoryTypeIndex)
 	{
 		VkMemoryAllocateInfo createInfo = {};
 
@@ -518,7 +518,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return createInfo;
 	}
-	inline constexpr VkSemaphoreCreateInfo SemaphoreCreateInfo(const const void* pNext = nullptr)
+	inline constexpr VkSemaphoreCreateInfo SemaphoreCreateInfo(const void* pNext = nullptr)
 	{
 		VkSemaphoreCreateInfo createInfo = {};
 
