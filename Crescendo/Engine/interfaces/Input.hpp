@@ -4,46 +4,26 @@
 
 CS_NAMESPACE_BEGIN
 {
+	class Window;
+
 	class Input
 	{
-	private:
-		static Input* self;
 	public:
-		static bool GetKeyDown(Key keyCode)
+		struct Specification
 		{
-			return self->KeyDownImpl(keyCode);
-		}
-		static bool GetKeyPressed(Key keyCode)
-		{
-			return self->KeyPressedImpl(keyCode);
-		}
-		static double GetMouseX()
-		{
-			return self->MousePositionXImpl();
-		}
-		static double GetMouseY()
-		{
-			return self->MousePositionYImpl();
-		}
-		static bool GetMouseButtonDown(MouseButton button)
-		{
-			return self->MouseButtonDownImpl(button);
-		}
-		static bool GetMouseButtonPressed(MouseButton button)
-		{
-			return self->MouseButtonPressedImpl(button);
-		}
-		static void PollEvents()
-		{
-			self->PollEventsImpl();
-		}
-	protected:
-		virtual bool KeyDownImpl(Key keyCode) = 0;
-		virtual bool KeyPressedImpl(Key keyCode) = 0;
-		virtual double MousePositionXImpl() = 0;
-		virtual double MousePositionYImpl() = 0;
-		virtual bool MouseButtonDownImpl(MouseButton button) = 0;
-		virtual bool MouseButtonPressedImpl(MouseButton button) = 0;
-		virtual void PollEventsImpl() = 0;
+			Window* window;
+			Specification() : window(nullptr) {}
+			Specification(Window* window) : window(window) {}
+		};
+	public:
+		static std::unique_ptr<Input> Create(const Specification& spec = Specification());
+		virtual ~Input() = default;
+		virtual bool GetKeyDown(Key keyCode) = 0;
+		virtual bool GetKeyPressed(Key keyCode) = 0;
+		virtual double GetMouseX() = 0;
+		virtual double GetMouseY() = 0;
+		virtual bool GetMouseDown(MouseButton button) = 0;
+		virtual bool GetMousePressed(MouseButton button) = 0;
+		virtual void PollEvents() = 0;
 	};
 }

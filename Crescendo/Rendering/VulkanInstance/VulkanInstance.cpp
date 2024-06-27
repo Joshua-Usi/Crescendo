@@ -183,7 +183,7 @@ CS_NAMESPACE_BEGIN
 	{
 		return static_cast<uint32_t>(this->SSBOs.insert(this->deviceRef->CreateSSBO(size, shaderStage, VMA_MEMORY_USAGE_CPU_TO_GPU)));
 	}
-	uint32_t VulkanInstance::UploadMesh(const cs_std::graphics::mesh & mesh)
+	uint32_t VulkanInstance::UploadMesh(const cs_std::graphics::mesh<uint32_t>& mesh)
 	{
 		constexpr size_t ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(cs_std::graphics::Attribute::ATTRIBUTE_COUNT)]{
 			3, // POSITION

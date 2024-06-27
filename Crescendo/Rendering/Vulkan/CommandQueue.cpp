@@ -11,7 +11,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		completionFence(device.CreateFence(startSignalled)) {}
 	BaseCommandQueue::~BaseCommandQueue()
 	{
-		if (!this->device) return;
+		if (this->device == nullptr) return;
 		vkDestroyCommandPool(this->device, this->commandPool, nullptr);
 		vkDestroyFence(this->device, this->completionFence, nullptr);
 	}
@@ -19,24 +19,21 @@ CS_NAMESPACE_BEGIN::Vulkan
 		: device(other.device), commandPool(other.commandPool), commandBuffer(other.commandBuffer),
 		completionFence(other.completionFence), queue(other.queue), queueFamily(other.queueFamily)
 	{
-		// Do not destroy the device
+		other.device = nullptr;
 		other.commandPool = nullptr;
 		other.commandBuffer = nullptr;
 		other.completionFence = nullptr;
+		other.queue = nullptr;
+		other.queueFamily = 0;
 	}
 	BaseCommandQueue& BaseCommandQueue::operator=(BaseCommandQueue&& other) noexcept
 	{
-		this->device = other.device;
-		this->commandPool = other.commandPool;
-		this->commandBuffer = other.commandBuffer;
-		this->completionFence = other.completionFence;
-		this->queue = other.queue;
-		this->queueFamily = other.queueFamily;
-
-		// Do not destroy the device
-		other.commandPool = nullptr;
-		other.commandBuffer = nullptr;
-		other.completionFence = nullptr;
+		this->device = other.device; this->device = nullptr;
+		this->commandPool = other.commandPool; this->commandPool = nullptr;
+		this->commandBuffer = other.commandBuffer; this->commandBuffer = nullptr;
+		this->completionFence = other.completionFence; this->completionFence = nullptr;
+		this->queue = other.queue; this->queue = nullptr;
+		this->queueFamily = other.queueFamily; this->queueFamily = 0;
 
 		return *this;
 	}

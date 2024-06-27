@@ -70,4 +70,5 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		return *this;
 	}
 	Image::operator VkImage() const { return image; }
+	Image::operator VkImageView() const { return imageView; }
 }

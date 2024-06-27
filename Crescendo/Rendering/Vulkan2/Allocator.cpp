@@ -13,15 +13,17 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	Vk::Buffer Allocator::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
 	{
-		VkBufferCreateInfo bufferInfo = Create::BufferCreateInfo(nullptr, 0, size, usage, VK_SHARING_MODE_EXCLUSIVE, 0, nullptr);
+		VkBufferCreateInfo bufferInfo = Create::BufferCreateInfo(nullptr, 0, size, usage, VK_SHARING_MODE_EXCLUSIVE, nullptr);
 		VmaAllocationCreateInfo vmaAllocInfo{};
 		vmaAllocInfo.usage = memoryUsage;
 		return Vk::Buffer(this->allocator, bufferInfo, vmaAllocInfo);
 	}
-	Vk::Image Allocator::CreateImage(VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage)
+	Vk::Image Allocator::CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage)
 	{
 		VmaAllocationCreateInfo vmaAllocInfo {};
 		vmaAllocInfo.usage = memoryUsage;
 		return Vk::Image(this->allocator.GetDevice(), this->allocator, imageInfo, vmaAllocInfo);
 	}
+	Allocator::operator const Vk::Allocator& () const { return this->allocator; }
+	Allocator::operator VmaAllocator() const { return this->allocator; }
 }

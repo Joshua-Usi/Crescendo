@@ -9,7 +9,7 @@
 CS_NAMESPACE_BEGIN
 {
 	// Direction is derived from the transform
-	// Lights everything including objects behind it
+	// If the light is not shadow mapped it will light objects behind other objects
 	struct DirectionalLight : public Component
 	{
 		struct ShaderRepresentation

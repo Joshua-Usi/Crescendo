@@ -13,7 +13,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	public:
 		Semaphore();
 		// Creates a semaphore from createInfo
-		Semaphore(VkDevice device, const VkSemaphoreCreateInfo& createInfo);
+		Semaphore(VkDevice device, const VkSemaphoreCreateInfo& createInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0 });
 		// Takes ownership of semaphore
 		explicit Semaphore(VkDevice device, VkSemaphore semaphore);
 		~Semaphore();

@@ -1,31 +1,40 @@
 #include "WindowsWindow.hpp"
-
 #include "Engine/interfaces/Input.hpp"
 
 CS_NAMESPACE_BEGIN
 {
-	static bool IsGLFWInitialised = false;
-	WindowsWindow::WindowsWindow(const Properties& props)
+	bool WindowsWindow::IsGLFWInitialised = false;
+	uint32_t WindowsWindow::windowsOpen = 0;
+	// Overload to create WindowsWindow
+	std::unique_ptr<Window> Window::Create(const Specification& spec) { return std::make_unique<WindowsWindow>(spec); }
+	WindowsWindow::WindowsWindow(const Specification& spec)
 	{
-		this->data.title = props.title;
-		this->data.width = props.width;
-		this->data.height = props.height;
-		this->data.isOpen = true;
-		this->data.windowPointer = this;
-
 		if (!IsGLFWInitialised)
 		{
-			CS_ASSERT(glfwInit(), "Failed to Initialise GLFW!");
+			int result = glfwInit();
+			if (result != GLFW_TRUE) cs_std::console::fatal("Failed to initialise GLFW! ", result);
 			IsGLFWInitialised = true;
 		}
+
+		this->data.title = spec.title;
+		this->data.width = spec.width;
+		this->data.height = spec.height;
+		this->data.isOpen = true;
+		this->data.windowPointer = this;
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
 		this->window = glfwCreateWindow(this->data.width, this->data.height, this->data.title.c_str(), NULL, NULL);
+		if (this->window == nullptr) cs_std::console::fatal("Failed to create GLFW window!");
+		glfwSetWindowPos(this->window, spec.positionX, spec.positionY);
 
 		glfwSetWindowUserPointer(this->window, &this->data);
 		glfwSetWindowCloseCallback(this->window, [](GLFWwindow* window) { static_cast<Data*>(glfwGetWindowUserPointer(window))->windowPointer->Close(); });
+
+		this->input = Input::Create(Input::Specification(this));
+
+		windowsOpen++;
 	}
 	WindowsWindow::~WindowsWindow()
 	{
@@ -37,8 +46,13 @@ CS_NAMESPACE_BEGIN
 		{
 			this->data.isOpen = false;
 			glfwDestroyWindow(this->window);
-			glfwTerminate();
-			IsGLFWInitialised = false;
+			windowsOpen--;
+			if (windowsOpen == 0)
+			{
+				IsGLFWInitialised = false;
+				glfwTerminate();
+				cs_std::console::verbose("GLFW terminated");
+			}
 		}
 	}
 	uint32_t WindowsWindow::GetWidth() const
@@ -130,9 +144,5 @@ CS_NAMESPACE_BEGIN
 	bool WindowsWindow::IsFullScreen() const
 	{
 		return this->data.isFullScreen;
-	}
-	std::unique_ptr<Window> Window::Create(const Properties& props)
-	{
-		return std::make_unique<WindowsWindow>(props);
 	}
 }

@@ -7,11 +7,8 @@
 #include <type_traits>
 
 #define CS_CREATE_SET_CONCEPT_FIELD(field, concept_t, type, on_container, on_value)\
-if constexpr (ContainerType<concept_t, type>) {\
-	field = on_container;\
-} else if constexpr (PointerType<concept_t, type*>) {\
-	field = on_value;\
-}
+if constexpr (ContainerType<concept_t, type>) field = on_container;\
+else if constexpr (PointerType<concept_t, type>) field = on_value;\
 
 /// <summary>
 /// Argument order is defined exactly as in the Vulkan API.
@@ -31,11 +28,11 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 	// Any pointer type that can be used as a pointer to a value type or a nullptr
 	template<typename T, typename ValueType>
 	concept PointerType = requires(T a) {
-		requires std::same_as<T, ValueType> || std::same_as<T, std::nullptr_t>;
+		requires std::same_as<T, ValueType*> || std::same_as<T, const ValueType*> || std::same_as<T, std::nullptr_t>;
 	};
 	template<typename T, typename ValueType>
 	concept ValidType = requires(T a) {
-		requires PointerType<T, ValueType*> || ContainerType<T, ValueType>;
+		requires PointerType<T, ValueType> || ContainerType<T, ValueType>;
 	};
 
 	template<ValidType<VkSemaphore> WaitSemaphores, ValidType<VkPipelineStageFlags> WaitDstStageMask, ValidType<VkCommandBuffer> CommandBuffers, ValidType<VkSemaphore> SignalSemaphores>
@@ -126,6 +123,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return createInfo;
 	}
+	// No arguments because we use dynamic state
 	inline constexpr VkPipelineViewportStateCreateInfo PipelineViewportStateCreateInfo()
 	{
 		VkPipelineViewportStateCreateInfo createInfo = {};
@@ -207,7 +205,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 		return attachmentState;
 	}
 	template<ValidType<VkPipelineColorBlendAttachmentState> Attachments>
-	inline VkPipelineColorBlendStateCreateInfo PipelineColorBlendStateCreateInfo(VkBool32 logicOpEnable, VkLogicOp logicOp, const Attachments& attachments, const std::array<float, 4>& blendConstants)
+	inline constexpr VkPipelineColorBlendStateCreateInfo PipelineColorBlendStateCreateInfo(VkBool32 logicOpEnable, VkLogicOp logicOp, const Attachments& attachments, const std::array<float, 4>& blendConstants)
 	{
 		VkPipelineColorBlendStateCreateInfo createInfo = {};
 
@@ -218,7 +216,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 		createInfo.logicOp = logicOp;
 		CS_CREATE_SET_CONCEPT_FIELD(createInfo.attachmentCount, Attachments, VkPipelineColorBlendAttachmentState, static_cast<uint32_t>(attachments.size()), attachments != nullptr);
 		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pAttachments, Attachments, VkPipelineColorBlendAttachmentState, attachments.data(), attachments);
-		//memcpy(createInfo.blendConstants, blendConstants.data(), sizeof(float) * blendConstants.size());
 		createInfo.blendConstants[0] = blendConstants[0];
 		createInfo.blendConstants[1] = blendConstants[1];
 		createInfo.blendConstants[2] = blendConstants[2];
@@ -378,7 +375,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return createInfo;
 	}
-	inline constexpr VkBufferCreateInfo BufferCreateInfo(const void* pNext, VkBufferCreateFlags flags, VkDeviceSize size, VkBufferUsageFlags usage, VkSharingMode sharingMode, uint32_t queueFamilyIndexCount, const uint32_t* pQueueFamilyIndices)
+	template<ValidType<uint32_t> QueueFamilyIndices>
+	inline constexpr VkBufferCreateInfo BufferCreateInfo(const const void* pNext, VkBufferCreateFlags flags, VkDeviceSize size, VkBufferUsageFlags usage, VkSharingMode sharingMode, const QueueFamilyIndices& queueFamilyIndices)
 	{
 		VkBufferCreateInfo createInfo = {};
 
@@ -388,12 +386,12 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 		createInfo.size = size;
 		createInfo.usage = usage;
 		createInfo.sharingMode = sharingMode;
-		createInfo.queueFamilyIndexCount = queueFamilyIndexCount;
-		createInfo.pQueueFamilyIndices = pQueueFamilyIndices;
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.queueFamilyIndexCount, QueueFamilyIndices, uint32_t, static_cast<uint32_t>(queueFamilyIndices.size()), queueFamilyIndices != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pQueueFamilyIndices, QueueFamilyIndices, uint32_t, queueFamilyIndices.data(), queueFamilyIndices);
 
 		return createInfo;
 	}
-	inline constexpr VkMemoryAllocateInfo MemoryAllocateInfo(const void* pNext, VkDeviceSize allocationSize, uint32_t memoryTypeIndex)
+	inline constexpr VkMemoryAllocateInfo MemoryAllocateInfo(const const void* pNext, VkDeviceSize allocationSize, uint32_t memoryTypeIndex)
 	{
 		VkMemoryAllocateInfo createInfo = {};
 
@@ -426,7 +424,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return createInfo;
 	}
-	inline constexpr VkCommandBufferAllocateInfo CommandBufferAllocateInfo(VkCommandPool commandPool, VkCommandBufferLevel level, uint32_t commandBufferCount)
+	inline constexpr VkCommandBufferAllocateInfo CommandBufferAllocateInfo(VkCommandPool commandPool, VkCommandBufferLevel level, uint32_t commandBufferCount = 1)
 	{
 		VkCommandBufferAllocateInfo createInfo = {};
 
@@ -520,7 +518,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 
 		return createInfo;
 	}
-	inline constexpr VkSemaphoreCreateInfo SemaphoreCreateInfo(const void* pNext = nullptr)
+	inline constexpr VkSemaphoreCreateInfo SemaphoreCreateInfo(const const void* pNext = nullptr)
 	{
 		VkSemaphoreCreateInfo createInfo = {};
 
@@ -618,13 +616,13 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 		return layoutBinding;
 	}
 	template<ValidType<VkDescriptorSetLayoutBinding> Bindings>
-	inline constexpr VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo(const Bindings& pBindings)
+	inline constexpr VkDescriptorSetLayoutCreateInfo DescriptorSetLayoutCreateInfo(const void* pNext, VkDescriptorSetLayoutCreateFlags flags, const Bindings& pBindings)
 	{
 		VkDescriptorSetLayoutCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		createInfo.pNext = nullptr;
-		createInfo.flags = 0;
+		createInfo.pNext = pNext;
+		createInfo.flags = flags;
 		CS_CREATE_SET_CONCEPT_FIELD(createInfo.bindingCount, Bindings, VkDescriptorSetLayoutBinding, static_cast<uint32_t>(pBindings.size()), pBindings != nullptr);
 		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pBindings, Bindings, VkDescriptorSetLayoutBinding, pBindings.data(), pBindings);
 
@@ -665,7 +663,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 		CS_CREATE_SET_CONCEPT_FIELD(allocateInfo.pSetLayouts, SetLayouts, VkDescriptorSetLayout, pSetLayouts.data(), pSetLayouts);
 
 		return allocateInfo;
-	
 	}
 	inline constexpr VkDescriptorBufferInfo DescriptorBufferInfo(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range)
 	{
@@ -791,10 +788,36 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 	{
 		return { x, y, z };
 	}
+	// 0.0f default because we use reverse-Z
 	inline constexpr VkClearValue DefaultDepthClear(float clearValue = 0.0f)
 	{
 		VkClearValue depthClear = {};
+
 		depthClear.depthStencil.depth = clearValue;
+
 		return depthClear;
+	}
+	inline constexpr VkClearValue ClearValue(float r, float g, float b, float a)
+	{
+		VkClearValue clearValue = {};
+
+		clearValue.color.float32[0] = r;
+		clearValue.color.float32[1] = g;
+		clearValue.color.float32[2] = b;
+		clearValue.color.float32[3] = a;
+
+		return clearValue;
+	}
+	template<ValidType<VkDescriptorBindingFlags> BindingFlags>
+	inline constexpr VkDescriptorSetLayoutBindingFlagsCreateInfo DescriptorSetLayoutBindingFlagsCreateInfo(const BindingFlags& pBindingFlags)
+	{
+		VkDescriptorSetLayoutBindingFlagsCreateInfo createInfo = {};
+
+		createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+		createInfo.pNext = nullptr;
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.bindingCount, BindingFlags, VkDescriptorBindingFlags, static_cast<uint32_t>(pBindingFlags.size()), pBindingFlags != nullptr);
+		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pBindingFlags, BindingFlags, VkDescriptorBindingFlags, pBindingFlags.data(), pBindingFlags);
+
+		return createInfo;
 	}
 }

@@ -11,7 +11,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 	{
 		bool useValidationLayers;
 		std::string appName, engineName;
-		std::vector<void*> windows;
 	};
 
 	class Instance
@@ -27,7 +26,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Instance(Instance&& other) noexcept;
 		Instance& operator=(Instance&& other) noexcept;
 		Surface& GetSurface(size_t index);
-		void AddSurface(void* window, std::function<void()> swapchainRecreationCallback = nullptr);
+		void CreateSurface(void* window, const Surface::SurfaceSpecification& spec);
 		void RemoveSurface(size_t index);
 	};
 }

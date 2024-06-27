@@ -22,6 +22,7 @@ CS_NAMESPACE_BEGIN
 		entt::registry* registry;
 		entt::entity entity;
 	public:
+		Entity() : registry(nullptr), entity(entt::null) {};
 		Entity(entt::registry* registry, entt::entity entity) : registry(registry), entity(entity) {};
 		Entity(const Entity& other) : registry(other.registry), entity(other.entity) {};
 		Entity(Entity&& other) noexcept : registry(other.registry), entity(other.entity) {};
@@ -49,15 +50,13 @@ CS_NAMESPACE_BEGIN
 
 	class EntityManager
 	{
-	public:
+	private:
 		friend struct Entity;
 		entt::registry registry;
 	public:
 		EntityManager() : registry({}) {};
-
 		Entity CreateEntity() { return Entity(&registry, registry.create()); }
 		void DestroyEntity(Entity& entity) { registry.destroy(entity); }
-
 		Entity CopyEntity(Entity& entity)
 		{
 			Entity other = CreateEntity();
@@ -67,11 +66,9 @@ CS_NAMESPACE_BEGIN
 			}
 			return other;
 		}
-
 		Entity GetEntity(entt::entity entity) { return Entity(&registry, entity); }
-
 		template<ValidComponent T> size_t GetComponentCount() const { return registry.view<T>().size(); }
-
 		template<ValidComponent ...T> void ForEach(std::function<void(entt::entity, T&...)> func) { registry.view<T...>().each(func); }
+		template<ValidComponent ...T> void ForEach(std::function<void(T&...)> func) { registry.view<T...>().each(func); }
 	};
 }

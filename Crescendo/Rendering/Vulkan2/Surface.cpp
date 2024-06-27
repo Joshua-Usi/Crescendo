@@ -1,10 +1,11 @@
 #include "Surface.hpp"
 #include "GLFW/glfw3.h"
+#include "Create.hpp"
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
 	Surface::Surface() : instance(nullptr), surface(), window(nullptr), physicalDevice(), device(), swapchain(), framebuffers(), swapchainRecreationCallback(nullptr), needsRecreation(false) {}
-	Surface::Surface(Vk::Instance& instance, void* window, std::function<void()> swapchainRecreationCallback) : instance(instance), window(window), swapchainRecreationCallback(swapchainRecreationCallback), needsRecreation(false)
+	Surface::Surface(Vk::Instance& instance, void* window, const SurfaceSpecification& spec) : instance(instance), window(window), swapchainRecreationCallback(spec.swapchainRecreationCallback), needsRecreation(false)
 	{
 		this->surface = Vk::Surface(instance, window);
 
@@ -23,10 +24,13 @@ CS_NAMESPACE_BEGIN::Vulkan
 		drawParametersFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
 		drawParametersFeatures.shaderDrawParameters = VK_TRUE;
 
-		this->device = Device(instance, this->physicalDevice, {
-			.drawParametersFeatures = drawParametersFeatures,
-			.descriptorPoolMaxSets = 128
-		});
+		this->device = std::move(Device(instance, this->physicalDevice, {
+			.deviceCreateInfo = {
+				.shaderDrawParametersFeatures = drawParametersFeatures,
+				.descriptorIndexingFeatures = this->physicalDevice.GetDescriptorIndexingFeatures()
+			},
+			.descriptorManagerSpec = spec.descriptorManagerSpec
+		}));
 
 		this->swapchain = Vk::Swapchain(this->physicalDevice, this->device, this->surface,{
 			VK_PRESENT_MODE_MAILBOX_KHR, { 0, 0 }, VK_SAMPLE_COUNT_1_BIT
@@ -63,7 +67,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	void* Surface::GetWindow() const { return this->window; }
 	Vk::PhysicalDevice& Surface::GetPhysicalDevice() { return this->physicalDevice; }
-	Vk::Device& Surface::GetDevice() { return this->device; }
+	Device& Surface::GetDevice() { return this->device; }
 	Vk::Swapchain& Surface::GetSwapchain() { return this->swapchain; }
 	Vk::Swapchain::Image& Surface::GetImage(size_t index) { return this->swapchain.GetFramebuffer(index); }
 	void Surface::RecreateSwapchain(VkPresentModeKHR presentMode)
@@ -83,12 +87,20 @@ CS_NAMESPACE_BEGIN::Vulkan
 		});
 		if (this->swapchainRecreationCallback != nullptr) this->swapchainRecreationCallback();
 	}
-	uint32_t Surface::AcquireNextImage(VkSemaphore signalSemaphore, uint64_t timeout)
+	void Surface::AcquireNextImage(VkSemaphore imageAvailableSemaphore, uint64_t timeout)
 	{
-		uint32_t index;
-		VkResult imageAcquireResult = vkAcquireNextImageKHR(this->device, this->swapchain, timeout, signalSemaphore, nullptr, &index);
-		this->needsRecreation = imageAcquireResult == VK_ERROR_OUT_OF_DATE_KHR || imageAcquireResult == VK_SUBOPTIMAL_KHR;
-		CS_ASSERT(!this->needsRecreation && imageAcquireResult == VK_SUCCESS, "Failed to acquire swap chain image!");
-		return index;
+		VkResult result = this->swapchain.AcquireNextImage(imageAvailableSemaphore, timeout);
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+		{
+			this->needsRecreation = true;
+		}
+	}
+	void Surface::Present(VkQueue queue, VkSemaphore renderFinishSemaphore)
+	{
+		VkResult result = this->swapchain.Present(queue, renderFinishSemaphore);
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || this->needsRecreation) {
+			this->RecreateSwapchain();
+			this->needsRecreation = false;
+		}
 	}
 }

@@ -10,6 +10,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		if (code.size() == 0)
 		{
 			this->shaderModule = nullptr;
+			CS_ASSERT_WARNING(code.size() == 0, "Shader code is empty!");
 			return;
 		}
 		const VkShaderModuleCreateInfo createInfo = Create::ShaderModuleCreateInfo(code);

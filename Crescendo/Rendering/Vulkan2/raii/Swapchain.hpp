@@ -13,6 +13,12 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 	public:
 		struct Image { VkFramebuffer framebuffer; VkImage image; VkImageView imageView; };
+		struct SwapchainSpecification
+		{
+			VkPresentModeKHR presentMode;
+			VkExtent2D windowExtent;
+			VkSampleCountFlagBits samples;
+		};
 	private:
 		VkDevice device;
 		VkSwapchainKHR swapchain;
@@ -20,13 +26,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		VkExtent2D extent;
 		RenderPass renderPass;
 		std::vector<Image> images;
-	public:
-		struct SwapchainSpecification
-		{
-			VkPresentModeKHR presentMode;
-			VkExtent2D windowExtent;
-			VkSampleCountFlagBits samples;
-		};
+		uint32_t acquiredImageIndex;
 	public:
 		Swapchain();
 		// Creates a swapchain using vkb
@@ -38,7 +38,11 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		Swapchain& operator=(const Swapchain&) = delete;
 		Swapchain(Swapchain&& other) noexcept;
 		Swapchain& operator=(Swapchain&& other) noexcept;
+	public:
 		RenderPass CreateRenderpass(VkSampleCountFlagBits samples);
+		VkResult AcquireNextImage(VkSemaphore imageAvailableSemaphore, uint64_t timeout);
+		VkResult Present(VkQueue queue, VkSemaphore renderFinishSemaphore);
+	public:
 		operator VkSwapchainKHR() const;
 		VkSwapchainKHR GetSwapchain() const;
 		size_t ImageCount() const;
@@ -50,5 +54,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		VkExtent3D GetExtent3D() const;
 		VkViewport GetViewport(bool flipY = false) const;
 		VkRect2D GetScissor() const;
+		uint32_t GetAcquiredImageIndex() const;
+		VkRenderPass GetRenderPass() const;
 	};
 }

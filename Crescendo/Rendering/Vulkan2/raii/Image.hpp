@@ -22,6 +22,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		Image& operator=(const Image&) = delete;
 		Image(Image&& other) noexcept;
 		Image& operator=(Image&& other) noexcept;
+	public:
 		operator VkImage() const;
+		operator VkImageView() const;
 	};
 }

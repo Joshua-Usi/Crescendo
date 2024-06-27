@@ -17,7 +17,9 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Allocator& operator=(const Allocator&) = delete;
 		Allocator(Allocator&& other) noexcept;
 		Allocator& operator=(Allocator&& other) noexcept;
+		operator const Vk::Allocator& () const;
+		operator VmaAllocator() const;
 		Vk::Buffer CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-		Vk::Image CreateImage(VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage);
+		Vk::Image CreateImage(const VkImageCreateInfo& imageInfo, VmaMemoryUsage memoryUsage);
 	};
 }

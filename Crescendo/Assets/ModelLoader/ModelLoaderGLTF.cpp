@@ -1,10 +1,8 @@
 #include "ModelLoaders.hpp"
-
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/prettywriter.h"
-
 #define TINYGLTF_NOEXCEPTION
 #define TINYGLTF_NO_STB_IMAGE_WRITE
 #define TINYGLTF_NO_STB_IMAGE
@@ -14,9 +12,7 @@
 #define TINYGLTF_USE_CPP14
 #define TINYGLTF_IMPLEMENTATION
 #include "tinygltf/tiny_gltf.h"
-
 #include <unordered_map>
-
 #include "cs_std/math/math.hpp"
 
 CS_NAMESPACE_BEGIN

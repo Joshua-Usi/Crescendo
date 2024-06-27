@@ -1,16 +1,27 @@
 #pragma once
 
 #include "common.hpp"
-
-#include "Volk/volk.h"
+#include "vulkan/vulkan.h"
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
 	struct ShaderReflection
 	{
 	public:
-		// We only ever use block and sampler descriptors
-		enum class DescriptorType : uint32_t { Unknown = 0, Block, Sampler, Storage};
+		enum class DescriptorType : uint32_t
+		{
+			Unknown = 0,
+			Block,
+			Sampler,
+			Storage
+		};
+		enum class ShaderStage : uint32_t
+		{
+			Unknown = 0,
+			Vertex = VK_SHADER_STAGE_VERTEX_BIT,
+			Fragment = VK_SHADER_STAGE_FRAGMENT_BIT,
+			Compute = VK_SHADER_STAGE_COMPUTE_BIT
+		};
 		struct InterfaceVariable { std::string name; uint32_t location, size; };
 		struct BlockMember { uint32_t offset, size; };
 		struct DescriptorSetBinding
@@ -46,7 +57,13 @@ CS_NAMESPACE_BEGIN::Vulkan
 		std::vector<DescriptorSetLayout> descriptorSetLayouts;
 		std::vector<PushConstantLayout> pushConstants;
 	public:
+		ShaderReflection();
 		ShaderReflection(const std::vector<uint8_t>& code);
+		~ShaderReflection() = default;
+		ShaderReflection(const ShaderReflection&) = default;
+		ShaderReflection(ShaderReflection&&) = default;
+		ShaderReflection& operator=(const ShaderReflection&) noexcept = default;
+		ShaderReflection& operator=(ShaderReflection&&) noexcept = default;
 	public:
 		std::vector<DescriptorSetLayout> GetDescriptorSetLayouts(DescriptorType descriptorType) const;
 		size_t GetDescriptorSetLayoutCount(DescriptorType descriptorType) const;

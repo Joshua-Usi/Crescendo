@@ -12,7 +12,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			.set_desired_present_mode(spec.presentMode)
 			.set_desired_extent(spec.windowExtent.width, spec.windowExtent.height)
 			.build();
-		CS_ASSERT(vkbSwapchain, "Failed to create swapchain! ", vkbSwapchain.error().message());
+		CS_ASSERT(vkbSwapchain, "Failed to create swapchain! " + vkbSwapchain.error().message());
 
 		this->swapchain = vkbSwapchain.value().swapchain;
 		this->imageFormat = vkbSwapchain.value().image_format;
@@ -82,6 +82,15 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		const VkRenderPassCreateInfo renderPassInfo = Create::RenderPassCreateInfo(&attachment, &subpass, &dependency);
 		return RenderPass(device, renderPassInfo);
 	}
+	VkResult Swapchain::AcquireNextImage(VkSemaphore imageAvailableSemaphore, uint64_t timeout)
+	{
+		return vkAcquireNextImageKHR(this->device, this->swapchain, timeout, imageAvailableSemaphore, VK_NULL_HANDLE, &this->acquiredImageIndex);
+	}
+	VkResult Swapchain::Present(VkQueue queue, VkSemaphore renderFinishSemaphore)
+	{
+		const VkPresentInfoKHR presentInfo = Create::PresentInfoKHR(&renderFinishSemaphore, &this->swapchain, &this->acquiredImageIndex);
+		return vkQueuePresentKHR(queue, &presentInfo);
+	}
 	Swapchain::operator VkSwapchainKHR() const { return swapchain; }
 	VkSwapchainKHR Swapchain::GetSwapchain() const { return swapchain; }
 	size_t Swapchain::ImageCount() const { return images.size(); }
@@ -93,4 +102,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	VkExtent3D Swapchain::GetExtent3D() const { return { extent.width, extent.height, 1 }; }
 	VkViewport Swapchain::GetViewport(bool flipY) const { return { 0.0f, flipY ? static_cast<float>(extent.height) : 0.0f, static_cast<float>(extent.width), flipY ? -static_cast<float>(extent.height) : static_cast<float>(extent.height), 0.0f, 1.0f }; }
 	VkRect2D Swapchain::GetScissor() const { return { { 0, 0 }, extent }; }
+	uint32_t Swapchain::GetAcquiredImageIndex() const { return acquiredImageIndex; }
+	VkRenderPass Swapchain::GetRenderPass() const { return renderPass; }
 }

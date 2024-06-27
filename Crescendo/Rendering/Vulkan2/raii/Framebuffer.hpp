@@ -20,7 +20,9 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		Framebuffer& operator=(const Framebuffer&) = delete;
 		Framebuffer(Framebuffer&& other) noexcept;
 		Framebuffer& operator=(Framebuffer&& other) noexcept;
+	public:
 		operator VkFramebuffer() const;
+	public:
 		VkFramebuffer GetFramebuffer() const;
 		const VkExtent2D& GetExtent() const;
 		VkExtent3D GetExtent3D() const;

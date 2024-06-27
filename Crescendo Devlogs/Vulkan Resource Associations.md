@@ -1,4 +1,0 @@
-*Mind-bogglingly simple*
-![[Vulkan Resource Assocations - 1.png]]
-
-Both [Vulkan Tutorial](https://vulkan-tutorial.com/) and [VkGuide](https://vkguide.dev/)Are good starting points for learning the basics of rendering in vulkan. However both tutorials do not go into depth on the associations between each resource. Both tutorials use god-objects to represent the render state. While it provides a great overview and it is self contained, it does not lend itself to useful features like multi-window rendering. Knowing the associations of resources with each other also allows us to create our own wrappers and encapsulate information within each other.

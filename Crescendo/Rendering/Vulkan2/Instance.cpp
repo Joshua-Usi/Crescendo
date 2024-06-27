@@ -12,11 +12,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 			.appName = spec.appName,
 			.engineName = spec.engineName
 		});
-
-		for (const auto& window : spec.windows)
-		{
-			this->surfaces.emplace_back(this->instance, window);
-		}
 	}
 	Instance::Instance(Instance&& other) noexcept : instance(std::move(other.instance)), surfaces(std::move(other.surfaces))
 	{
@@ -34,9 +29,9 @@ CS_NAMESPACE_BEGIN::Vulkan
 	{
 		return this->surfaces[index];
 	}
-	void Instance::AddSurface(void* window, std::function<void()> swapchainRecreationCallback)
+	void Instance::CreateSurface(void* window, const Surface::SurfaceSpecification& spec)
 	{
-		this->surfaces.emplace_back(this->instance, window, swapchainRecreationCallback);
+		this->surfaces.emplace_back(this->instance, window, spec);
 	}
 	void Instance::RemoveSurface(size_t index)
 	{

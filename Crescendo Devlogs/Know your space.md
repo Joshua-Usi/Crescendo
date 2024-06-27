@@ -27,3 +27,5 @@ World Space = `_ws`
 View Space = `_vs`
 Screen Space = `_ss`
 Tangent Space = `_ts`
+
+You will also need to understand how combining different spaces leads to other spaces

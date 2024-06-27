@@ -32,5 +32,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		const VkPhysicalDeviceProperties& GetProperties() const;
 		const VkPhysicalDeviceFeatures& GetFeatures() const;
 		const VkPhysicalDeviceMemoryProperties& GetMemoryProperties() const;
+		VkPhysicalDeviceDescriptorIndexingFeatures GetDescriptorIndexingFeatures() const;
 	};
 }

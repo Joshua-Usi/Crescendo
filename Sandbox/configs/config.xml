@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <config>
-	<!-- internal render config (usually not modified by end-users) -->
-	<irc_descriptorsetsperpool>32</irc_descriptorsetsperpool>
+	<!-- internal render config (do not modify unless you know what you are doing) -->
 	<irc_validationlayers>true</irc_validationlayers>
+	<irc_maxbufferdescriptors_bindless>1024</irc_maxbufferdescriptors_bindless>
+	<irc_maxtexturedescriptors_bindless>1024</irc_maxtexturedescriptors_bindless>
 	<irc_maxobjectcount>8192</irc_maxobjectcount>
 	<irc_maxdirectionallightcount>16</irc_maxdirectionallightcount>
 	<irc_maxpointlightcount>256</irc_maxpointlightcount>
 	<irc_maxspotlightcount>256</irc_maxspotlightcount>
+	<!-- internal render config shaders -->
+	<ircs_depthprepass>./shaders/compiled/depth</ircs_depthprepass>
+	<ircs_postprocessing>./shaders/compiled/post_processing</ircs_postprocessing>
 	<!-- render config-->
 	<rc_framesinflight>3</rc_framesinflight>
 	<rc_multisamples>1</rc_multisamples>

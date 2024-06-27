@@ -5,7 +5,7 @@ This is just a log of what I do, how I implement stuff and what I learn in my en
 ### Pre-Alpha
 1. [[Reverse-Z]]
 2. [[Lights pt.1]]
-3. [[Vulkan Resource Associations]] 
+3. [[Vulkan Resource Managment]] 
 ### Alpha
 TBA
 ### Beta

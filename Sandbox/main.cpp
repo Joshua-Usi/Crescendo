@@ -8,56 +8,141 @@ using namespace CrescendoEngine;
 namespace math = cs_std::math;
 
 #include "scripts/CameraController.hpp"
-
 #include "cs_std/packed_vector.hpp"
-
 #include "Rendering/Vulkan2/Instance.hpp"
+#include "Rendering/Vulkan2/FrameManager.hpp"
+#include "Rendering/Vulkan2/ResourceManager.hpp"
+#include "Rendering/Vulkan2/Create.hpp"
+#include "Rendering/Vulkan2/raii/Pipeline.hpp"
+
+//struct {
+//	Vulkan::BufferHandle directionalLights;
+//};
+
+struct DepthPrepassParams
+{
+	Vulkan::BindlessDescriptorManager::BufferHandle camera;
+	Vulkan::BindlessDescriptorManager::BufferHandle meshTransforms;
+	uint32_t pad0;
+	uint32_t pad1;
+};
+
+struct MainPassParams
+{
+	Vulkan::BindlessDescriptorManager::BufferHandle directionalLights;
+	Vulkan::BindlessDescriptorManager::BufferHandle pointLights;
+	Vulkan::BindlessDescriptorManager::BufferHandle spotLights;
+	uint32_t pad0;
+};
+
+struct SkyboxParams
+{
+	Vulkan::BindlessDescriptorManager::BufferHandle camera;
+	Vulkan::BindlessDescriptorManager::ImageHandle skyboxTexture;
+	uint32_t pad0;
+	uint32_t pad1;
+};
 
 class Sandbox : public Application
 {
-private:
-	cs_std::packed_vector<Entity> entities;
-	uint32_t skyboxEntityIdx, activeCameraIdx;
-	std::vector<uint32_t> transformSSBOIdx;
-	std::vector<uint32_t> directionalLightSSBOIdx, pointLightSSBOIdx, spotLightSSBOIdx;
-
-	Vulkan::Instance instance;
-
-	int frame = 0;
-	double lastTime = 0.0;
 public:
-
 	void OnStartup()
 	{
-		this->GetWindow()->SetCursorLock(true);
+		Scene& currentScene = GetActiveScene();
 
-		Vulkan::InstanceSpecification spec
+		Entity cameraEntity = currentScene.entityManager.CreateEntity();
+		cameraEntity.EmplaceComponent<Name>("Main Camera");
+		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
+		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, this->GetWindow()->GetAspectRatio(), 0.1f, 1000.0f);
+		cameraEntity.EmplaceComponent<Behaviours>(std::make_shared<CameraController>());
+		cameraEntity.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 25.0f, math::radians(1.0f), math::radians(30.0f), true);
+		currentScene.activeCamera = cameraEntity;
+		currentScene.entities.insert(cameraEntity);
+	
+		// Default sky light
+		Entity skyLight = currentScene.entityManager.CreateEntity();
+		skyLight.EmplaceComponent<Name>("Default Sunlight");
+		skyLight.EmplaceComponent<Transform>(math::vec3(0.0f, 75.0f, 45.0f)).LookAt(math::vec3(0.0f, 0.0f, 0.0f));
+		skyLight.EmplaceComponent<DirectionalLight>(glm::vec3(0.992f, 0.984f, 0.827f), 0.5f, true);
+		currentScene.entities.insert(skyLight);
+
+		// Each of the different lights in the default sponza scene
+		std::vector<math::vec3> pointLights =
 		{
-			true,
-			"Sandbox", "Crescendo",
-			{ this->GetWindow()->GetNative() },
+			math::vec3(15.5f, 3.25f, -0.9f), math::vec3(-13.5f, 4.0f, 0.0f),
+
+			math::vec3(10.25f, 4.0f, 4.75f), math::vec3(6.25f, 4.0f, 4.75f),
+			math::vec3(2.25f, 4.0f, 4.75f), math::vec3(-1.75f, 4.0f, 4.75f),
+			math::vec3(-5.75f, 4.0f, 4.75f), math::vec3(-9.75f, 4.0f, 4.75f),
+
+			math::vec3(10.25f, 4.0f, -4.75f), math::vec3(6.25f, 4.0f, -4.75f),
+			math::vec3(2.25f, 4.0f, -4.75f), math::vec3(-1.75f, 4.0f, -4.75f),
+			math::vec3(-5.75f, 4.0f, -4.75f), math::vec3(-9.75f, 4.0f, -4.75f),
+
+			math::vec3(10.2f, 9.25f, 4.75f), math::vec3(1.8f, 9.25f, 4.75f),
+			math::vec3(-6.0f, 9.25f, 4.75f), math::vec3(-9.6f, 9.25f, 4.75f),
+
+			math::vec3(10.2f, 9.25f, -4.75f), math::vec3(1.8f, 9.25f, -4.75f),
+			math::vec3(-6.0f, 9.25f, -4.75f), math::vec3(-9.6f, 9.25f, -4.75f)
 		};
-		this->instance = Vulkan::Instance(spec);
+		for (uint32_t i = 0; i < pointLights.size(); i++)
+		{
+			Entity pointLight = currentScene.entityManager.CreateEntity();
+			pointLight.EmplaceComponent<Name>("Default Pointlight " + std::to_string(i));
+			pointLight.EmplaceComponent<Transform>(pointLights[i]);
+			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 2.5f, true);
+			currentScene.entities.insert(pointLight);
+		}
+		
+		// Camera following spotlight
+		Entity spotLight = currentScene.entityManager.CreateEntity();
+		spotLight.EmplaceComponent<Name>("Default Spotlight");
+		spotLight.EmplaceComponent<Transform>(math::vec3(15.0f, 1.0f, 0.0f));
+		spotLight.GetComponent<Transform>().LookAt(math::vec3(0.0f, 1.0f, 0.0f));
+		spotLight.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 500.0f, math::radians(1.0f), math::radians(12.5f), true);
+		currentScene.entities.insert(spotLight);
+
+		std::string assetPath = CVar::Get<std::string>("pc_assetpath");
+		cs_std::xml::document modelsXML(cs_std::text_file("./configs/models.xml").open().read());
+		std::vector<cs_std::graphics::model> models;
+		for (const auto& model : modelsXML)
+		{
+			if (model->tag == "gltf") models.push_back(LoadGLTF(assetPath + model->innerText));
+			else if (model->tag == "obj") models.push_back(LoadOBJ(assetPath + model->innerText));
+		}
+
+		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
+		cs_std::graphics::model skyboxModel;
+		cs_std::graphics::mesh skyboxMesh;
+		skyboxMesh.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices);
+		skyboxMesh.add_attribute(cs_std::graphics::Attribute::NORMAL, skybox.normals);
+		skyboxMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
+		skyboxMesh.indices = skybox.indices;
+		skyboxModel.add_mesh(skyboxMesh, {});
+		models.push_back(skyboxModel);
+
+		currentScene.LoadModels(models);
+
+		currentScene.entityManager.ForEach<Name>([&](Name& n) {
+			cs_std::console::log(n.name);
+		});
 	}
 	void OnUpdate(double dt)
 	{
-		// Frame counter
-		frame++;
-		if (this->GetTime() - this->lastTime >= 1.0)
-		{
-			this->lastTime += 1.0;
-			this->GetWindow()->SetName("Crescendo | FPS: " + std::to_string(this->frame));
-			this->frame = 0;
-		}
-
-		if (Input::GetKeyDown(Key::F11)) this->GetWindow()->SetFullScreen(!this->GetWindow()->IsFullScreen());
-		if (Input::GetMouseButtonDown(MouseButton::Left)) this->GetWindow()->SetCursorLock(true);
-		if (Input::GetKeyDown(Key::Escape)) this->GetWindow()->IsCursorLocked() ? this->GetWindow()->SetCursorLock(false) : this->Exit();
-		if (Input::GetKeyPressed(Key::ControlLeft) && Input::GetKeyPressed(Key::F5)) this->Restart();
+		this->PostUpdateInputs();
 	}
 	void OnExit()
 	{
 		cs_std::console::log("Exiting...");
+	}
+	void PostUpdateInputs()
+	{
+		Window* window = this->GetWindow();
+		Input* input = window->GetInput();
+		if (input->GetKeyDown(Key::F11)) window->SetFullScreen(!window->IsFullScreen());
+		if (input->GetMouseDown(MouseButton::Left)) window->SetCursorLock(true);
+		if (input->GetKeyPressed(Key::ControlLeft) && input->GetKeyPressed(Key::F5)) this->Restart();
+		if (input->GetKeyDown(Key::Escape)) (window->IsCursorLocked()) ? window->SetCursorLock(false) : this->Exit();
 	}
 };
 

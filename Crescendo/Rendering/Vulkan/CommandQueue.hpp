@@ -65,7 +65,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		/// </summary>
 		/// <param name="waitSemaphores">Semaphores to wait on</param>
 		/// <param name="signalSemaphores">Semaphores to signal to</param>
-		void Submit(const std::vector<VkSemaphore>& waitSemaphores = {}, const std::vector<VkPipelineStageFlags>& waitStages = {}, const std::vector<VkSemaphore>& signalSemaphores = {}) const;
+		void Submit(const std::vector<VkSemaphore>& waitSemaphores = {}, const std::vector<VkPipelineStageFlags>& waitStages = {}, const std::vector<VkSemaphore>& signalSemaphores = {});
 		void Submit(VkSemaphore waitSemaphore, VkPipelineStageFlags waitStage, VkSemaphore signalSemaphore);
 	public:
 		VkDevice GetDevice() const { return device; }

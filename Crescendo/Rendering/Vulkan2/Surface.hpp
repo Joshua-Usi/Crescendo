@@ -9,6 +9,12 @@ CS_NAMESPACE_BEGIN::Vulkan
 {
 	class Surface
 	{
+	public:
+		struct SurfaceSpecification
+		{
+			BindlessDescriptorManager::BindlessDescriptorManagerSpecification descriptorManagerSpec;
+			std::function<void()> swapchainRecreationCallback = nullptr;
+		};
 	private:
 		VkInstance instance;
 		Vk::Surface surface;
@@ -21,18 +27,21 @@ CS_NAMESPACE_BEGIN::Vulkan
 		bool needsRecreation;
 	public:
 		Surface();
-		Surface(Vk::Instance& instance, void* window, std::function<void()> swapchainRecreationCallback = nullptr);
+		Surface(Vk::Instance& instance, void* window, const SurfaceSpecification& spec);
 		~Surface();
 		Surface(const Surface&) = delete;
 		Surface& operator=(const Surface&) = delete;
 		Surface(Surface&& other) noexcept;
 		Surface& operator=(Surface&& other) noexcept;
+	public:
 		void* GetWindow() const;
 		Vk::PhysicalDevice& GetPhysicalDevice();
-		Vk::Device& GetDevice();
+		Device& GetDevice();
 		Vk::Swapchain& GetSwapchain();
 		Vk::Swapchain::Image& GetImage(size_t index);
+	public:
 		void RecreateSwapchain(VkPresentModeKHR presentMode = VK_PRESENT_MODE_MAILBOX_KHR);
-		uint32_t AcquireNextImage(VkSemaphore signalSemaphore, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+		void AcquireNextImage(VkSemaphore imageAvailableSemaphore, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+		void Present(VkQueue queue, VkSemaphore renderFinishSemaphore);
 	};
 }

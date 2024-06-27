@@ -31,6 +31,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		allocatorInfo.instance = instance;
 		allocatorInfo.physicalDevice = physicalDevice;
 		allocatorInfo.pVulkanFunctions = &vma_vulkan_func;
+		allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
 
 		vmaCreateAllocator(&allocatorInfo, &this->allocator);
 	}

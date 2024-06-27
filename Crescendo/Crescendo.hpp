@@ -12,7 +12,7 @@
 #include "entrypoint.hpp"
 
 #include "Engine/Engine.hpp"
-#include "IO/IO.hpp"
+#include "Assets/Assets.hpp"
 #include "Libraries/Libraries.hpp"
 #include "Rendering/Rendering.hpp"
 

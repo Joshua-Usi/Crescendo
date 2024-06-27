@@ -1,7 +1,5 @@
 #include "ModelLoaders.hpp"
-
 #include "rapidobj/rapidobj.hpp"
-
 #include "cs_std/math/math.hpp"
 
 CS_NAMESPACE_BEGIN
