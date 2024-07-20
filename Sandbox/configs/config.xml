@@ -11,6 +11,8 @@
 	<!-- internal render config shaders -->
 	<ircs_depthprepass>./shaders/compiled/depth</ircs_depthprepass>
 	<ircs_postprocessing>./shaders/compiled/post_processing</ircs_postprocessing>
+	<ircs_main>./shaders/compiled/main</ircs_main>
+	<ircs_skybox>./shaders/compiled/skybox_sphere</ircs_skybox>
 	<!-- render config-->
 	<rc_framesinflight>3</rc_framesinflight>
 	<rc_multisamples>1</rc_multisamples>

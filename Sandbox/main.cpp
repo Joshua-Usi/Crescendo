@@ -8,24 +8,6 @@ using namespace CrescendoEngine;
 namespace math = cs_std::math;
 
 #include "scripts/CameraController.hpp"
-#include "cs_std/packed_vector.hpp"
-#include "Rendering/Vulkan2/Instance.hpp"
-#include "Rendering/Vulkan2/FrameManager.hpp"
-#include "Rendering/Vulkan2/ResourceManager.hpp"
-#include "Rendering/Vulkan2/Create.hpp"
-#include "Rendering/Vulkan2/raii/Pipeline.hpp"
-
-//struct {
-//	Vulkan::BufferHandle directionalLights;
-//};
-
-struct DepthPrepassParams
-{
-	Vulkan::BindlessDescriptorManager::BufferHandle camera;
-	Vulkan::BindlessDescriptorManager::BufferHandle meshTransforms;
-	uint32_t pad0;
-	uint32_t pad1;
-};
 
 struct MainPassParams
 {
@@ -45,6 +27,10 @@ struct SkyboxParams
 
 class Sandbox : public Application
 {
+private:
+	// fps timers
+	double lastTime = 0.0;
+	uint32_t frames = 0;
 public:
 	void OnStartup()
 	{
@@ -111,6 +97,7 @@ public:
 			else if (model->tag == "obj") models.push_back(LoadOBJ(assetPath + model->innerText));
 		}
 
+		// Convert a construct mesh to a compatible model
 		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
 		cs_std::graphics::model skyboxModel;
 		cs_std::graphics::mesh skyboxMesh;
@@ -137,12 +124,22 @@ public:
 	}
 	void PostUpdateInputs()
 	{
+
 		Window* window = this->GetWindow();
 		Input* input = window->GetInput();
 		if (input->GetKeyDown(Key::F11)) window->SetFullScreen(!window->IsFullScreen());
 		if (input->GetMouseDown(MouseButton::Left)) window->SetCursorLock(true);
 		if (input->GetKeyPressed(Key::ControlLeft) && input->GetKeyPressed(Key::F5)) this->Restart();
 		if (input->GetKeyDown(Key::Escape)) (window->IsCursorLocked()) ? window->SetCursorLock(false) : this->Exit();
+
+		double currentTime = this->GetTime();
+		frames++;
+		if (currentTime - lastTime >= 1.0)
+		{
+			window->SetName("Crescendo Sandbox | " + std::to_string(frames) + " fps");
+			frames = 0;
+			lastTime += 1.0;
+		}
 	}
 };
 

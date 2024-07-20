@@ -10,7 +10,6 @@
 #include "Rendering/Vulkan2/Instance.hpp"
 #include "Rendering/Vulkan2/ResourceManager.hpp"
 #include "Rendering/Vulkan2/FrameManager.hpp"
-#include "Rendering/Vulkan2/CommandPass/CommandPass.hpp"
 
 CS_NAMESPACE_BEGIN
 {
@@ -30,7 +29,24 @@ CS_NAMESPACE_BEGIN
 		Vulkan::Instance instance;
 		Vulkan::ResourceManager resourceManager;
 		Vulkan::FrameManager frameManager;
-		std::vector<Vulkan::CommandPass*> passes;
+	private:
+		Vulkan::Vk::Pipeline postProcessingPipeline;
+		Vulkan::Vk::Sampler postProcessingSampler;
+
+		Vulkan::Vk::RenderPass depthRenderPass;
+		Vulkan::Vk::Framebuffer depthFramebuffer;
+		Vulkan::Vk::Image depthImage;
+		Vulkan::Vk::Pipeline depthPipeline;
+
+		Vulkan::Vk::RenderPass mainRenderPass;
+		Vulkan::Vk::Pipeline mainPipeline;
+		Vulkan::Vk::Image mainImage;
+		Vulkan::Vk::Framebuffer mainFramebuffer;
+
+		std::vector<Vulkan::BufferHandle> transformsHandle;
+		Vulkan::TextureHandle bufferHandle;
+
+		uint32_t frameIdx = 0;
 	protected:
 		cs_std::task_queue taskQueue;
 	private:

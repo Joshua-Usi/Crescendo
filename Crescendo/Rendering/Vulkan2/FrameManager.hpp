@@ -13,6 +13,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Vk::GraphicsCommandQueue commandBuffer;
 		Vk::Semaphore imageAvailable, renderFinished;
 		Vk::Fence inFlight;
+		VkDescriptorSet globalDescriptorSet;
 	};
 
 	class FrameManager
@@ -31,6 +32,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	public:
 		FrameResources& GetCurrentFrame();
 		uint32_t GetCurrentFrameIndex();
+		uint32_t GetFrameCount();
 		void AdvanceFrame();
 
 	};

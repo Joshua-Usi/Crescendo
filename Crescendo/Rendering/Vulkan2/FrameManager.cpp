@@ -27,5 +27,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	FrameResources& FrameManager::GetCurrentFrame() { return this->frames[this->currentFrame]; }
 	uint32_t FrameManager::GetCurrentFrameIndex() { return this->currentFrame; }
+	uint32_t FrameManager::GetFrameCount() { return static_cast<uint32_t>(this->frames.size()); }
 	void FrameManager::AdvanceFrame() { this->currentFrame = (this->currentFrame + 1) % this->frames.size(); }
 }

@@ -49,5 +49,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 		operator const Vk::Device& () const;
 		operator VkDevice() const;
 		BindlessDescriptorManager& GetBindlessDescriptorManager();
+		Allocator& GetAllocator();
 	};
 }

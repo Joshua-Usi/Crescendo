@@ -6,7 +6,7 @@ layout(location = 0) in vec2 iTexCoord;
 layout(location = 0) out vec4 oColor;
 
 layout(push_constant) uniform PushConstants {
-	uint imageIndex;
+	uint imageIdx;
 };
 
 vec3 ACESFilm(vec3 x) {
@@ -19,7 +19,7 @@ vec3 ACESFilm(vec3 x) {
 
 void main()
 {
-	vec3 hdrColor = texture(uTextures2D[imageIndex], iTexCoord).rgb;
+	vec3 hdrColor = texture(uTextures2D[imageIdx], iTexCoord).rgb;
 
 	// Tonemapped with ACES
 	oColor = vec4(ACESFilm(hdrColor), 1.0f);
@@ -34,7 +34,7 @@ void main()
 	// oColor = vec4(1.0f - pow(texture(image, iTexCoord).rgb, vec3(1.0f / 2.2f)), 1.0f);
 
 	// Half unmodified, half inverted
-	// vec3 color = texture(image, iTexCoord).rgb;
+	// vec3 color = hdrColor;
 	// if (iTexCoord.x < 0.5f) oColor = vec4(color, 1.0f);
 	// else oColor = vec4(1.0f - pow(color, vec3(1.0f / 2.2f)), 1.0f);
 

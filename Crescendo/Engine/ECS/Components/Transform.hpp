@@ -50,7 +50,14 @@ CS_NAMESPACE_BEGIN
 		// No rotation, no scale
 		Transform(const cs_std::math::vec3& position) : rotation(0.0f, 0.0f, 0.0f, 1.0f), position(position), scale(1.0f, 1.0f, 1.0f) {}
 		// If given a matrix, extract the position, rotation, and scale from it
-		Transform(const cs_std::math::mat4& matrix) : rotation(cs_std::math::quat_cast(matrix)), position(matrix[3]), scale(cs_std::math::vec3(cs_std::math::length(matrix[0]), cs_std::math::length(matrix[1]), cs_std::math::length(matrix[2]))) {}
+		Transform(const cs_std::math::mat4& matrix) : position(cs_std::math::vec3(matrix[3])), scale(cs_std::math::vec3(cs_std::math::length(cs_std::math::vec3(matrix[0])), cs_std::math::length(cs_std::math::vec3(matrix[1])), cs_std::math::length(cs_std::math::vec3(matrix[2]))))
+		{
+			glm::mat3 rotationMatrix;
+			rotationMatrix[0] = cs_std::math::vec3(matrix[0]) / scale.x;
+			rotationMatrix[1] = cs_std::math::vec3(matrix[1]) / scale.y;
+			rotationMatrix[2] = cs_std::math::vec3(matrix[2]) / scale.z;
+			rotation = cs_std::math::quat_cast(rotationMatrix);
+		}
 
 		cs_std::math::mat4 GetModelMatrix() const { return cs_std::math::translate(cs_std::math::mat4_cast(rotation), position) * cs_std::math::scale(cs_std::math::mat4(1.0f), scale); }
 		cs_std::math::mat4 GetCameraViewMatrix() const { return cs_std::math::mat4_cast(cs_std::math::inverse(this->rotation)) * cs_std::math::translate(cs_std::math::mat4(1.0f), -this->position); }

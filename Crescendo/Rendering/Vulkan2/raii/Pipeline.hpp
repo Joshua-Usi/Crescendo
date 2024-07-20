@@ -34,7 +34,10 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		Pipeline(Pipeline&& other) noexcept;
 		Pipeline& operator=(Pipeline&& other) noexcept;
 	public:
+		const PipelineVariants& GetVariants() const;
 		operator VkPipelineLayout() const;
+		// If used in this way, returns the first pipeline in the list, useful for pipelines with single variants
+		operator VkPipeline() const;
 		VkPipeline operator [](uint32_t index) const;
 		VkDescriptorSetLayout GetDescriptorSetLayout() const;
 	};

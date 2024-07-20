@@ -3,19 +3,15 @@
 
 layout (location = 0) in vec3 iPosition;
 
+layout (push_constant) uniform PushConstants {
+	uint cameraIdx;
+	uint transformBufferIdx;
+};
 
-RegisterUniform(Camera, {
-	mat4 viewProjection;
-});
-
-RegisterBuffer(std430, readonly, ModelBuffer, {
-	mat4 modelBuffer[];
-});
-
-
+RegisterBuffer(std430, readonly, TransformBuffer, { mat4 transformBuffer[]; });
 
 void main() {
-	const mat4 model = GetResource(ModelBuffer, 0).modelBuffer[gl_InstanceIndex];
-	const mat4 vp = GetResource(Camera, 0).viewProjection;
+	const mat4 model = GetResource(TransformBuffer, transformBufferIdx).transformBuffer[gl_InstanceIndex];
+	const mat4 vp = GetResource(TransformBuffer, transformBufferIdx).transformBuffer[cameraIdx];
 	gl_Position = vp * model * vec4(iPosition, 1.0);
 }

@@ -23,6 +23,9 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		Image(Image&& other) noexcept;
 		Image& operator=(Image&& other) noexcept;
 	public:
+		VkImage GetImage();
+		VkImageView GetImageView();
+	public:
 		operator VkImage() const;
 		operator VkImageView() const;
 	};

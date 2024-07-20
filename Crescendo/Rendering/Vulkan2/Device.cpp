@@ -36,4 +36,5 @@ CS_NAMESPACE_BEGIN::Vulkan
 	Device::operator const Vk::Device& () const { return this->device; }
 	Device::operator VkDevice() const { return this->device; }
 	BindlessDescriptorManager& Device::GetBindlessDescriptorManager() { return this->descriptorManager; };
+	Allocator& Device::GetAllocator() { return this->allocator; };
 }

@@ -14,7 +14,6 @@ CS_NAMESPACE_BEGIN
 			auto& bindlessManager = app->instance.GetSurface(0).GetDevice().GetBindlessDescriptorManager();
 
 			uint32_t textureIndex = 0;
-			const uint32_t currentTextureCount = resourceManager.GetTextureCount();
 
 			struct TextureInfo { uint32_t textureIdx; Vulkan::ResourceManager::Colorspace colorspace; };
 
@@ -40,6 +39,7 @@ CS_NAMESPACE_BEGIN
 					if (!mesh.has_attribute(cs_std::graphics::Attribute::TANGENT)) cs_std::graphics::generate_tangents(mesh);
 					Vulkan::MeshHandle meshHandle = resourceManager.UploadMesh(mesh);
 
+
 					if (!attributes.diffuse.empty() && textureMap.find(attributes.diffuse) == textureMap.end())
 					{
 						textureMap[attributes.diffuse].textureIdx = textureIndex;
@@ -56,9 +56,15 @@ CS_NAMESPACE_BEGIN
 					Entity entity = entityManager.CreateEntity();
 					entity.EmplaceComponent<Name>("Mesh");
 					entity.EmplaceComponent<Transform>(attributes.transform);
-					entity.EmplaceComponent<MeshData>(cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data).transform(attributes.transform), meshHandle);
-					//entity.EmplaceComponent<Material>(0, textureMap[attributes.diffuse].textureIdx + currentTextureCount, textureMap[attributes.normal].textureIdx + currentTextureCount, attributes.isTransparent, attributes.isDoubleSided, true);
-					entity.EmplaceComponent<Material>(0, Vulkan::TextureHandle(), Vulkan::TextureHandle(), attributes.isTransparent, attributes.isDoubleSided, true);
+					entity.EmplaceComponent<MeshData>(cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data), meshHandle);
+					entity.EmplaceComponent<Material>(0, Vulkan::TextureHandle(), Vulkan::TextureHandle(), attributes.isTransparent, attributes.isDoubleSided, !attributes.isTransparent);
+
+					EntityTextureInfo info;
+					info.entity = entity;
+					info.expectedDiffuseTextureIdx = textureMap.find(attributes.diffuse) != textureMap.end() ? textureMap[attributes.diffuse].textureIdx : 0;
+					info.expectedNormalTextureIdx = textureMap.find(attributes.normal) != textureMap.end() ? textureMap[attributes.normal].textureIdx : 0;
+
+					entityTextureInfo.push_back(info);
 				}
 			}
 
@@ -94,7 +100,7 @@ CS_NAMESPACE_BEGIN
 
 			for (auto& info : entityTextureInfo)
 			{
-				Material material = info.entity.GetComponent<Material>();
+				Material& material = info.entity.GetComponent<Material>();
 				if (info.expectedDiffuseTextureIdx != -1) material.diffuseHandle = textures[info.expectedDiffuseTextureIdx];
 				if (info.expectedNormalTextureIdx != -1) material.normalHandle = textures[info.expectedNormalTextureIdx];
 

@@ -137,7 +137,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		this->Submit();
 		// No gaurantee that the user has not created an infinite loop
 		this->WaitCompletion(timeout);
-		this->ResetPool();
+		this->Reset();
 	}
 	
 	void TransferCommandQueue::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, const VkBufferCopy& region) const
@@ -168,6 +168,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		this->Submit();
 		// No gaurantee that the user has not created an infinite loop
 		this->WaitCompletion(timeout);
-		this->ResetPool();
+		this->Reset();
 	}
 }

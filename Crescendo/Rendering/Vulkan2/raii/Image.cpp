@@ -69,6 +69,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		this->imageView = other.imageView; other.imageView = nullptr;
 		return *this;
 	}
+	VkImage Image::GetImage() { return image; }
+	VkImageView Image::GetImageView() { return imageView; }
 	Image::operator VkImage() const { return image; }
 	Image::operator VkImageView() const { return imageView; }
 }

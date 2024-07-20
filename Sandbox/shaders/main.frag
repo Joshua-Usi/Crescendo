@@ -1,4 +1,5 @@
 #version 460
+#include "bindless.glsl"
 
 struct DirectionalLight {
 	vec4 direction; // x, y, z, intensity
@@ -22,15 +23,23 @@ layout (location = 2) in mat3 iTBN;
 
 layout (location = 0) out vec4 oColor;
 
-layout(set = 2, binding = 0) uniform Camera { vec4 viewPos; }; // a unused
-layout(set = 3, binding = 0) uniform LightCounts { uint directionalLightCount, pointLightCount, spotLightCount; };
+layout(push_constant) uniform PushConstants {
+	layout(offset = 8) uint diffuseTexIdx;
+	uint normalTexIdx;
+	// uint directionalLightCount;
+	// uint pointLightCount;
+	// uint spotLightCount;
+	// uint shadowTexCount;
+};
 
-layout(std140, set = 4, binding = 0) readonly buffer DirectionalLightStorage { DirectionalLight directionalLights[]; };
-layout(std140, set = 5, binding = 0) readonly buffer PointLightStorage { PointLight pointLights[]; };
-layout(std140, set = 6, binding = 0) readonly buffer SpotLightStorage { SpotLight spotLights[]; };
+// layout(set = 2, binding = 0) uniform Camera { vec4 viewPos; }; // a unused
 
-layout(set = 7, binding = 0) uniform sampler2D diffuseTex;
-layout(set = 8, binding = 0) uniform sampler2D normalTex;
+// layout(std140, set = 4, binding = 0) readonly buffer DirectionalLightStorage { DirectionalLight directionalLights[]; };
+// layout(std140, set = 5, binding = 0) readonly buffer PointLightStorage { PointLight pointLights[]; };
+// layout(std140, set = 6, binding = 0) readonly buffer SpotLightStorage { SpotLight spotLights[]; };
+
+// layout(set = 7, binding = 0) uniform sampler2D diffuseTex;
+// layout(set = 8, binding = 0) uniform sampler2D normalTex;
 // layout(set = 9, binding = 0) uniform sampler2D shadowTexs[];
 
 // Standard hard shadows
@@ -105,31 +114,32 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal_ws, vec3 viewDir_ws, vec3 fragme
 
 void main()	
 {
-	vec4 texelColor = texture(diffuseTex, iTexCoord);
+	vec4 texelColor = texture(uTextures2D[diffuseTexIdx], iTexCoord);
+	vec4 normalColor = texture(uTextures2D[normalTexIdx], iTexCoord);
 	/* ---------------- Lighting ---------------- */
 
-	vec3 normal_ws = normalize((texture(normalTex, iTexCoord).rgb) * 2.0f - 1.0f);
-	vec3 viewDir_ws = normalize(viewPos.xyz - iPosition_ws);
+	// vec3 normal_ws = normalize(normalColor.rgb) * 2.0f - 1.0f);
+	// vec3 viewDir_ws = normalize(viewPos.xyz - iPosition_ws);
 
-	vec3 outputColor = vec3(0.0f);
+	vec3 outputColor = vec3(1.0f);
 
 	// Directional lights
-	for (uint i = 0; i < directionalLightCount; i++)
-	{
-		outputColor += CalcDirectionalLight(directionalLights[i], normal_ws, viewDir_ws);
-	}
+	// for (uint i = 0; i < directionalLightCount; i++)
+	// {
+	// 	outputColor += CalcDirectionalLight(directionalLights[i], normal_ws, viewDir_ws);
+	// }
 
 	// Point lights
-	for (uint i = 0; i < pointLightCount; i++)
-	{
-		outputColor += CalcPointLight(pointLights[i], normal_ws, viewDir_ws, iPosition_ws);
-	}
+	// for (uint i = 0; i < pointLightCount; i++)
+	// {
+	// 	outputColor += CalcPointLight(pointLights[i], normal_ws, viewDir_ws, iPosition_ws);
+	// }
 
 	// Spot lights
-	for (uint i = 0; i < spotLightCount; i++)
-	{
-		outputColor += CalcSpotLight(spotLights[i], normal_ws, viewDir_ws, iPosition_ws);
-	}
+	// for (uint i = 0; i < spotLightCount; i++)
+	// {
+	// 	outputColor += CalcSpotLight(spotLights[i], normal_ws, viewDir_ws, iPosition_ws);
+	// }
 
 	/* ---------------- Shadows ---------------- */
 	

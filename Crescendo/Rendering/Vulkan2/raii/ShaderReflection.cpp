@@ -133,6 +133,13 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	const ShaderReflection::InterfaceVariable& ShaderReflection::GetOutputVariable(size_t idx) const { return this->outputVariables[idx]; }
 	const ShaderReflection::DescriptorSetLayout& ShaderReflection::GetDescriptorSetLayout(size_t idx) const { return this->descriptorSetLayouts[idx]; }
 	const ShaderReflection::PushConstantLayout& ShaderReflection::GetPushConstantLayout(size_t idx) const { return this->pushConstants[idx]; }
+	const uint32_t ShaderReflection::GetPushConstantSize() const
+	{
+		uint32_t size = 0;
+		for (const auto& pushConstant : this->pushConstants) size += pushConstant.GetSize();
+		return size;
+	
+	}
 	VkVertexInputBindingDescription ShaderReflection::GenerateVertexBindingDescription(uint32_t idx) const
 	{
 		return Create::VertexInputBindingDescription(this->inputVariables[idx].location, this->inputVariables[idx].size, VK_VERTEX_INPUT_RATE_VERTEX);
@@ -153,9 +160,9 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		}
 		return bindings;
 	}
-	VkPushConstantRange ShaderReflection::GeneratePushConstantRange(uint32_t idx, ShaderStage stage) const
+	VkPushConstantRange ShaderReflection::GeneratePushConstantRange(uint32_t idx, ShaderStage stage, uint32_t offset) const
 	{
-		return Create::PushConstantRange(static_cast<VkShaderStageFlags>(stage), 0, this->pushConstants[idx].GetSize());
+		return Create::PushConstantRange(static_cast<VkShaderStageFlags>(stage), offset, this->pushConstants[idx].GetSize());
 	}
 	std::vector<VkVertexInputBindingDescription> ShaderReflection::GenerateVertexBindings() const
 	{
@@ -184,12 +191,12 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		}
 		return bindings;
 	}
-	std::vector<VkPushConstantRange> ShaderReflection::GeneratePushConstantRanges(ShaderStage stage) const
+	std::vector<VkPushConstantRange> ShaderReflection::GeneratePushConstantRanges(ShaderStage stage, uint32_t offset) const
 	{
 		std::vector<VkPushConstantRange> ranges(this->GetPushConstantLayoutCount());
 		for (uint32_t i = 0; i < this->pushConstants.size(); i++)
 		{
-			ranges[i] = this->GeneratePushConstantRange(i, stage);
+			ranges[i] = this->GeneratePushConstantRange(i, stage, offset);
 		}
 		return ranges;
 	}

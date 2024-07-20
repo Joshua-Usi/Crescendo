@@ -12,6 +12,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			.build();
 		if (!deviceResult) cs_std::console::error("Failed to build device: ", deviceResult.error().message());
 
+		cs_std::console::info("Using bindless codepath");
+
 		const vkb::Device& device = deviceResult.value();
 		this->device = device;
 
@@ -20,8 +22,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		auto transfer = device.get_queue(vkb::QueueType::transfer);
 		auto compute = device.get_queue(vkb::QueueType::compute);
 
-		const bool hasDedicatedTransfer = universal.value() == transfer.value();
-		const bool hasDedicatedCompute = universal.value() == transfer.value();
+		const bool hasDedicatedTransfer = transfer.has_value() && universal.value() == transfer.value();
+		const bool hasDedicatedCompute = compute.has_value() && universal.value() == compute.value();
 
 		if (!universal.has_value()) cs_std::console::fatal("Failed to get universal queue: ", universal.error().message());
 		if (!hasDedicatedTransfer) cs_std::console::warn("Device does not have a dedicated transfer queue. Falling back to universal"); // Fallback to universal

@@ -6,14 +6,14 @@ include_files = {
 	"%{prj.name}/**.h",
 	"%{prj.name}/**.c",
 	-- Volk
-	"C:/VulkanSDK/1.3.250.1/Include/Volk/volk.c",
+	"C:/VulkanSDK/1.3.283.0/Include/Volk/volk.c",
 }
 exclude_files = {}
 library_dirs = {
 	"%{wks.location}/Crescendo/Libraries/ThirdParty/glfw/libs",
 }
 engine_dirs = {
-	"C:/VulkanSDK/1.3.250.1/Include",
+	"C:/VulkanSDK/1.3.283.0/Include",
 	"%{wks.location}/Crescendo",
 	"%{wks.location}/Crescendo/Libraries/ThirdParty",
 	"%{wks.location}/Crescendo/Libraries/ThirdParty/ImGui",

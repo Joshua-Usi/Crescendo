@@ -59,15 +59,12 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		// Get push constant range
 		const std::vector<VkPushConstantRange> pushConstantRanges = cs_std::combine(
 			vertexReflection.GeneratePushConstantRanges(ShaderReflection::ShaderStage::Vertex),
-			fragmentReflection.GeneratePushConstantRanges(ShaderReflection::ShaderStage::Fragment)
+			fragmentReflection.GeneratePushConstantRanges(ShaderReflection::ShaderStage::Fragment, vertexReflection.GetPushConstantSize())
 		);
 
 		// Create the pipeline layout
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(&descriptorSetLayout, pushConstantRanges);
 		CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &layout) == VK_SUCCESS, "Failed to create pipeline layout!");
-
-		// Generate each pipeline
-		std::vector<VkPipeline> pipelines;
 
 		// Cache stages
 		std::vector<VkPipelineShaderStageCreateInfo> stages;
@@ -84,7 +81,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			const VkPipelineVertexInputStateCreateInfo vertexInputInfo = Create::PipelineVertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
 			const VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = Create::PipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
 			const VkPipelineViewportStateCreateInfo viewportState = Create::PipelineViewportStateCreateInfo();
-			const VkPipelineRasterizationStateCreateInfo rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(VK_FALSE, VK_FALSE, PipelineVariants::GetPolygonMode(variant.fillModeFlags), PipelineVariants::GetCullMode(variant.cullModeFlags), VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f);
+			const VkPipelineRasterizationStateCreateInfo rasterizerInfo = Create::PipelineRasterizationStateCreateInfo(VK_FALSE, VK_FALSE, PipelineVariants::GetPolygonMode(variant.fillModeFlags), PipelineVariants::GetCullMode(variant.cullModeFlags), VK_FRONT_FACE_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f);
 			const VkPipelineMultisampleStateCreateInfo multisamplingInfo = Create::PipelineMultisampleStateCreateInfo(PipelineVariants::GetMultisamples(variant.multisampleFlags), VK_TRUE, 1.0f, nullptr, VK_FALSE, VK_FALSE);
 			const VkPipelineDepthStencilStateCreateInfo depthStencilInfo = Create::PipelineDepthStencilStateCreateInfo(0, PipelineVariants::GetDepthTest(variant.depthTestFlags), PipelineVariants::GetDepthWrite(variant.depthWriteFlags), PipelineVariants::GetDepthFunc(variant.depthFuncFlags), VK_FALSE, VK_FALSE, {}, {}, 1.0f, 0.0f); // For reverse Z 
 			const VkPipelineDynamicStateCreateInfo dynamicState = Create::PipelineDynamicStateCreateInfo(dynamicStates);
@@ -123,7 +120,9 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		}
 		return *this;
 	}
+	const PipelineVariants& Pipeline::GetVariants() const { return variants; }
 	Pipeline::operator VkPipelineLayout() const { return layout; }
+	Pipeline::operator VkPipeline() const { return pipelines[0]; }
 	VkPipeline Pipeline::operator [](uint32_t index) const { return pipelines[index]; }
 	VkDescriptorSetLayout Pipeline::GetDescriptorSetLayout() const { return descriptorSetLayout; }
 }

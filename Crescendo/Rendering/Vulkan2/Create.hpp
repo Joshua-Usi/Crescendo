@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "Volk/volk.h"
+#include "vma/vk_mem_alloc.h"
 #include <concepts>
 #include <cstddef>
 #include <type_traits>
@@ -376,12 +377,12 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 		return createInfo;
 	}
 	template<ValidType<uint32_t> QueueFamilyIndices>
-	inline constexpr VkBufferCreateInfo BufferCreateInfo(const void* pNext, VkBufferCreateFlags flags, VkDeviceSize size, VkBufferUsageFlags usage, VkSharingMode sharingMode, const QueueFamilyIndices& queueFamilyIndices)
+	inline constexpr VkBufferCreateInfo BufferCreateInfo(VkBufferCreateFlags flags, VkDeviceSize size, VkBufferUsageFlags usage, VkSharingMode sharingMode, const QueueFamilyIndices& queueFamilyIndices)
 	{
 		VkBufferCreateInfo createInfo = {};
 
 		createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		createInfo.pNext = pNext;
+		createInfo.pNext = nullptr;
 		createInfo.flags = flags;
 		createInfo.size = size;
 		createInfo.usage = usage;
@@ -817,6 +818,15 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 		createInfo.pNext = nullptr;
 		CS_CREATE_SET_CONCEPT_FIELD(createInfo.bindingCount, BindingFlags, VkDescriptorBindingFlags, static_cast<uint32_t>(pBindingFlags.size()), pBindingFlags != nullptr);
 		CS_CREATE_SET_CONCEPT_FIELD(createInfo.pBindingFlags, BindingFlags, VkDescriptorBindingFlags, pBindingFlags.data(), pBindingFlags);
+
+		return createInfo;
+	}
+	inline constexpr VmaAllocationCreateInfo AllocationCreateInfo(VmaMemoryUsage memUsage)
+	{
+		VmaAllocationCreateInfo createInfo = {};
+
+		createInfo.flags = 0;
+		createInfo.usage = memUsage;
 
 		return createInfo;
 	}

@@ -73,16 +73,18 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		const InterfaceVariable& GetOutputVariable(size_t idx) const;
 		const DescriptorSetLayout& GetDescriptorSetLayout(size_t idx) const;
 		const PushConstantLayout& GetPushConstantLayout(size_t idx) const;
+		// Size in bytes
+		const uint32_t GetPushConstantSize() const;
 
 		VkVertexInputBindingDescription GenerateVertexBindingDescription(uint32_t idx) const;
 		VkVertexInputAttributeDescription GenerateVertexAttributeDescription(uint32_t idx) const;
 		std::vector<VkDescriptorSetLayoutBinding> GenerateDescriptorSetLayoutBinding(uint32_t idx, ShaderStage stage) const;
-		VkPushConstantRange GeneratePushConstantRange(uint32_t idx, ShaderStage stage) const;
+		VkPushConstantRange GeneratePushConstantRange(uint32_t idx, ShaderStage stage, uint32_t offset) const;
 
 		std::vector<VkVertexInputBindingDescription> GenerateVertexBindings() const;
 		std::vector<VkVertexInputAttributeDescription> GenerateVertexAttributes() const;
 		std::vector<std::vector<VkDescriptorSetLayoutBinding>> GenerateDescriptorSetLayoutBindings(ShaderStage stage) const;
-		std::vector<VkPushConstantRange> GeneratePushConstantRanges(ShaderStage stage) const;
+		std::vector<VkPushConstantRange> GeneratePushConstantRanges(ShaderStage stage, uint32_t offset = 0) const;
 	};
 	CS_DEFINE_ENUM_CLASS_OR_OPERATOR(ShaderReflection::ShaderStage);
 }

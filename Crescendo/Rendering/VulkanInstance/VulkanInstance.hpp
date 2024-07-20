@@ -96,7 +96,7 @@ CS_NAMESPACE_BEGIN
 		uint32_t CreateDepthPrepass(VkRenderPass renderPass, VkFormat format, VkSampleCountFlagBits multisamples, uint32_t width, uint32_t height);
 		uint32_t CreateSSBO(size_t size, VkShaderStageFlags shaderStage);
 
-		uint32_t UploadMesh(const cs_std::graphics::mesh& mesh);
+		uint32_t UploadMesh(const cs_std::graphics::mesh<uint32_t>& mesh);
 		uint32_t UploadTexture(const cs_std::image& image, Colorspace colorSpace = Colorspace::SRGB, bool generateMipmaps = false);
 
 		Vulkan::RenderCommandQueue& GetCurrentRenderCommandQueue() { return renderCommandQueues[frameIndex]; }

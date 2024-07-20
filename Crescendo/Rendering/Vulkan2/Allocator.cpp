@@ -13,7 +13,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	Vk::Buffer Allocator::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
 	{
-		VkBufferCreateInfo bufferInfo = Create::BufferCreateInfo(nullptr, 0, size, usage, VK_SHARING_MODE_EXCLUSIVE, nullptr);
+		VkBufferCreateInfo bufferInfo = Create::BufferCreateInfo(0, size, usage, VK_SHARING_MODE_EXCLUSIVE, nullptr);
 		VmaAllocationCreateInfo vmaAllocInfo{};
 		vmaAllocInfo.usage = memoryUsage;
 		return Vk::Buffer(this->allocator, bufferInfo, vmaAllocInfo);

@@ -40,7 +40,7 @@ public:
 		if (input->GetKeyPressed(Key::D)) this->transform->MoveAlongRight(velocity);
 
 		if (input->GetKeyPressed(Key::Space)) this->transform->Move(math::vec3(0.0f, velocity, 0.0f));
-		// if (input->GetKeyPressed(Key::ShiftLeft)) this->transform->Move(math::vec3(0.0f, -velocity, 0.0f));
+		if (input->GetKeyPressed(Key::ShiftLeft)) this->transform->Move(math::vec3(0.0f, -velocity, 0.0f));
 
 		if (input->GetKeyDown(Key::L))
 		{

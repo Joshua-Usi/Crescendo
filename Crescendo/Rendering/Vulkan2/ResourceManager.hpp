@@ -16,11 +16,12 @@
 class name\
 {\
 private:\
-	cs_std::slotmap_key64<type> key;\
+	cs_std::slotmap_key<type> key;\
 public:\
 	name() = default;\
-	name(cs_std::slotmap_key64<type> key) : key(key) {}\
-	operator cs_std::slotmap_key64<type>() const { return key; }\
+	name(cs_std::slotmap_key<type> key) : key(key) {}\
+	operator cs_std::slotmap_key<type>() const { return key; }\
+	uint32_t GetIndex() const { return cs_std::slotmap_key<type>::toIndex(key); }\
 };
 
 CS_NAMESPACE_BEGIN::Vulkan
@@ -30,7 +31,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Vk::Buffer buffer;
 		BindlessDescriptorManager::BufferHandle handle;
 		Buffer() = default;
-		Buffer(Vk::Buffer&& Buffer, BindlessDescriptorManager::BufferHandle handle) : buffer(std::move(buffer)), handle(handle) {}
+		Buffer(Vk::Buffer&& b, BindlessDescriptorManager::BufferHandle handle) : buffer(std::move(b)), handle(handle) {}
 	};
 
 	struct Texture
@@ -39,7 +40,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkSampler sampler;
 		BindlessDescriptorManager::ImageHandle handle;
 		Texture() = default;
-		Texture(Vk::Image&& image, VkSampler sampler, BindlessDescriptorManager::ImageHandle handle) : image(std::move(image)), sampler(sampler), handle(handle) {}
+		Texture(Vk::Image&& i, VkSampler sampler, BindlessDescriptorManager::ImageHandle handle) : image(std::move(i)), sampler(sampler), handle(handle) {}
 	};
 
 	struct Mesh
@@ -50,6 +51,14 @@ CS_NAMESPACE_BEGIN::Vulkan
 		uint32_t indexCount;
 		VkIndexType indexType;
 		Mesh(std::vector<Attribute>&& vertexAttributes = {}, Vk::Buffer&& indexBuffer = {}, uint32_t indexCount = 0, VkIndexType indexType = VK_INDEX_TYPE_UINT32) : vertexAttributes(std::move(vertexAttributes)), indexBuffer(std::move(indexBuffer)), indexCount(indexCount), indexType(indexType) {}
+		Vk::Buffer* GetAttributeBuffer(cs_std::graphics::Attribute attribute)
+		{
+			for (auto& vertexAttribute : vertexAttributes)
+			{
+				if (vertexAttribute.attribute == attribute) return &vertexAttribute.buffer;
+			}
+			return nullptr;
+		}
 	};
 
 	CS_RESOURCE_MANAGER_CREATE_HANDLE(Buffer, BufferHandle);
