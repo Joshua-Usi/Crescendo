@@ -6,14 +6,14 @@ include_files = {
 	"%{prj.name}/**.h",
 	"%{prj.name}/**.c",
 	-- Volk
-	"C:/VulkanSDK/1.3.250.1/Include/Volk/volk.c",
+	"C:/VulkanSDK/1.3.283.0/Include/Volk/volk.c",
 }
 exclude_files = {}
 library_dirs = {
 	"%{wks.location}/Crescendo/Libraries/ThirdParty/glfw/libs",
 }
 engine_dirs = {
-	"C:/VulkanSDK/1.3.250.1/Include",
+	"C:/VulkanSDK/1.3.283.0/Include",
 	"%{wks.location}/Crescendo",
 	"%{wks.location}/Crescendo/Libraries/ThirdParty",
 	"%{wks.location}/Crescendo/Libraries/ThirdParty/ImGui",
@@ -28,6 +28,12 @@ flags_optimised = {
 	"LinkTimeOptimization",
 	"MultiProcessorCompile",
 	"NoMinimalRebuild",
+}
+universal_defines = {
+	"CS_PLATFORM_WINDOWS",
+	"_CRT_SECURE_NO_WARNINGS",
+	"GLFW_INCLUDE_NONE",
+	"VK_NO_PROTOTYPES",
 }
 sandbox_project_name = "Sandbox"
 
@@ -55,12 +61,7 @@ project "Crescendo"
 	links {}
 	filter "system:windows"
 		systemversion "latest"
-		defines {
-			"CS_PLATFORM_WINDOWS",
-			"_CRT_SECURE_NO_WARNINGS",
-			"GLFW_INCLUDE_NONE",
-			"VK_NO_PROTOTYPES",
-		}
+		defines(universal_defines)
 	filter "configurations:Debug"
 		defines "CS_DEBUG"
 		symbols "on"
@@ -95,10 +96,7 @@ project(sandbox_project_name)
 	filter "system:windows"
 		cppdialect "C++20"
 		systemversion "latest"
-		defines {
-			"CS_PLATFORM_WINDOWS",
-			"VK_NO_PROTOTYPES",
-		}
+		defines(universal_defines)
 	filter "configurations:Debug"
 		defines "CS_DEBUG"
 		symbols "on"

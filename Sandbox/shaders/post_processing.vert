@@ -1,4 +1,6 @@
 #version 460
+#include "bindless.glsl"
+
 layout (location = 0) out vec2 oTexCoord;
 
 void main()

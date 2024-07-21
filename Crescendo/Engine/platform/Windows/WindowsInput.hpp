@@ -1,21 +1,30 @@
 #pragma once
 
 #include "Engine/interfaces/Input.hpp"
+#include "Engine/interfaces/Window.hpp"
+#include "GLFW/glfw3.h"
 
 CS_NAMESPACE_BEGIN
 {
 	class WindowsInput : public Input
 	{
 	private:
-		bool isKeyDown[static_cast<int>(Key::KEY_COUNT)] = { false };
-		bool isMouseButtonDown[static_cast<int>(MouseButton::BUTTON_COUNT)] = { false };
-	protected:
-		virtual bool KeyDownImpl(Key keyCode) override final;
-		virtual bool KeyPressedImpl(Key keyCode) override final;
-		virtual double MousePositionXImpl() override final;
-		virtual double MousePositionYImpl() override final;
-		virtual bool MouseButtonDownImpl(MouseButton button) override final;
-		virtual bool MouseButtonPressedImpl(MouseButton button) override final;
-		virtual void PollEventsImpl() override final;
+		GLFWwindow* window;
+		bool isKeyDown[static_cast<size_t>(Key::KEY_COUNT)];
+		bool isMouseButtonDown[static_cast<size_t>(MouseButton::BUTTON_COUNT)];
+	public:
+		WindowsInput(const Specification& spec);
+		virtual ~WindowsInput() override final = default;
+		WindowsInput(const WindowsInput&) = delete;
+		WindowsInput& operator=(const WindowsInput&) = delete;
+		WindowsInput(WindowsInput&&) = default;
+		WindowsInput& operator=(WindowsInput&&) = default;
+		virtual bool GetKeyDown(Key keyCode) override final;
+		virtual bool GetKeyPressed(Key keyCode) override final;
+		virtual double GetMouseX() override final;
+		virtual double GetMouseY() override final;
+		virtual bool GetMouseDown(MouseButton button) override final;
+		virtual bool GetMousePressed(MouseButton button) override final;
+		virtual void PollEvents() override final;
 	};
 }

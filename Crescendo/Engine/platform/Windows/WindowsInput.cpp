@@ -1,17 +1,25 @@
 #include "WindowsInput.hpp"
-
 #include "Engine/platform/Desktop/InputCodeMaps.hpp"
-#include "Engine/Application/Application.hpp"
-
-#include "GLFW/glfw3.h"
 
 CS_NAMESPACE_BEGIN
 {
-	Input* Input::self = new WindowsInput();
-
-	bool WindowsInput::KeyDownImpl(Key keyCode)
+	// Overload for Input to create WindowsInput
+	std::unique_ptr<Input> Input::Create(const Specification& spec) { return std::make_unique<WindowsInput>(spec); }
+	WindowsInput::WindowsInput(const Specification& spec) : window(static_cast<GLFWwindow*>(spec.window->GetNative()))
 	{
-		bool keyPressed = Input::GetKeyPressed(keyCode);
+		// Surely there's a better way to do this?
+		for (size_t i = 0; i < static_cast<size_t>(Key::KEY_COUNT); i++)
+		{
+			this->isKeyDown[i] = false;
+		}
+		for (size_t i = 0; i < static_cast<size_t>(MouseButton::BUTTON_COUNT); i++)
+		{
+			this->isMouseButtonDown[i] = false;
+		}
+	}
+	bool WindowsInput::GetKeyDown(Key keyCode)
+	{
+		bool keyPressed = this->GetKeyPressed(keyCode);
 		if (keyPressed && !isKeyDown[static_cast<size_t>(keyCode)])
 		{
 			this->isKeyDown[static_cast<size_t>(keyCode)] = true;
@@ -23,31 +31,28 @@ CS_NAMESPACE_BEGIN
 		}
 		return false;
 	}
-	bool WindowsInput::KeyPressedImpl(Key keyCode)
+	bool WindowsInput::GetKeyPressed(Key keyCode)
 	{
-		GLFWwindow* window = static_cast<GLFWwindow*>(Application::Get()->GetWindow()->GetNative());
-		int state = glfwGetKey(window, KeyToGLFWMapping[static_cast<uint32_t>(keyCode)]);
+		int state = glfwGetKey(this->window, KeyToGLFWMapping[static_cast<uint32_t>(keyCode)]);
 		return state == GLFW_PRESS;
 	}
 
-	double WindowsInput::MousePositionXImpl()
+	double WindowsInput::GetMouseX()
 	{
-		GLFWwindow* window = static_cast<GLFWwindow*>(Application::Get()->GetWindow()->GetNative());
 		double position = 0;
-		glfwGetCursorPos(window, &position, NULL);
+		glfwGetCursorPos(this->window, &position, NULL);
 		return position;
 	}
-	double WindowsInput::MousePositionYImpl()
+	double WindowsInput::GetMouseY()
 	{
-		GLFWwindow* window = static_cast<GLFWwindow*>(Application::Get()->GetWindow()->GetNative());
 		double position = 0;
-		glfwGetCursorPos(window, NULL, &position);
+		glfwGetCursorPos(this->window, NULL, &position);
 		return position;
 	}
 
-	bool WindowsInput::MouseButtonDownImpl(MouseButton button)
+	bool WindowsInput::GetMouseDown(MouseButton button)
 	{
-		bool mousePressed = Input::GetMouseButtonPressed(button);
+		bool mousePressed = this->GetMousePressed(button);
 		if (mousePressed && !isMouseButtonDown[static_cast<size_t>(button)])
 		{
 			this->isMouseButtonDown[static_cast<size_t>(button)] = true;
@@ -59,13 +64,12 @@ CS_NAMESPACE_BEGIN
 		}
 		return false;
 	}
-	bool WindowsInput::MouseButtonPressedImpl(MouseButton button)
+	bool WindowsInput::GetMousePressed(MouseButton button)
 	{
-		GLFWwindow* window = static_cast<GLFWwindow*>(Application::Get()->GetWindow()->GetNative());
-		int state = glfwGetMouseButton(window, MouseButtonToGLFWMapping[static_cast<uint32_t>(button)]);
+		int state = glfwGetMouseButton(this->window, MouseButtonToGLFWMapping[static_cast<uint32_t>(button)]);
 		return state == GLFW_PRESS;
 	}
-	void WindowsInput::PollEventsImpl()
+	void WindowsInput::PollEvents()
 	{
 		glfwPollEvents();
 	}

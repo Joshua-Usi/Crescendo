@@ -1,17 +1,17 @@
 #version 460
+#include "bindless.glsl"
 
 layout (location = 0) in vec3 iPosition;
 
-layout(set = 0, binding = 0) uniform ViewProjection {
-	mat4 viewProjection;
+layout (push_constant) uniform PushConstants {
+	uint cameraIdx;
+	uint transformBufferIdx;
 };
 
-layout(std140, set = 1, binding = 0) readonly buffer ShaderStorage {
-	mat4 modelBuffer[];
-};
+RegisterBuffer(std430, readonly, TransformBuffer, { mat4 transformBuffer[]; });
 
 void main() {
-	const mat4 model = modelBuffer[gl_InstanceIndex];
-
-	gl_Position = viewProjection * model * vec4(iPosition, 1.0);
+	const mat4 model = GetResource(TransformBuffer, transformBufferIdx).transformBuffer[gl_InstanceIndex];
+	const mat4 vp = GetResource(TransformBuffer, transformBufferIdx).transformBuffer[cameraIdx];
+	gl_Position = vp * model * vec4(iPosition, 1.0);
 }

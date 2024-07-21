@@ -2,17 +2,17 @@
 
 #include "common.hpp"
 #include "Component.hpp"
-
 #include "cs_std/graphics/algorithms.hpp"
+#include "Rendering/Vulkan2/ResourceManager.hpp"
 
 CS_NAMESPACE_BEGIN
 {
 	struct MeshData : public Component
 	{
-		cs_std::graphics::bounding_aabb bounds;
-		uint32_t meshID;
+		cs_std::graphics::bounding_aabb bounds; // Used for mesh culling
+		Vulkan::MeshHandle meshHandle;
 
-		MeshData() : bounds(), meshID(0) {}
-		MeshData(const cs_std::graphics::bounding_aabb& bounds, uint32_t meshID) : bounds(bounds), meshID(meshID) {}
+		MeshData() : bounds(), meshHandle() {}
+		MeshData(const cs_std::graphics::bounding_aabb& bounds, Vulkan::MeshHandle meshID) : bounds(bounds), meshHandle(meshID) {}
 	};
 }
