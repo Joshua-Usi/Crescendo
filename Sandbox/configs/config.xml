@@ -25,5 +25,6 @@
 	<ec_vsync>true</ec_vsync>
 	<!-- path configs -->
 	<pc_assetpath>./assets/</pc_assetpath>
-	<pc_shaderpath>./shaders/compiled/</pc_shaderpath>
+
+	<skybox_texture>./assets/skybox.png</skybox_texture>
 </config>	

@@ -46,11 +46,11 @@ public:
 		currentScene.entities.insert(cameraEntity);
 	
 		// Default sky light
-		Entity skyLight = currentScene.entityManager.CreateEntity();
+		/*Entity skyLight = currentScene.entityManager.CreateEntity();
 		skyLight.EmplaceComponent<Name>("Default Sunlight");
-		skyLight.EmplaceComponent<Transform>(math::vec3(0.0f, 75.0f, 45.0f)).LookAt(math::vec3(0.0f, 0.0f, 0.0f));
-		skyLight.EmplaceComponent<DirectionalLight>(glm::vec3(0.992f, 0.984f, 0.827f), 0.5f, true);
-		currentScene.entities.insert(skyLight);
+		skyLight.EmplaceComponent<Transform>(math::vec3(0.0f, 75.0f, 0.0f)).LookAt(math::vec3(0.0f, 0.0f, 0.0f));
+		skyLight.EmplaceComponent<DirectionalLight>(glm::vec3(0.992f, 0.984f, 0.827f), 5.0f, true);
+		currentScene.entities.insert(skyLight);*/
 
 		// Each of the different lights in the default sponza scene
 		std::vector<math::vec3> pointLights =
@@ -76,17 +76,17 @@ public:
 			Entity pointLight = currentScene.entityManager.CreateEntity();
 			pointLight.EmplaceComponent<Name>("Default Pointlight " + std::to_string(i));
 			pointLight.EmplaceComponent<Transform>(pointLights[i]);
-			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 2.5f, true);
+			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 5.0f, true);
 			currentScene.entities.insert(pointLight);
 		}
 		
 		// Camera following spotlight
-		Entity spotLight = currentScene.entityManager.CreateEntity();
+		/*Entity spotLight = currentScene.entityManager.CreateEntity();
 		spotLight.EmplaceComponent<Name>("Default Spotlight");
 		spotLight.EmplaceComponent<Transform>(math::vec3(15.0f, 1.0f, 0.0f));
 		spotLight.GetComponent<Transform>().LookAt(math::vec3(0.0f, 1.0f, 0.0f));
-		spotLight.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 500.0f, math::radians(1.0f), math::radians(12.5f), true);
-		currentScene.entities.insert(spotLight);
+		spotLight.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 30.0f, math::radians(1.0f), math::radians(12.5f), true);
+		currentScene.entities.insert(spotLight);*/
 
 		std::string assetPath = CVar::Get<std::string>("pc_assetpath");
 		cs_std::xml::document modelsXML(cs_std::text_file("./configs/models.xml").open().read());
@@ -96,19 +96,6 @@ public:
 			if (model->tag == "gltf") models.push_back(LoadGLTF(assetPath + model->innerText));
 			else if (model->tag == "obj") models.push_back(LoadOBJ(assetPath + model->innerText));
 		}
-
-		// Convert a construct mesh to a compatible model
-		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
-		cs_std::graphics::model skyboxModel;
-		cs_std::graphics::mesh skyboxMesh;
-		cs_std::graphics::mesh_attributes skyboxAttributes;
-		skyboxMesh.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices);
-		skyboxMesh.add_attribute(cs_std::graphics::Attribute::NORMAL, skybox.normals);
-		skyboxMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
-		skyboxMesh.indices = skybox.indices;
-		skyboxAttributes.diffuse = CVar::Get<std::string>("skybox_texture");
-		skyboxModel.add_mesh(skyboxMesh, skyboxAttributes);
-		models.push_back(skyboxModel);
 
 		currentScene.LoadModels(models);
 

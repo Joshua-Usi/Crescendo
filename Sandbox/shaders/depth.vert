@@ -8,10 +8,10 @@ layout (push_constant) uniform PushConstants {
 	uint transformBufferIdx;
 };
 
-RegisterBuffer(std430, readonly, TransformBuffer, { mat4 transformBuffer[]; });
+RegisterBuffer(std430, readonly, TransformBuffer, { mat4 transformData[]; });
 
 void main() {
-	const mat4 model = GetResource(TransformBuffer, transformBufferIdx).transformBuffer[gl_InstanceIndex];
-	const mat4 vp = GetResource(TransformBuffer, transformBufferIdx).transformBuffer[cameraIdx];
+	const mat4 model = GetResource(TransformBuffer, transformBufferIdx).transformData[gl_InstanceIndex];
+	const mat4 vp = GetResource(TransformBuffer, transformBufferIdx).transformData[cameraIdx];
 	gl_Position = vp * model * vec4(iPosition, 1.0);
 }

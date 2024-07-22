@@ -7,14 +7,19 @@ layout (location = 1) in vec2 iTexCoord;
 layout (location = 0) out vec2 oTexCoord;
 
 layout (push_constant) uniform PushConstants {
-	uint cameraIdx;
+	uint cameraIdx; // Seperate to the active camera's view projection as this one requires no translation
 	uint transformBufferIdx;
 };
 
 RegisterBuffer(std430, readonly, TransformBuffer, { mat4 transformBuffer[]; });
+
 void main()
 {
-	const mat4 vp = GetResource(TransformBuffer, transformBufferIdx).transformBuffer[cameraIdx];
+	mat4 vp = GetResource(TransformBuffer, transformBufferIdx).transformBuffer[cameraIdx];
+	// Remove translation	
+	vp[3][0] = 0.0;
+	vp[3][1] = 0.0;
+	vp[3][3] = 0.0;
 	vec4 position = vp * vec4(iPosition, 1.0f);
 	gl_Position = position.xyww;
 

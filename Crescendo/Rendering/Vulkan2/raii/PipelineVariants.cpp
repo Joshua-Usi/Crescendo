@@ -194,7 +194,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	PipelineVariants PipelineVariants::GetSkyboxVariant(uint32_t samples)
 	{
-		return PipelineVariants(FillMode::Solid, CullMode::Back, ConvertSamplesToVariant(samples), DepthFunc::GreaterEqual, DepthTest::Enabled, DepthWrite::Disabled);
+		return PipelineVariants(FillMode::Solid, CullMode::Back, ConvertSamplesToVariant(samples), DepthFunc::Always, DepthTest::Enabled, DepthWrite::Disabled);
 	}
 	PipelineVariants PipelineVariants::GetShadowVariant(uint32_t samples)
 	{

@@ -26,21 +26,25 @@ layout (location = 0) out vec4 oColor;
 layout(push_constant) uniform PushConstants {
 	layout(offset = 8) uint diffuseTexIdx;
 	uint normalTexIdx;
-	// uint directionalLightCount;
-	// uint pointLightCount;
-	// uint spotLightCount;
+
+	uint directionalLightBufferIdx;
+	uint pointLightBufferIdx;
+	uint spotLightBufferIdx;
+
+	uint directionalLightCount;
+	uint pointLightCount;
+	uint spotLightCount;
+
+	uint dummy0;
+	uint dummy1;
+
+	vec4 cameraViewPos;
 	// uint shadowTexCount;
 };
 
-// layout(set = 2, binding = 0) uniform Camera { vec4 viewPos; }; // a unused
-
-// layout(std140, set = 4, binding = 0) readonly buffer DirectionalLightStorage { DirectionalLight directionalLights[]; };
-// layout(std140, set = 5, binding = 0) readonly buffer PointLightStorage { PointLight pointLights[]; };
-// layout(std140, set = 6, binding = 0) readonly buffer SpotLightStorage { SpotLight spotLights[]; };
-
-// layout(set = 7, binding = 0) uniform sampler2D diffuseTex;
-// layout(set = 8, binding = 0) uniform sampler2D normalTex;
-// layout(set = 9, binding = 0) uniform sampler2D shadowTexs[];
+RegisterBuffer(std430, readonly, DirectionalLightBuffer, { DirectionalLight directionalLightData[]; });
+RegisterBuffer(std430, readonly, PointLightBuffer, { PointLight pointLightData[]; });
+RegisterBuffer(std430, readonly, SpotLightBuffer, { SpotLight spotLightData[]; });
 
 // Standard hard shadows
 // float textureProj(sampler2D shadowTex, vec4 shadowCoord)
@@ -60,7 +64,7 @@ float distSqrd(vec3 a, vec3 b)
 
 float lightAttenuation(float intensity, float distanceSquared)
 {
-	return intensity / (distanceSquared + 1);
+	return intensity / (distanceSquared + 1.0);
 }
 
 vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal_ws, vec3 viewDir_ws)
@@ -70,26 +74,24 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal_ws, vec3 viewDir_w
 	vec3 lightDir_ws = light.direction.xyz;
 	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ws);
 
-	float diff = max(dot(normal_ws, lightDir_ws), 0.0f);
-	float spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 128.0f);
+	vec3 diff = max(dot(normal_ws, lightDir_ws), 0.0f) * light.color.rgb;
+	vec3 spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 32.0f) * light.color.rgb;
 
-	vec3 diffuse = vec3(diff);
-	vec3 specular = vec3(spec);
-	return (diffuse + specular) * light.color.rgb * intensity;
+	return (diff + spec) * intensity;
 }
 
 vec3 CalcPointLight(PointLight light, vec3 normal_ws, vec3 viewDir_ws, vec3 fragmentPosition_ws)
 {
 	const float intensity = light.position.w;
 
-	vec3 lightDir_ws = normalize(iTBN * light.position.xyz - iTBN * fragmentPosition_ws);
+	vec3 lightDir_ws = normalize(light.position.xyz - fragmentPosition_ws);
 	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ws);
 	float attenuation = lightAttenuation(intensity, distSqrd(light.position.xyz, fragmentPosition_ws));
 
-	float diff = max(dot(normal_ws, lightDir_ws), 0.0f);
-	float spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 128.0f);
+	vec3 diff = max(dot(normal_ws, lightDir_ws), 0.0f) * light.color.rgb;
+	vec3 spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 32.0f) * light.color.rgb;
 
-	return (diff + spec) * light.color.rgb * attenuation;
+	return (diff + spec) * attenuation;
 }
 
 vec3 CalcSpotLight(SpotLight light, vec3 normal_ws, vec3 viewDir_ws, vec3 fragmentPosition_ws)
@@ -98,18 +100,18 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal_ws, vec3 viewDir_ws, vec3 fragme
 	const float fadeAngle_cos = light.color.a;
 	const float intensity = light.position.w;
 
-	vec3 lightDir_ws = normalize(iTBN * light.position.xyz - iTBN * fragmentPosition_ws);
+	vec3 lightDir_ws = normalize(light.position.xyz - fragmentPosition_ws);
 	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ws);
 	float attenuation = lightAttenuation(intensity, distSqrd(light.position.xyz, fragmentPosition_ws));
 
-	float theta = dot(normalize(light.position.xyz - fragmentPosition_ws), normalize(-light.direction.rgb)); 
+	float theta = dot(lightDir_ws, normalize(-light.direction.rgb)); 
     float epsilon = spotAngle_cos - fadeAngle_cos;
     float intensityFactor = clamp((theta - fadeAngle_cos) / epsilon, 0.0, 1.0);
 
-	float diff = max(dot(normal_ws, lightDir_ws), 0.0f);
-	float spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 128.0f);
+	vec3 diff = max(dot(normal_ws, lightDir_ws), 0.0f) * light.color.rgb;
+	vec3 spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 32.0f) * light.color.rgb;
 
-	return (diff + spec) * light.color.rgb * attenuation * intensityFactor;
+	return (diff + spec) * attenuation * intensityFactor;
 }
 
 void main()	
@@ -118,28 +120,31 @@ void main()
 	vec4 normalColor = texture(uTextures2D[normalTexIdx], iTexCoord);
 	/* ---------------- Lighting ---------------- */
 
-	// vec3 normal_ws = normalize(normalColor.rgb) * 2.0f - 1.0f);
-	// vec3 viewDir_ws = normalize(viewPos.xyz - iPosition_ws);
+	vec3 normal_ws = normalize(iTBN * (normalColor.rgb * 2.0f - 1.0f));
+	vec3 viewDir_ws = normalize(cameraViewPos.xyz - iPosition_ws);
 
-	vec3 outputColor = vec3(1.0f);
+	vec3 lightIntensity = vec3(0.2f);
 
 	// Directional lights
-	// for (uint i = 0; i < directionalLightCount; i++)
-	// {
-	// 	outputColor += CalcDirectionalLight(directionalLights[i], normal_ws, viewDir_ws);
-	// }
+	for (uint i = 0; i < directionalLightCount; i++)
+	{
+		const DirectionalLight directionalLight = GetResource(DirectionalLightBuffer, directionalLightBufferIdx).directionalLightData[i];
+		lightIntensity += CalcDirectionalLight(directionalLight, normal_ws, viewDir_ws);
+	}
 
 	// Point lights
-	// for (uint i = 0; i < pointLightCount; i++)
-	// {
-	// 	outputColor += CalcPointLight(pointLights[i], normal_ws, viewDir_ws, iPosition_ws);
-	// }
+	for (uint i = 0; i < pointLightCount; i++)
+	{
+		const PointLight pointLight = GetResource(PointLightBuffer, pointLightBufferIdx).pointLightData[i];
+		lightIntensity += CalcPointLight(pointLight, normal_ws, viewDir_ws, iPosition_ws);
+	}
 
 	// Spot lights
-	// for (uint i = 0; i < spotLightCount; i++)
-	// {
-	// 	outputColor += CalcSpotLight(spotLights[i], normal_ws, viewDir_ws, iPosition_ws);
-	// }
+	for (uint i = 0; i < spotLightCount; i++)
+	{
+		const SpotLight spotlight = GetResource(SpotLightBuffer, spotLightBufferIdx).spotLightData[i];
+		lightIntensity += CalcSpotLight(spotlight, normal_ws, viewDir_ws, iPosition_ws);
+	}
 
 	/* ---------------- Shadows ---------------- */
 	
@@ -149,5 +154,5 @@ void main()
 	/* ---------------- Output ---------------- */
 
 	// Output
-	oColor = vec4(outputColor * texelColor.rgb, texelColor.a);
+	oColor = vec4(lightIntensity * texelColor.rgb, texelColor.a);
 }

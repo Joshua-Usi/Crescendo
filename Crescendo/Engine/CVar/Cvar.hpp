@@ -21,7 +21,7 @@ CS_NAMESPACE_BEGIN
 		template<CVarSetType T>
 		static T Get(const std::string& name)
 		{
-			CS_ASSERT(data.count(name) != 0, "CVar does not exist / Was not registered");
+			CS_ASSERT(data.count(name) != 0, "CVar with the name \"" + name + "\" does not exist / Was not registered");
 			// Bool first since it counts as an integral
 			if constexpr (std::is_same<T, bool>::value)
 			{

@@ -46,6 +46,14 @@ CS_NAMESPACE_BEGIN
 		std::vector<Vulkan::BufferHandle> transformsHandle;
 		Vulkan::TextureHandle bufferHandle;
 
+		std::vector<Vulkan::BufferHandle> directionalLightsHandle;
+		std::vector<Vulkan::BufferHandle> pointLightsHandle;
+		std::vector<Vulkan::BufferHandle> spotLightsHandle;
+
+		Vulkan::Vk::Pipeline skyboxPipeline;
+		Vulkan::MeshHandle skyboxMeshHandle;
+		Vulkan::TextureHandle skyboxTextureHandle;
+
 		uint32_t frameIdx = 0;
 	protected:
 		cs_std::task_queue taskQueue;

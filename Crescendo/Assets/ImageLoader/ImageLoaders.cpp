@@ -25,7 +25,7 @@ CS_NAMESPACE_BEGIN
 			return cs_std::image();
 		}
 
-		constexpr uint32_t scaleFactor = 4;
+		constexpr uint32_t scaleFactor = 2;
 		std::vector<uint8_t> newPixels(width * height * channels / (scaleFactor * scaleFactor));
 		if constexpr (scaleFactor == 1)
 		{
