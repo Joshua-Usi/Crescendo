@@ -27,8 +27,6 @@ CS_NAMESPACE_BEGIN
 			std::vector<Vulkan::TextureHandle> textures;
 			std::vector<EntityTextureInfo> entityTextureInfo;
 
-			uint32_t idx = 0;
-
 			for (auto& model : models)
 			{
 				for (size_t i = 0; i < model.meshes.size(); i++)
@@ -38,7 +36,6 @@ CS_NAMESPACE_BEGIN
 
 					if (!mesh.has_attribute(cs_std::graphics::Attribute::TANGENT)) cs_std::graphics::generate_tangents(mesh);
 					Vulkan::MeshHandle meshHandle = resourceManager.UploadMesh(mesh);
-
 
 					if (!attributes.diffuse.empty() && textureMap.find(attributes.diffuse) == textureMap.end())
 					{

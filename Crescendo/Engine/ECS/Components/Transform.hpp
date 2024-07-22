@@ -59,7 +59,15 @@ CS_NAMESPACE_BEGIN
 			rotation = cs_std::math::quat_cast(rotationMatrix);
 		}
 
-		cs_std::math::mat4 GetModelMatrix() const { return cs_std::math::translate(cs_std::math::mat4_cast(rotation), position) * cs_std::math::scale(cs_std::math::mat4(1.0f), scale); }
+		cs_std::math::mat4 GetModelMatrix() const
+		{
+			cs_std::math::mat4 translationMatrix = cs_std::math::translate(cs_std::math::mat4(1.0f), position);
+			cs_std::math::mat4 rotationMatrix = cs_std::math::mat4_cast(rotation);
+			cs_std::math::mat4 scaleMatrix = cs_std::math::scale(cs_std::math::mat4(1.0f), scale);
+
+			return translationMatrix * rotationMatrix * scaleMatrix;
+		}
+
 		cs_std::math::mat4 GetCameraViewMatrix() const { return cs_std::math::mat4_cast(cs_std::math::inverse(this->rotation)) * cs_std::math::translate(cs_std::math::mat4(1.0f), -this->position); }
 
 		operator cs_std::math::mat4() { return GetModelMatrix(); }

@@ -41,7 +41,7 @@ public:
 		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
 		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, this->GetWindow()->GetAspectRatio(), 0.1f, 1000.0f);
 		cameraEntity.EmplaceComponent<Behaviours>(std::make_shared<CameraController>());
-		cameraEntity.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 25.0f, math::radians(1.0f), math::radians(30.0f), true);
+		// cameraEntity.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 25.0f, math::radians(1.0f), math::radians(30.0f), true);
 		currentScene.activeCamera = cameraEntity;
 		currentScene.entities.insert(cameraEntity);
 	
@@ -101,11 +101,13 @@ public:
 		Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
 		cs_std::graphics::model skyboxModel;
 		cs_std::graphics::mesh skyboxMesh;
+		cs_std::graphics::mesh_attributes skyboxAttributes;
 		skyboxMesh.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices);
 		skyboxMesh.add_attribute(cs_std::graphics::Attribute::NORMAL, skybox.normals);
 		skyboxMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
 		skyboxMesh.indices = skybox.indices;
-		skyboxModel.add_mesh(skyboxMesh, {});
+		skyboxAttributes.diffuse = CVar::Get<std::string>("skybox_texture");
+		skyboxModel.add_mesh(skyboxMesh, skyboxAttributes);
 		models.push_back(skyboxModel);
 
 		currentScene.LoadModels(models);

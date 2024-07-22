@@ -9,12 +9,6 @@
 
 CS_NAMESPACE_BEGIN
 {
-	struct DepthPrepassParams
-	{
-		Vulkan::BindlessDescriptorManager::BufferHandle meshTransforms;
-		uint32_t pad0, pad1, pad2; 
-	};
-
 	static bool isFirstWindow = true;
 	// Assign self and null as no instance exists yet
 	Application* Application::self = nullptr;
@@ -187,8 +181,10 @@ CS_NAMESPACE_BEGIN
 
 		// Active camera in the scene
 		Entity camera = currentScene.entityManager.GetEntity(currentScene.activeCamera);
-		cs_std::math::mat4 vp = camera.GetComponent<PerspectiveCamera>().GetViewProjectionMatrix(camera.GetComponent<Transform>().GetCameraViewMatrix());
-		cs_std::graphics::frustum cameraFrustum(vp);
+		cs_std::math::vec3 cameraPosition = camera.GetComponent<Transform>().GetPosition();
+		cs_std::math::mat4 cameraView = camera.GetComponent<Transform>().GetCameraViewMatrix();
+		cs_std::math::mat4 cameraViewProjection = camera.GetComponent<PerspectiveCamera>().GetViewProjectionMatrix(cameraView);
+		cs_std::graphics::frustum cameraFrustum(cameraViewProjection);
 
 		currentScene.entityManager.ForEach<Behaviours>([&](Behaviours& b) {
 			b.OnUpdate(dt);
@@ -208,23 +204,48 @@ CS_NAMESPACE_BEGIN
 			spotLights.push_back(light.CreateShaderRepresentation(transform));
 		});
 
+		struct MainPassRenderData
+		{
+			Vulkan::MeshHandle mesh;
+			Vulkan::TextureHandle diffuse;
+			Vulkan::TextureHandle normal;
+			uint32_t modelID;
+		};
+
 		std::vector<cs_std::math::mat4> meshTransforms;
-		std::vector<Vulkan::MeshHandle> meshes;
-		std::vector<std::pair<Vulkan::TextureHandle, Vulkan::TextureHandle>> textures;
+		std::deque<MainPassRenderData> meshes;
+		uint32_t depthPrepassMeshCount = 0;
 
 		currentScene.entityManager.ForEach<Transform, MeshData, Material>([&](Transform& transform, MeshData& mesh, Material& material) {
 			// if mesh is visible, then we render
 			//if (cameraFrustum.intersects(mesh.bounds.transform(transform)))
+			MainPassRenderData data(
+				mesh.meshHandle, material.diffuseHandle, material.normalHandle, meshTransforms.size()
+			);
+			meshTransforms.push_back(transform.GetModelMatrix());
+			if (material.isTransparent)
 			{
-				meshTransforms.push_back(transform);
-				meshes.push_back(mesh.meshHandle);
-				textures.push_back({ material.diffuseHandle, material.normalHandle});
+				meshes.push_back(data);
 			}
+			else
+			{
+				meshes.push_front(data);
+				depthPrepassMeshCount++;
+			}
+
+		});
+
+		// Only sort the transparent meshes
+		std::sort(meshes.begin() + depthPrepassMeshCount, meshes.end(), [&](const MainPassRenderData& a, const MainPassRenderData& b) {
+			// use the meshTransforms to get it's position in the scene
+			float depthA = cs_std::math::distance(cameraPosition, cs_std::math::vec3(meshTransforms[a.modelID][3]));
+			float depthB = cs_std::math::distance(cameraPosition, cs_std::math::vec3(meshTransforms[b.modelID][3]));
+			return depthA > depthB;
 		});
 
 		cmd.WaitCompletion();
 
-		resourceManager.GetBuffer(transformsHandle[currentFrameIndex]).buffer.memcpy(&vp, sizeof(cs_std::math::mat4));
+		resourceManager.GetBuffer(transformsHandle[currentFrameIndex]).buffer.memcpy(&cameraViewProjection, sizeof(cs_std::math::mat4));
 		resourceManager.GetBuffer(transformsHandle[currentFrameIndex]).buffer.memcpy(meshTransforms.data(), sizeof(cs_std::math::mat4) * meshTransforms.size(), sizeof(cs_std::math::mat4));
 
 		cmd.Reset();
@@ -245,13 +266,13 @@ CS_NAMESPACE_BEGIN
 			uint32_t cameraIdx, transformBufferIdx;
 		} depthPrepassParams { 0, transformsHandle[currentFrameIndex].GetIndex()};
 		cmd.PushConstants(depthPipeline, depthPrepassParams, VK_SHADER_STAGE_VERTEX_BIT);
-
-		for (size_t i = 0; i < meshes.size(); i++)
+ 
+		for (size_t i = 0; i < depthPrepassMeshCount; i++)
 		{
-			Vulkan::Mesh& mesh = resourceManager.GetMesh(meshes[i]);
+			Vulkan::Mesh& mesh = resourceManager.GetMesh(meshes[i].mesh);
 			cmd.BindIndexBuffer(mesh.indexBuffer);
 			cmd.BindVertexBuffers({ *mesh.GetAttributeBuffer(cs_std::graphics::Attribute::POSITION) }, { 0 });
-			cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i + 1);
+			cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, meshes[i].modelID + 1);
 		}
 		cmd.EndRenderPass();
 
@@ -271,7 +292,7 @@ CS_NAMESPACE_BEGIN
 
 		for (size_t i = 0; i < meshes.size(); i++)
 		{
-			Vulkan::Mesh& mesh = resourceManager.GetMesh(meshes[i]);
+			Vulkan::Mesh& mesh = resourceManager.GetMesh(meshes[i].mesh);
 			cmd.BindIndexBuffer(mesh.indexBuffer);
 			cmd.BindVertexBuffers({
 				*mesh.GetAttributeBuffer(cs_std::graphics::Attribute::POSITION),
@@ -281,9 +302,9 @@ CS_NAMESPACE_BEGIN
 			}, { 0, 0, 0, 0 });
 			const struct MainPassFragmentParams {
 				uint32_t diffuseTexIdx, normalTexIdx;
-			} texturesParams { textures[i].first.GetIndex() + 1, textures[i].second.GetIndex() + 1 };
+			} texturesParams { meshes[i].diffuse.GetIndex() + 1, meshes[i].normal.GetIndex() + 1 }; // First image is the offscreen image
 			cmd.PushConstants(mainPipeline, texturesParams, VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
-			cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, i + 1);
+			cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, meshes[i].modelID + 1);
 		}
 		cmd.EndRenderPass();
 
