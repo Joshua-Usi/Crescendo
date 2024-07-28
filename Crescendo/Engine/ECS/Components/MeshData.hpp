@@ -3,7 +3,7 @@
 #include "common.hpp"
 #include "Component.hpp"
 #include "cs_std/graphics/algorithms.hpp"
-#include "Rendering/Vulkan2/ResourceManager.hpp"
+#include "Rendering/Vulkan/ResourceManager.hpp"
 
 CS_NAMESPACE_BEGIN
 {

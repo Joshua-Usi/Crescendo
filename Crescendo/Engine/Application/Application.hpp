@@ -7,9 +7,9 @@
 #include "cs_std/task_queue.hpp"
 #include "cs_std/timestamp.hpp"
 #include "Engine/Scene/Scene.hpp" 
-#include "Rendering/Vulkan2/Instance.hpp"
-#include "Rendering/Vulkan2/ResourceManager.hpp"
-#include "Rendering/Vulkan2/FrameManager.hpp"
+#include "Rendering/Vulkan/Instance.hpp"
+#include "Rendering/Vulkan/ResourceManager.hpp"
+#include "Rendering/Vulkan/FrameManager.hpp"
 
 CS_NAMESPACE_BEGIN
 {
