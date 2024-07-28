@@ -2,7 +2,9 @@
 
 #include "common.hpp"
 #include "VkBootstrap/VkBootstrap.h"
+#include "Instance.hpp"
 #include "PhysicalDevice.hpp"
+#include "vma/vk_mem_alloc.h"
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
@@ -17,10 +19,11 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		};
 	private:
 		VkDevice device;
+		VmaAllocator allocator;
 		Queue universal, transfer, compute;
 	public:
 		Device();
-		Device(const PhysicalDevice& physicalDevice, const DeviceCreateInfo& createInfo);
+		Device(const Instance& instance, const PhysicalDevice& physicalDevice, const DeviceCreateInfo& createInfo);
 		~Device();
 		Device(const Device&) = delete;
 		Device& operator=(const Device&) = delete;
@@ -34,5 +37,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	public:
 		operator VkDevice() const;
 		VkDevice GetDevice() const;
+		VmaAllocator GetAllocator() const;
 	};
 }

@@ -45,7 +45,7 @@ CS_NAMESPACE_BEGIN
 		{
 			Vulkan::Surface& surface = this->instance.GetSurface(0);
 			Vulkan::Vk::Swapchain& swapchain = surface.GetSwapchain();
-			Vulkan::Device& device = surface.GetDevice();
+			Vulkan::Vk::Device& device = surface.GetDevice();
 
 			const std::string postProcessingShader = CVar::Get<std::string>("ircs_postprocessing");
 			const std::string depthPrepassShader = CVar::Get<std::string>("ircs_depthprepass");

@@ -24,7 +24,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		drawParametersFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
 		drawParametersFeatures.shaderDrawParameters = VK_TRUE;
 
-		this->device = std::move(Device(instance, this->physicalDevice, {
+		this->device = std::move(Vk::Device(instance, this->physicalDevice, {
 			.shaderDrawParametersFeatures = drawParametersFeatures,
 			.descriptorIndexingFeatures = this->physicalDevice.GetDescriptorIndexingFeatures()
 		}));
@@ -64,7 +64,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	void* Surface::GetWindow() const { return this->window; }
 	Vk::PhysicalDevice& Surface::GetPhysicalDevice() { return this->physicalDevice; }
-	Device& Surface::GetDevice() { return this->device; }
+	Vk::Device& Surface::GetDevice() { return this->device; }
 	Vk::Swapchain& Surface::GetSwapchain() { return this->swapchain; }
 	Vk::Swapchain::Image& Surface::GetImage(size_t index) { return this->swapchain.GetFramebuffer(index); }
 	void Surface::RecreateSwapchain(VkPresentModeKHR presentMode)

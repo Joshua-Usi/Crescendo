@@ -3,12 +3,12 @@
 #include "common.hpp"
 #include "vulkan/vulkan.h"
 #include "raii/Buffer.hpp"
+#include "raii/Device.hpp"
 #include "raii/Image.hpp"
 #include "raii/CommandQueue.hpp"
 #include "raii/Sampler.hpp"
 #include "cs_std/slot_map.hpp"
 #include "cs_std/graphics/model.hpp"
-#include "Device.hpp"
 #include "cs_std/image.hpp"
 
 #define CS_RESOURCE_MANAGER_CREATE_HANDLE(type, name)\
@@ -71,7 +71,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		};
 
 	private:
-		Device* device;
+		Vk::Device* device;
 		Vk::TransferCommandQueue transferQueue;
 		cs_std::slotmap<Buffer> buffers;
 		cs_std::slotmap<Texture> textures;
@@ -92,7 +92,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		};
 	public:
 		ResourceManager();
-		ResourceManager(Device& device, const ResourceManagerSpecification& resourceManagerSpec);
+		ResourceManager(Vk::Device& device, const ResourceManagerSpecification& resourceManagerSpec);
 		~ResourceManager();
 		ResourceManager(const ResourceManager&) = delete;
 		ResourceManager& operator=(const ResourceManager&) = delete;

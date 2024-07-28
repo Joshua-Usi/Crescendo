@@ -5,7 +5,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 {
 	constexpr uint32_t UNIFORM_BINDING = 0, BUFFER_BINDING = 1, IMAGE_BINDING = 2;
 	template<typename index_type>
-	MeshHandle TemplateUploadMesh(const cs_std::graphics::mesh<index_type>&mesh, Device* device, const Vk::TransferCommandQueue & transferQueue, cs_std::slotmap<Mesh>&meshes)
+	MeshHandle TemplateUploadMesh(const cs_std::graphics::mesh<index_type>&mesh, Vk::Device* device, const Vk::TransferCommandQueue & transferQueue, cs_std::slotmap<Mesh>&meshes)
 	{
 		// Typical number of elements per attribute, Only includes GLTF required attributes
 		constexpr size_t ELEMENTS_PER_ATTRIBUTE[static_cast<size_t>(cs_std::graphics::Attribute::ATTRIBUTE_COUNT)] {
@@ -101,7 +101,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		return VK_FORMAT_UNDEFINED;
 	}
 	ResourceManager::ResourceManager() : device(nullptr), transferQueue() {}
-	ResourceManager::ResourceManager(Device& device, const ResourceManagerSpecification& resourceManagerSpec)
+	ResourceManager::ResourceManager(Vk::Device& device, const ResourceManagerSpecification& resourceManagerSpec)
 		: device(&device), transferQueue(device, device.GetTransferQueue(), false)
 	{
 		constexpr std::array<VkDescriptorType, 3> types{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };

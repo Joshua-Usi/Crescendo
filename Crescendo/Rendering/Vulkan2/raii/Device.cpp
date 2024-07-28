@@ -4,7 +4,7 @@
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
 	Device::Device() : device(nullptr), universal(nullptr, 0), transfer(nullptr, 0), compute(nullptr, 0) {}
-	Device::Device(const PhysicalDevice& physicalDevice, const DeviceCreateInfo& createInfo)
+	Device::Device(const Instance& instance, const PhysicalDevice& physicalDevice, const DeviceCreateInfo& createInfo)
 	{
 		vkb::Result<vkb::Device> deviceResult = vkb::DeviceBuilder(physicalDevice)
 			.add_pNext(const_cast<VkPhysicalDeviceShaderDrawParametersFeatures*>(&createInfo.shaderDrawParametersFeatures))
@@ -36,19 +36,53 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		this->universal.family = device.get_queue_index(vkb::QueueType::graphics).value();
 		this->transfer.family = (hasDedicatedTransfer) ? device.get_queue_index(vkb::QueueType::transfer).value() : this->universal.family; // Fallback to universal
 		this->compute.family = (hasDedicatedCompute) ? device.get_queue_index(vkb::QueueType::compute).value() : this->universal.family; // Fallback to universal
+
+		// Create allocator
+		VmaVulkanFunctions vma_vulkan_func{};
+		vma_vulkan_func.vkAllocateMemory = vkAllocateMemory;
+		vma_vulkan_func.vkBindBufferMemory = vkBindBufferMemory;
+		vma_vulkan_func.vkBindImageMemory = vkBindImageMemory;
+		vma_vulkan_func.vkCreateBuffer = vkCreateBuffer;
+		vma_vulkan_func.vkCreateImage = vkCreateImage;
+		vma_vulkan_func.vkDestroyBuffer = vkDestroyBuffer;
+		vma_vulkan_func.vkDestroyImage = vkDestroyImage;
+		vma_vulkan_func.vkFlushMappedMemoryRanges = vkFlushMappedMemoryRanges;
+		vma_vulkan_func.vkFreeMemory = vkFreeMemory;
+		vma_vulkan_func.vkGetBufferMemoryRequirements = vkGetBufferMemoryRequirements;
+		vma_vulkan_func.vkGetImageMemoryRequirements = vkGetImageMemoryRequirements;
+		vma_vulkan_func.vkGetPhysicalDeviceMemoryProperties = vkGetPhysicalDeviceMemoryProperties;
+		vma_vulkan_func.vkGetPhysicalDeviceProperties = vkGetPhysicalDeviceProperties;
+		vma_vulkan_func.vkInvalidateMappedMemoryRanges = vkInvalidateMappedMemoryRanges;
+		vma_vulkan_func.vkMapMemory = vkMapMemory;
+		vma_vulkan_func.vkUnmapMemory = vkUnmapMemory;
+		vma_vulkan_func.vkCmdCopyBuffer = vkCmdCopyBuffer;
+		vma_vulkan_func.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+		vma_vulkan_func.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+
+		VmaAllocatorCreateInfo allocatorInfo{};
+		allocatorInfo.device = device;
+		allocatorInfo.instance = instance;
+		allocatorInfo.physicalDevice = physicalDevice;
+		allocatorInfo.pVulkanFunctions = &vma_vulkan_func;
+		allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+
+		vmaCreateAllocator(&allocatorInfo, &this->allocator);
 	}
 	Device::~Device()
 	{
+		vmaDestroyAllocator(this->allocator);
 		vkDestroyDevice(this->device, nullptr);
 	}
-	Device::Device(Device&& other) noexcept : device(other.device), universal(other.universal), transfer(other.transfer), compute(other.compute)
+	Device::Device(Device&& other) noexcept : device(other.device), universal(other.universal), transfer(other.transfer), compute(other.compute), allocator(other.allocator)
 	{
 		other.device = nullptr;
+		other.allocator = nullptr;
 	}
 	Device& Device::operator=(Device&& other) noexcept
 	{
 		if (this == &other) return *this;
 		this->device = other.device; other.device = nullptr;
+		this->allocator = other.allocator; other.allocator = nullptr;
 		this->universal = other.universal;
 		this->transfer = other.transfer;
 		this->compute = other.compute;
@@ -60,4 +94,5 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	const Device::Queue& Device::GetTransferQueue() const { return transfer; }
 	const Device::Queue& Device::GetComputeQueue() const { return compute; }
 	void Device::WaitIdle() const { vkDeviceWaitIdle(device); }
+	VmaAllocator Device::GetAllocator() const { return allocator; }
 }

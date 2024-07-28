@@ -3,7 +3,6 @@
  * Unlike the default vulkan.hpp raii classes, these classes can take ownership of raw handles
  * However they are not capable (yet) of custom allocators
  */
-#include "raii/Allocator.hpp"
 #include "raii/Buffer.hpp"
 #include "raii/Device.hpp"
 #include "raii/Fence.hpp"

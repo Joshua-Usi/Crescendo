@@ -2,7 +2,6 @@
 
 #include "common.hpp"
 #include "RAII.hpp"
-#include "Device.hpp"
 #include <functional>
 
 CS_NAMESPACE_BEGIN::Vulkan
@@ -18,7 +17,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkInstance instance;
 		Vk::Surface surface;
 		Vk::PhysicalDevice physicalDevice;
-		Device device;
+		Vk::Device device;
 		Vk::Swapchain swapchain;
 		void* window;
 		std::vector<Vk::Framebuffer> framebuffers;
@@ -35,7 +34,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	public:
 		void* GetWindow() const;
 		Vk::PhysicalDevice& GetPhysicalDevice();
-		Device& GetDevice();
+		Vk::Device& GetDevice();
 		Vk::Swapchain& GetSwapchain();
 		Vk::Swapchain::Image& GetImage(size_t index);
 	public:

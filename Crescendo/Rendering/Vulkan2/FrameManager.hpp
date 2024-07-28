@@ -2,9 +2,9 @@
 
 #include "common.hpp"
 #include "raii/CommandQueue.hpp"
-#include "raii/Semaphore.hpp"
+#include "raii/Device.hpp"
 #include "raii/Fence.hpp"
-#include "Device.hpp"
+#include "raii/Semaphore.hpp"
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
@@ -23,7 +23,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		uint32_t currentFrame;
 	public:
 		FrameManager();
-		FrameManager(const Device& device, uint32_t frameCount);
+		FrameManager(const Vk::Device& device, uint32_t frameCount);
 		~FrameManager();
 		FrameManager(const FrameManager&) = delete;
 		FrameManager& operator=(const FrameManager&) = delete;

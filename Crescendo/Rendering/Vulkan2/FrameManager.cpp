@@ -3,7 +3,7 @@
 CS_NAMESPACE_BEGIN::Vulkan
 {
 	FrameManager::FrameManager() : frames(), currentFrame(0) {}
-	FrameManager::FrameManager(const Device& device, uint32_t frameCount) : currentFrame(0)
+	FrameManager::FrameManager(const Vk::Device& device, uint32_t frameCount) : currentFrame(0)
 	{
 		for (uint32_t i = 0; i < frameCount; i++)
 		{
