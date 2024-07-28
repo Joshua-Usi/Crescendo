@@ -30,14 +30,13 @@ CS_NAMESPACE_BEGIN
 		};
 		this->instance = Vulkan::Instance(spec);
 		this->instance.CreateSurface(this->GetWindow()->GetNative(), {
-			.descriptorManagerSpec = {
-				CVar::Get<uint32_t>("irc_maxbufferdescriptors_bindless"),
-				CVar::Get<uint32_t>("irc_maxtexturedescriptors_bindless")
-			},
 			.swapchainRecreationCallback = nullptr
 		});
 		this->frameManager = Vulkan::FrameManager(this->instance.GetSurface(0).GetDevice(), CVar::Get<uint32_t>("rc_framesinflight"));
-		this->resourceManager = Vulkan::ResourceManager(this->instance.GetSurface(0).GetDevice());
+		this->resourceManager = Vulkan::ResourceManager(this->instance.GetSurface(0).GetDevice(), {
+				CVar::Get<uint32_t>("irc_maxbufferdescriptors_bindless"),
+				CVar::Get<uint32_t>("irc_maxtexturedescriptors_bindless")
+		});
 
 		// Create a default scene
 		loadedScenes.emplace_back();
@@ -47,7 +46,6 @@ CS_NAMESPACE_BEGIN
 			Vulkan::Surface& surface = this->instance.GetSurface(0);
 			Vulkan::Vk::Swapchain& swapchain = surface.GetSwapchain();
 			Vulkan::Device& device = surface.GetDevice();
-			Vulkan::BindlessDescriptorManager& bindlessDescriptorManager = device.GetBindlessDescriptorManager();
 
 			const std::string postProcessingShader = CVar::Get<std::string>("ircs_postprocessing");
 			const std::string depthPrepassShader = CVar::Get<std::string>("ircs_depthprepass");
@@ -62,7 +60,7 @@ CS_NAMESPACE_BEGIN
 				cs_std::binary_file(postProcessingShader + ".vert.spv").open().read_if_exists(),
 				cs_std::binary_file(postProcessingShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetPostProcessingVariant(),
-				device.GetBindlessDescriptorManager().GetLayout(),
+				resourceManager.GetDescriptorSetLayout(),
 				swapchain.GetRenderPass()
 			});
 
@@ -90,7 +88,7 @@ CS_NAMESPACE_BEGIN
 			depthPipeline = Vulkan::Vk::Pipeline(device, {
 				cs_std::binary_file(depthPrepassShader + ".vert.spv").open().read_if_exists(), {},
 				Vulkan::Vk::PipelineVariants::GetDepthPrepassVariant(),
-				device.GetBindlessDescriptorManager().GetLayout(), depthRenderPass
+				resourceManager.GetDescriptorSetLayout(), depthRenderPass
 			});
 			depthImage = Vulkan::Vk::Image(device, device.GetAllocator(), Vulkan::Create::ImageCreateInfo(
 				VK_IMAGE_TYPE_2D, depthFormat, surface.GetSwapchain().GetExtent3D(),
@@ -141,20 +139,20 @@ CS_NAMESPACE_BEGIN
 				cs_std::binary_file(mainShader + ".vert.spv").open().read_if_exists(),
 				cs_std::binary_file(mainShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetDefaultVariant(),
-				device.GetBindlessDescriptorManager().GetLayout(), mainRenderPass
+				resourceManager.GetDescriptorSetLayout(), mainRenderPass
 			});
-			mainImage = Vulkan::Vk::Image(device, device.GetAllocator(), Vulkan::Create::ImageCreateInfo(
-				VK_IMAGE_TYPE_2D, colorFormat, swapchain.GetExtent3D(),
-				1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
-			), Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY));
-			const std::array<VkImageView, 2> attachments2 = { mainImage.GetImageView(), depthImageView };
+
+			mainImageHandle = resourceManager.CreateTexture(
+				Vulkan::Create::ImageCreateInfo(
+					VK_IMAGE_TYPE_2D, colorFormat, swapchain.GetExtent3D(),
+					1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+				),
+				Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
+			);
+
+			const std::array<VkImageView, 2> attachments2 = { resourceManager.GetTexture(mainImageHandle).image, depthImageView };
 			mainFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
 				mainRenderPass, attachments2, swapchain.GetExtent(), 1
-			));
-			postProcessingSampler = Vulkan::Vk::Sampler(device, Vulkan::Create::SamplerCreateInfo(
-				VK_FILTER_LINEAR, VK_FILTER_LINEAR,
-				VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-				1.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK
 			));
 
 			// Skybox
@@ -162,7 +160,7 @@ CS_NAMESPACE_BEGIN
 				cs_std::binary_file(skyboxShader + ".vert.spv").open().read_if_exists(),
 				cs_std::binary_file(skyboxShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetSkyboxVariant(),
-				device.GetBindlessDescriptorManager().GetLayout(), mainRenderPass
+				resourceManager.GetDescriptorSetLayout(), mainRenderPass
 			});
 			Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
 			cs_std::graphics::mesh skyboxMesh;
@@ -174,10 +172,6 @@ CS_NAMESPACE_BEGIN
 			skyboxMeshHandle = resourceManager.UploadMesh(skyboxMesh);
 			skyboxTextureHandle = resourceManager.UploadTexture(LoadImage(CVar::Get<std::string>("skybox_texture")), { Vulkan::ResourceManager::Colorspace::SRGB, 1.0f, true });
 
-			Vulkan::Texture& skyboxTexture = resourceManager.GetTexture(skyboxTextureHandle);
-			bindlessDescriptorManager.StoreImage(mainImage.GetImageView(), postProcessingSampler);
-			bindlessDescriptorManager.StoreImage(skyboxTexture.image.GetImageView(), skyboxTexture.sampler);
-
 			const uint32_t MAX_OBJECT_COUNT = CVar::Get<uint32_t>("irc_maxobjectcount");
 			const uint32_t MAX_DIRECTIONAL_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxdirectionallightcount") * 2;
 			const uint32_t MAX_POINT_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxpointlightcount") * 2;
@@ -187,17 +181,11 @@ CS_NAMESPACE_BEGIN
 			{
 				// Create transforms buffer
 				transformsHandle.push_back(resourceManager.CreateBuffer(sizeof(cs_std::math::mat4) * MAX_OBJECT_COUNT, VK_SHADER_STAGE_ALL));
-				bindlessDescriptorManager.StoreBuffer(resourceManager.GetBuffer(transformsHandle[i]).buffer);
 
 				// Create lights buffer
 				directionalLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(DirectionalLight::ShaderRepresentation) * MAX_DIRECTIONAL_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
-				bindlessDescriptorManager.StoreBuffer(resourceManager.GetBuffer(directionalLightsHandle[i]).buffer);
-
 				pointLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(PointLight::ShaderRepresentation) * MAX_POINT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
-				bindlessDescriptorManager.StoreBuffer(resourceManager.GetBuffer(pointLightsHandle[i]).buffer);
-
 				spotLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(SpotLight::ShaderRepresentation) * MAX_SPOT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
-				bindlessDescriptorManager.StoreBuffer(resourceManager.GetBuffer(spotLightsHandle[i]).buffer);
 			}
 		}
 	}
@@ -304,7 +292,7 @@ CS_NAMESPACE_BEGIN
 
 		cmd.BeginRenderPass(depthRenderPass, depthFramebuffer, depthFramebuffer.GetScissor(), Vulkan::Create::DefaultDepthClear());
 		cmd.BindPipeline(depthPipeline);
-		cmd.BindDescriptorSet(depthPipeline, surface.GetDevice().GetBindlessDescriptorManager().GetSet(), 0, 0, false);
+		cmd.BindDescriptorSet(depthPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
 
 		const struct DepthPrepassParams {
 			uint32_t cameraIdx, transformBufferIdx;
@@ -330,12 +318,12 @@ CS_NAMESPACE_BEGIN
 
 		// Render skybox
 		cmd.BindPipeline(skyboxPipeline);
-		cmd.BindDescriptorSet(skyboxPipeline, surface.GetDevice().GetBindlessDescriptorManager().GetSet(), 0, 0, false);
+		cmd.BindDescriptorSet(skyboxPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
 
 		const struct SkyboxParams {
 			uint32_t cameraIdx, transformBufferIdx;
 		} skyboxParams{ 0, transformsHandle[currentFrameIndex].GetIndex() };
-		const uint32_t skyboxTexture = skyboxTextureHandle.GetIndex() + 1;
+		const uint32_t skyboxTexture = skyboxTextureHandle.GetIndex();
 		cmd.PushConstants(skyboxPipeline, skyboxParams, VK_SHADER_STAGE_VERTEX_BIT);
 		cmd.PushConstants(skyboxPipeline, skyboxTexture, VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
 		cmd.BindIndexBuffer(resourceManager.GetMesh(skyboxMeshHandle).indexBuffer);
@@ -344,7 +332,7 @@ CS_NAMESPACE_BEGIN
 			*resourceManager.GetMesh(skyboxMeshHandle).GetAttributeBuffer(cs_std::graphics::Attribute::TEXCOORD_0),
 			}, { 0, 0 });
 		cmd.DrawIndexed(resourceManager.GetMesh(skyboxMeshHandle).indexCount, 1, 0, 0, 0);
-		cmd.BindDescriptorSet(mainPipeline, surface.GetDevice().GetBindlessDescriptorManager().GetSet(), 0, 0, false);
+		cmd.BindDescriptorSet(mainPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
 
 		// main pass has two push constants, one in the vertex shader, one in the fragment shader
 		const struct MainPassVertexParams {
@@ -371,7 +359,7 @@ CS_NAMESPACE_BEGIN
 				uint32_t dummy0, dummy1;
 				cs_std::math::vec4 cameraViewPos;
 			} texturesParams {
-				data.diffuse.GetIndex() + 1, data.normal.GetIndex() + 1, // first image is the offscreen image
+				data.diffuse.GetIndex(), data.normal.GetIndex(), // first image is the offscreen image
 				directionalLightsHandle[currentFrameIndex].GetIndex(), pointLightsHandle[currentFrameIndex].GetIndex(), spotLightsHandle[currentFrameIndex].GetIndex(),
 				static_cast<uint32_t>(directionalLights.size()), static_cast<uint32_t>(pointLights.size()), static_cast<uint32_t>(spotLights.size()),
 				0, 0,
@@ -392,7 +380,7 @@ CS_NAMESPACE_BEGIN
 			{ Vulkan::Create::ClearValue(1.0f, 0.0f, 0.0f, 1.0f), Vulkan::Create::DefaultDepthClear() }
 		);
 		cmd.BindPipeline(postProcessingPipeline);
-		cmd.BindDescriptorSet(postProcessingPipeline, surface.GetDevice().GetBindlessDescriptorManager().GetSet(), 0, 0, false);
+		cmd.BindDescriptorSet(postProcessingPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
 
 		uint32_t offscreenTexIdx = 0;
 		cmd.PushConstants(postProcessingPipeline, offscreenTexIdx, VK_SHADER_STAGE_FRAGMENT_BIT);

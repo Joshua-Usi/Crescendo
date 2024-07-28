@@ -40,7 +40,7 @@ CS_NAMESPACE_BEGIN
 
 		Vulkan::Vk::RenderPass mainRenderPass;
 		Vulkan::Vk::Pipeline mainPipeline;
-		Vulkan::Vk::Image mainImage;
+		Vulkan::TextureHandle mainImageHandle;
 		Vulkan::Vk::Framebuffer mainFramebuffer;
 
 		std::vector<Vulkan::BufferHandle> transformsHandle;

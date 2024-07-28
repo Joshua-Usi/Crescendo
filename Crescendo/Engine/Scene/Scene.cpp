@@ -11,7 +11,6 @@ CS_NAMESPACE_BEGIN
 			auto* app = Application::Get();
 			auto& resourceManager = app->resourceManager;
 			auto& taskQueue = app->taskQueue;
-			auto& bindlessManager = app->instance.GetSurface(0).GetDevice().GetBindlessDescriptorManager();
 
 			uint32_t textureIndex = 0;
 
@@ -92,7 +91,6 @@ CS_NAMESPACE_BEGIN
 				Vulkan::TextureHandle handle = resourceManager.UploadTexture(image, { textureMap[textureStrings[i]].colorspace, 1.0f, true });
 				textures.push_back(handle);
 				Vulkan::Texture& texture = resourceManager.GetTexture(handle);
-				bindlessManager.StoreImage(texture.image, texture.sampler);
 			}
 
 			for (auto& info : entityTextureInfo)

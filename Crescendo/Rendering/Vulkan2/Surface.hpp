@@ -12,7 +12,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 	public:
 		struct SurfaceSpecification
 		{
-			BindlessDescriptorManager::BindlessDescriptorManagerSpecification descriptorManagerSpec;
 			std::function<void()> swapchainRecreationCallback = nullptr;
 		};
 	private:

@@ -9,22 +9,6 @@ namespace math = cs_std::math;
 
 #include "scripts/CameraController.hpp"
 
-struct MainPassParams
-{
-	Vulkan::BindlessDescriptorManager::BufferHandle directionalLights;
-	Vulkan::BindlessDescriptorManager::BufferHandle pointLights;
-	Vulkan::BindlessDescriptorManager::BufferHandle spotLights;
-	uint32_t pad0;
-};
-
-struct SkyboxParams
-{
-	Vulkan::BindlessDescriptorManager::BufferHandle camera;
-	Vulkan::BindlessDescriptorManager::ImageHandle skyboxTexture;
-	uint32_t pad0;
-	uint32_t pad1;
-};
-
 class Sandbox : public Application
 {
 private:

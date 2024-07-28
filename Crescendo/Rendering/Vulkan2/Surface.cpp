@@ -25,11 +25,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 		drawParametersFeatures.shaderDrawParameters = VK_TRUE;
 
 		this->device = std::move(Device(instance, this->physicalDevice, {
-			.deviceCreateInfo = {
-				.shaderDrawParametersFeatures = drawParametersFeatures,
-				.descriptorIndexingFeatures = this->physicalDevice.GetDescriptorIndexingFeatures()
-			},
-			.descriptorManagerSpec = spec.descriptorManagerSpec
+			.shaderDrawParametersFeatures = drawParametersFeatures,
+			.descriptorIndexingFeatures = this->physicalDevice.GetDescriptorIndexingFeatures()
 		}));
 
 		this->swapchain = Vk::Swapchain(this->physicalDevice, this->device, this->surface,{

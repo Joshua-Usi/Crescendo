@@ -10,7 +10,6 @@
 #include "cs_std/graphics/model.hpp"
 #include "Device.hpp"
 #include "cs_std/image.hpp"
-#include "BindlessDescriptorManager.hpp"
 
 #define CS_RESOURCE_MANAGER_CREATE_HANDLE(type, name)\
 class name\
@@ -29,18 +28,16 @@ CS_NAMESPACE_BEGIN::Vulkan
 	struct Buffer
 	{
 		Vk::Buffer buffer;
-		BindlessDescriptorManager::BufferHandle handle;
 		Buffer() = default;
-		Buffer(Vk::Buffer&& b, BindlessDescriptorManager::BufferHandle handle) : buffer(std::move(b)), handle(handle) {}
+		Buffer(Vk::Buffer&& b) : buffer(std::move(b)) {}
 	};
 
 	struct Texture
 	{
 		Vk::Image image;
 		VkSampler sampler;
-		BindlessDescriptorManager::ImageHandle handle;
 		Texture() = default;
-		Texture(Vk::Image&& i, VkSampler sampler, BindlessDescriptorManager::ImageHandle handle) : image(std::move(i)), sampler(sampler), handle(handle) {}
+		Texture(Vk::Image&& i, VkSampler sampler) : image(std::move(i)), sampler(sampler) {}
 	};
 
 	struct Mesh
@@ -67,6 +64,12 @@ CS_NAMESPACE_BEGIN::Vulkan
 
 	class ResourceManager
 	{
+	public:
+		struct ResourceManagerSpecification
+		{
+			uint32_t maxBuffers, maxImages;
+		};
+
 	private:
 		Device* device;
 		Vk::TransferCommandQueue transferQueue;
@@ -74,6 +77,10 @@ CS_NAMESPACE_BEGIN::Vulkan
 		cs_std::slotmap<Texture> textures;
 		cs_std::slotmap<Mesh> meshes;
 		std::vector<Vk::Sampler> samplers;
+
+		VkDescriptorSetLayout layout;
+		VkDescriptorPool pool;
+		VkDescriptorSet set;
 	public:
 		enum class Colorspace : uint8_t { SRGB, Linear };
 		struct TextureSpecification
@@ -85,8 +92,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 		};
 	public:
 		ResourceManager();
-		ResourceManager(Device& device);
-		~ResourceManager() = default;
+		ResourceManager(Device& device, const ResourceManagerSpecification& resourceManagerSpec);
+		~ResourceManager();
 		ResourceManager(const ResourceManager&) = delete;
 		ResourceManager& operator=(const ResourceManager&) = delete;
 		ResourceManager(ResourceManager&& other) noexcept;
@@ -95,6 +102,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		// These methods will block the thread until task is complete
 		// TODO add an async method
 		[[nodiscard]] BufferHandle CreateBuffer(VkDeviceSize size, VkShaderStageFlags shaderStage);
+		[[nodiscard]] TextureHandle CreateTexture(const VkImageCreateInfo& createInfo, const VmaAllocationCreateInfo& allocationCreateInfo);
 		[[nodiscard]] TextureHandle UploadTexture(const cs_std::image& image, const TextureSpecification& textureSpec = {}); 
 		template<cs_std::graphics::valid_index_type indice_type>
 		[[nodiscard]] MeshHandle UploadMesh(const cs_std::graphics::mesh<indice_type>& mesh);
@@ -110,5 +118,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		size_t GetBufferCount() const;
 		size_t GetTextureCount() const;
 		size_t GetMeshCount() const;
+		VkDescriptorSetLayout GetDescriptorSetLayout() const;
+		VkDescriptorSet GetDescriptorSet() const;
 	};
 }
