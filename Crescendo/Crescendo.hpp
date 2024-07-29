@@ -14,7 +14,6 @@
 #include "Engine/Engine.hpp"
 #include "Assets/Assets.hpp"
 #include "Libraries/Libraries.hpp"
-#include "Rendering/Rendering.hpp"
 
 #include "cs_std/file.hpp"
 

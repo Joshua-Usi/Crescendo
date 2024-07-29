@@ -3,13 +3,27 @@
 #include "cs_std/xml/xml.hpp"
 #include "cs_std/file.hpp"
 
+#include <regex>
+
 CS_NAMESPACE_BEGIN
 {
-	std::unordered_map<std::string, std::string> CVar::data {};
-	void CVar::Register(const std::string& name, const std::string& value)
+	enum class CVarTypeFlag
 	{
-		data.emplace(name, value);
+		INT,
+		FLOAT,
+		STRING,
+		BOOL
+	};
+	CVarTypeFlag DetectType(const std::string& value)
+	{
+		std::string temp = value;
+		std::transform(temp.begin(), temp.end(), temp.begin(), ::tolower);
+		if (temp == "true" || temp == "false") return CVarTypeFlag::BOOL;
+		if (std::regex_match(value, std::regex("^-?[0-9]+$"))) return CVarTypeFlag::INT;
+		if (std::regex_match(value, std::regex("^[-+]?[0-9]*\\.?[0-9]+$"))) return CVarTypeFlag::FLOAT;
+		return CVarTypeFlag::STRING;
 	}
+	std::unordered_map<std::string, CVarType> CVar::data {};
 	std::vector<std::string> CVar::GetNames()
 	{
 		std::vector<std::string> names;
@@ -21,7 +35,30 @@ CS_NAMESPACE_BEGIN
 		if (clearRegistry) data.clear();
 		std::string xmlString = cs_std::text_file(path).open().read();
 		cs_std::xml::document document(xmlString);
-		for (const auto& var : document) Register(var->tag, var->innerText);
+		for (const auto& var : document)
+		{
+			CVarTypeFlag type = DetectType(var->innerText);
+			if (type == CVarTypeFlag::INT)
+			{
+				Register<int64_t>(var->tag, var->innerText);
+				cs_std::console::info("Registered CVar: ", var->tag, " as type int with value ", var->innerText); 
+			}
+			else if (type == CVarTypeFlag::FLOAT)
+			{
+				Register<double>(var->tag, var->innerText);
+				cs_std::console::info("Registered CVar: ", var->tag, " as type float with value ", var->innerText);
+			}
+			else if (type == CVarTypeFlag::STRING)
+			{
+				Register<std::string>(var->tag, var->innerText);
+				cs_std::console::info("Registered CVar: ", var->tag, " as type string with value ", var->innerText);
+			}
+			else if (type == CVarTypeFlag::BOOL)
+			{
+				Register<bool>(var->tag, var->innerText);
+				cs_std::console::info("Registered CVar: ", var->tag, " as type bool with value ", var->innerText);
+			}
+		}
 	}
 	std::string CVar::SerializeConfigXML()
 	{
