@@ -120,7 +120,7 @@ void main()
 	vec4 normalColor = texture(uTextures2D[normalTexIdx], iTexCoord);
 	/* ---------------- Lighting ---------------- */
 
-	vec3 normal_ws = normalize(iTBN * (normalColor.rgb * 2.0f - 1.0f));
+	vec3 normal_ts = normalize(iTBN * (normalColor.rgb * 2.0f - 1.0f));
 	vec3 viewDir_ws = normalize(cameraViewPos.xyz - iPosition_ws);
 
 	vec3 lightIntensity = vec3(0.2f);
@@ -129,21 +129,21 @@ void main()
 	for (uint i = 0; i < directionalLightCount; i++)
 	{
 		const DirectionalLight directionalLight = GetResource(DirectionalLightBuffer, directionalLightBufferIdx).directionalLightData[i];
-		lightIntensity += CalcDirectionalLight(directionalLight, normal_ws, viewDir_ws);
+		lightIntensity += CalcDirectionalLight(directionalLight, normal_ts, viewDir_ws);
 	}
 
 	// Point lights
 	for (uint i = 0; i < pointLightCount; i++)
 	{
 		const PointLight pointLight = GetResource(PointLightBuffer, pointLightBufferIdx).pointLightData[i];
-		lightIntensity += CalcPointLight(pointLight, normal_ws, viewDir_ws, iPosition_ws);
+		lightIntensity += CalcPointLight(pointLight, normal_ts, viewDir_ws, iPosition_ws);
 	}
 
 	// Spot lights
 	for (uint i = 0; i < spotLightCount; i++)
 	{
 		const SpotLight spotlight = GetResource(SpotLightBuffer, spotLightBufferIdx).spotLightData[i];
-		lightIntensity += CalcSpotLight(spotlight, normal_ws, viewDir_ws, iPosition_ws);
+		lightIntensity += CalcSpotLight(spotlight, normal_ts, viewDir_ws, iPosition_ws);
 	}
 
 	/* ---------------- Shadows ---------------- */
