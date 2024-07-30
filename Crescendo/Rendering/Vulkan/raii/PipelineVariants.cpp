@@ -2,6 +2,7 @@
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
+	// Finds the value of the nth bit set to 1 in a number
 	template <typename T>
 	constexpr T getNthSetBit(T number, T n)
 	{

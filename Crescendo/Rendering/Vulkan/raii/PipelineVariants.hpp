@@ -5,7 +5,7 @@
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
-	struct PipelineVariants
+	class PipelineVariants
 	{
 	public:
 		constexpr static uint8_t FillModeCount = 3, CullModeCount = 3, DepthFuncCount = 7, DepthWriteCount = 2, DepthTestCount = 2;
