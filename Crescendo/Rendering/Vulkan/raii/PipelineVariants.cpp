@@ -48,7 +48,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		uint32_t index = 0;
 		uint32_t multiplier = 1;
 
-		const auto addFlagToIndex = [&](auto flag, auto allFlags)
+		const auto updateIndexWithFlag = [&](auto flag, auto allFlags)
 		{
 			uint8_t totalFlags = std::popcount(static_cast<uint8_t>(allFlags));
 			uint8_t currentFlagPosition = std::popcount(static_cast<uint8_t>((static_cast<uint8_t>(flag) - 1) & static_cast<uint8_t>(allFlags)));
@@ -57,12 +57,12 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		};
 
 		// MUST BE DONE IN REVERSE ORDER
-		addFlagToIndex(depthWrite, depthWriteFlags);
-		addFlagToIndex(depthTest, depthTestFlags);
-		addFlagToIndex(depthFunc, depthFuncFlags);
-		addFlagToIndex(multisamples, multisampleFlags);
-		addFlagToIndex(cullMode, cullModeFlags);
-		addFlagToIndex(fillMode, fillModeFlags);
+		updateIndexWithFlag(depthWrite, depthWriteFlags);
+		updateIndexWithFlag(depthTest, depthTestFlags);
+		updateIndexWithFlag(depthFunc, depthFuncFlags);
+		updateIndexWithFlag(multisamples, multisampleFlags);
+		updateIndexWithFlag(cullMode, cullModeFlags);
+		updateIndexWithFlag(fillMode, fillModeFlags);
 
 		return index;
 	}
