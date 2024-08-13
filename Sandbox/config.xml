@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+	<!-- internal render config (do not modify unless you know what you are doing) -->
+	<irc_validationlayers type="bool">true</irc_validationlayers>
+	<irc_maxbufferdescriptors_bindless type="int">1024</irc_maxbufferdescriptors_bindless>
+	<irc_maxtexturedescriptors_bindless type="int">1024</irc_maxtexturedescriptors_bindless>
+	<irc_maxobjectcount type="int">8192</irc_maxobjectcount>
+	<irc_maxdirectionallightcount type="int">16</irc_maxdirectionallightcount>
+	<irc_maxpointlightcount type="int">256</irc_maxpointlightcount>
+	<irc_maxspotlightcount type="int">256</irc_maxspotlightcount>
+	<!-- internal render config shaders -->
+	<ircs_depthprepass type="string">./shaders/compiled/depth</ircs_depthprepass>
+	<ircs_postprocessing type="string">./shaders/compiled/post_processing</ircs_postprocessing>
+	<ircs_main type="string">./shaders/compiled/main</ircs_main>
+	<ircs_skybox type="string">./shaders/compiled/skybox_sphere</ircs_skybox>
+	<!-- render config-->
+	<rc_framesinflight type="int">3</rc_framesinflight>
+	<rc_multisamples type="int">1</rc_multisamples>
+	<rc_anisotropicsamples type="int">1</rc_anisotropicsamples>
+	<rc_renderscale type="double">1.0</rc_renderscale>
+	<!-- engine config-->
+	<ec_appname type="string">Sandbox</ec_appname>
+	<ec_windowwidth type="int">1280</ec_windowwidth>
+	<ec_windowheight type="int">720</ec_windowheight>
+	<ec_vsync type="bool">true</ec_vsync>
+	<!-- path configs -->
+	<pc_assetpath>./assets/</pc_assetpath>
+
+	<skybox_texture>./assets/skybox.png</skybox_texture>
+</config>	

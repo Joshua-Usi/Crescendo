@@ -19,7 +19,8 @@ CS_NAMESPACE_BEGIN
 	Application::Application() : isRunning(true), shouldRestart(false), taskQueue(cs_std::task_queue()), timestamp(), layerManager(LayerStack())
 	{
 		self = this;
-		CVar::LoadConfigXML("./configs/config.xml");
+		// Either use the default config, which should be in the same directory as the executable, named "config.xml" or can be specified in the command line
+		CVar::LoadConfigXML("./config.xml");
 
 		this->CreateDefaultWindow();
 		this->GetWindow()->SetCursorLock(true);

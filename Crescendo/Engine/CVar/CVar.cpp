@@ -12,7 +12,8 @@ CS_NAMESPACE_BEGIN
 		INT,
 		FLOAT,
 		STRING,
-		BOOL
+		BOOL,
+		INVALID
 	};
 	CVarTypeFlag DetectType(const std::string& value)
 	{
@@ -22,6 +23,14 @@ CS_NAMESPACE_BEGIN
 		if (std::regex_match(value, std::regex("^-?[0-9]+$"))) return CVarTypeFlag::INT;
 		if (std::regex_match(value, std::regex("^[-+]?[0-9]*\\.?[0-9]+$"))) return CVarTypeFlag::FLOAT;
 		return CVarTypeFlag::STRING;
+	}
+	CVarTypeFlag StringToType(const std::string& type)
+	{
+		if (type == "int") return CVarTypeFlag::INT;
+		if (type == "double") return CVarTypeFlag::FLOAT;
+		if (type == "string") return CVarTypeFlag::STRING;
+		if (type == "bool") return CVarTypeFlag::BOOL;
+		return CVarTypeFlag::INVALID;
 	}
 	std::unordered_map<std::string, CVarType> CVar::data {};
 	std::vector<std::string> CVar::GetNames()
@@ -37,34 +46,35 @@ CS_NAMESPACE_BEGIN
 		cs_std::xml::document document(xmlString);
 		for (const auto& var : document)
 		{
-			CVarTypeFlag type = DetectType(var->innerText);
-			if (type == CVarTypeFlag::INT)
+			CVarTypeFlag type;
+			if (!var->has_attribute("type"))
 			{
-				Register<int64_t>(var->tag, var->innerText);
-				cs_std::console::info("Loaded CVar: int64_t ", var->tag, " = ", var->innerText); 
+				// Infer the type if we don't have a type attribute
+				type = DetectType(var->innerText);
 			}
-			else if (type == CVarTypeFlag::FLOAT)
+			else
 			{
-				Register<double>(var->tag, var->innerText);
-				cs_std::console::info("Loaded CVar: double ", var->tag, " = ", var->innerText);
+				std::string typeString = var->get_attribute("type");
+				type = StringToType(typeString);
+				if (type == CVarTypeFlag::INVALID)
+				{
+					cs_std::console::error("Cvar ", var->tag, " has an invalid type tag: ", typeString);
+					continue;
+				}
 			}
-			else if (type == CVarTypeFlag::STRING)
-			{
-				Register<std::string>(var->tag, var->innerText);
-				cs_std::console::info("Loaded CVar: string ", var->tag, " = ", var->innerText);
-			}
-			else if (type == CVarTypeFlag::BOOL)
-			{
-				Register<bool>(var->tag, var->innerText);
-				cs_std::console::info("Loaded CVar: bool ", var->tag, " = ", var->innerText);
-			}
+
+			if (type == CVarTypeFlag::INT) Register<int64_t>(var->tag, var->innerText);
+			else if (type == CVarTypeFlag::FLOAT) Register<double>(var->tag, var->innerText);
+			else if (type == CVarTypeFlag::STRING) Register<std::string>(var->tag, var->innerText);
+			else if (type == CVarTypeFlag::BOOL) Register<bool>(var->tag, var->innerText);
+			cs_std::console::info("Loaded CVar: ", var->get_attribute("type"), " ", var->tag, " = ", var->innerText);
 		}
 	}
 	std::string CVar::SerializeConfigXML()
 	{
 		std::string outputString = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<config>\n";
 		std::vector<std::string> names = GetNames();
-		for (const auto& name : names) outputString += "\t<" + name + ">" + Get<std::string>(name) + "</" + name + ">\n";
+		for (const auto& name : names) outputString += "\t<" + name + " " +  + ">" + Get<std::string>(name) + "</" + name + ">\n";
 		outputString += "</config>";
 		return outputString;
 	}
