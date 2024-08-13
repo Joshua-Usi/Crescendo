@@ -785,6 +785,18 @@ CS_NAMESPACE_BEGIN::Vulkan::Create
 	{
 		return { width, height, depth };
 	}
+	inline constexpr VkExtent2D Extent2D(uint32_t width, uint32_t height)
+	{
+		return { width, height };
+	}
+	inline constexpr VkExtent3D Extent3D(VkExtent3D other, float scale = 1.0f)
+	{
+		return { static_cast<uint32_t>(other.width * scale), static_cast<uint32_t>(other.height * scale), other.depth };
+	}
+	inline constexpr VkExtent2D Extent2D(VkExtent2D other, float scale = 1.0f)
+	{
+		return { static_cast<uint32_t>(other.width * scale), static_cast<uint32_t>(other.height * scale) };
+	}
 	inline constexpr VkOffset3D Offset3D(int32_t x, int32_t y, int32_t z)
 	{
 		return { x, y, z };

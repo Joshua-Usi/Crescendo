@@ -52,9 +52,10 @@ CS_NAMESPACE_BEGIN
 			const std::string mainShader = CVar::Get<std::string>("ircs_main");
 			const std::string skyboxShader = CVar::Get<std::string>("ircs_skybox");
 
-			constexpr VkFormat colorFormat = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
-			constexpr VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
-			constexpr VkSampleCountFlagBits multisamples = VK_SAMPLE_COUNT_1_BIT;
+			constexpr VkFormat COLOR_FORMAT = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+			constexpr VkFormat DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
+			constexpr VkSampleCountFlagBits MULTISAMPLES = VK_SAMPLE_COUNT_1_BIT;
+			const double RENDER_SCALE = CVar::Get<double>("rc_renderscale");
 
 			postProcessingPipeline = Vulkan::Vk::Pipeline(device, {
 				cs_std::binary_file(postProcessingShader + ".vert.spv").open().read_if_exists(),
@@ -65,7 +66,7 @@ CS_NAMESPACE_BEGIN
 			});
 
 			VkAttachmentDescription depthAttachment = Vulkan::Create::AttachmentDescription(
-				depthFormat, multisamples, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+				DEPTH_FORMAT, MULTISAMPLES, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
 				VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
 				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
 			);
@@ -91,23 +92,23 @@ CS_NAMESPACE_BEGIN
 				resourceManager.GetDescriptorSetLayout(), depthRenderPass
 			});
 			depthImage = Vulkan::Vk::Image(device, device.GetAllocator(), Vulkan::Create::ImageCreateInfo(
-				VK_IMAGE_TYPE_2D, depthFormat, surface.GetSwapchain().GetExtent3D(),
-				1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+				VK_IMAGE_TYPE_2D, DEPTH_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), RENDER_SCALE),
+				1, 1, MULTISAMPLES, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
 			), Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY));
 			const VkImageView depthImageView = depthImage.GetImageView();
 			depthFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
-				depthRenderPass, &depthImageView, swapchain.GetExtent(), 1
+				depthRenderPass, &depthImageView, Vulkan::Create::Extent2D(swapchain.GetExtent(), RENDER_SCALE), 1
 			));
 
 			VkAttachmentDescription colorAttachment = Vulkan::Create::AttachmentDescription(
-				colorFormat, multisamples,
+				COLOR_FORMAT, MULTISAMPLES,
 				VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
 				VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
 				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 			);
 			VkAttachmentReference colorAttachmentRef = Vulkan::Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 			depthAttachment = Vulkan::Create::AttachmentDescription(
-				depthFormat, multisamples,
+				DEPTH_FORMAT, MULTISAMPLES,
 				VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
 				VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
 				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
@@ -141,18 +142,17 @@ CS_NAMESPACE_BEGIN
 				Vulkan::Vk::PipelineVariants::GetDefaultVariant(),
 				resourceManager.GetDescriptorSetLayout(), mainRenderPass
 			});
-
 			mainImageHandle = resourceManager.CreateTexture(
 				Vulkan::Create::ImageCreateInfo(
-					VK_IMAGE_TYPE_2D, colorFormat, swapchain.GetExtent3D(),
-					1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+					VK_IMAGE_TYPE_2D, COLOR_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), RENDER_SCALE),
+					1, 1, MULTISAMPLES, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
 				),
 				Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
 			);
 
 			const std::array<VkImageView, 2> attachments2 = { resourceManager.GetTexture(mainImageHandle).image, depthImageView };
 			mainFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
-				mainRenderPass, attachments2, swapchain.GetExtent(), 1
+				mainRenderPass, attachments2, Vulkan::Create::Extent2D(swapchain.GetExtent(), RENDER_SCALE), 1
 			));
 
 			// Skybox
