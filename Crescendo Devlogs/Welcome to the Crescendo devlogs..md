@@ -1,17 +1,18 @@
 *I really should be logging more often*
 
-This is just a log of what I do, how I implement stuff and what I learn in my engine.
+Crescendo is an ever-evolving project, it'd be a shame if I didn't document everything that I learned, ripped out and rewrote. There's plenty of insight and reflection to learn in these logs
 ## Table of Contents:
 ### Pre-Alpha
-	[[1. Reverse-Z]]
-	[[2. Lights pt.1]]
-	[[3. Vulkan Resource Managment]] 
+[[Pipeline Management]]
+[[Reverse-Z]]
+[[Lights pt.1]]
+[[Bindless]]
+[[A better CVar system]]
 ### Alpha
-TBA
+[[Making an actual game]]
 ### Beta
 TBA
 ### Release
 TBA
 ### Other
-	[[i. Know your space]]
-	 
+[[Know your space]]
