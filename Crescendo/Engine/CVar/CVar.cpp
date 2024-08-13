@@ -41,22 +41,22 @@ CS_NAMESPACE_BEGIN
 			if (type == CVarTypeFlag::INT)
 			{
 				Register<int64_t>(var->tag, var->innerText);
-				cs_std::console::info("Registered CVar: ", var->tag, " as type int with value ", var->innerText); 
+				cs_std::console::info("Loaded CVar: int64_t ", var->tag, " = ", var->innerText); 
 			}
 			else if (type == CVarTypeFlag::FLOAT)
 			{
 				Register<double>(var->tag, var->innerText);
-				cs_std::console::info("Registered CVar: ", var->tag, " as type float with value ", var->innerText);
+				cs_std::console::info("Loaded CVar: double ", var->tag, " = ", var->innerText);
 			}
 			else if (type == CVarTypeFlag::STRING)
 			{
 				Register<std::string>(var->tag, var->innerText);
-				cs_std::console::info("Registered CVar: ", var->tag, " as type string with value ", var->innerText);
+				cs_std::console::info("Loaded CVar: string ", var->tag, " = ", var->innerText);
 			}
 			else if (type == CVarTypeFlag::BOOL)
 			{
 				Register<bool>(var->tag, var->innerText);
-				cs_std::console::info("Registered CVar: ", var->tag, " as type bool with value ", var->innerText);
+				cs_std::console::info("Loaded CVar: bool ", var->tag, " = ", var->innerText);
 			}
 		}
 	}
