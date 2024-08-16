@@ -20,7 +20,8 @@ CS_NAMESPACE_BEGIN
 	{
 		self = this;
 		// Either use the default config, which should be in the same directory as the executable, named "config.xml" or can be specified in the command line
-		CVar::LoadConfigXML(args.HasArg("config") ? args.GetArg("config") : "config.xml");
+		std::string config = args.HasArg("config") ? args.GetArg("config") : "config.xml";
+		if (cs_std::text_file(config).exists()) CVar::LoadConfigXML(config);
 
 		this->CreateDefaultWindow();
 		this->GetWindow()->SetCursorLock(true);

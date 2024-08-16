@@ -6,6 +6,7 @@
 #ifdef CS_PLATFORM_WINDOWS
 	int main(int argc, char** argv)
 	{
+		// Arguments persist through restarts
 		CrescendoEngine::ApplicationCommandLineArgs commandLineArgs(argc, argv);
 		std::unique_ptr<CrescendoEngine::Application> app;
 		do
