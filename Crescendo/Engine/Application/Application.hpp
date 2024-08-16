@@ -28,10 +28,11 @@ CS_NAMESPACE_BEGIN
 
 		std::vector<Scene> loadedScenes;
 		Scene* activeScene;
+	private:
 		Vulkan::Instance instance;
 		Vulkan::ResourceManager resourceManager;
 		Vulkan::FrameManager frameManager;
-	private:
+
 		Vulkan::Vk::Pipeline postProcessingPipeline;
 		Vulkan::Vk::Sampler postProcessingSampler;
 
