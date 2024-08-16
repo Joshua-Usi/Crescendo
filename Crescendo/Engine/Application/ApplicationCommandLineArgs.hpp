@@ -13,7 +13,8 @@ CS_NAMESPACE_BEGIN
 	public:
 		ApplicationCommandLineArgs(int argc, char** argv)
 		{
-			for (int i = 0; i < argc; i++)
+			// Ignore first command
+			for (int i = 1; i < argc; i++)
 			{
 				std::string arg = argv[i];
 				if (arg.find('=') != std::string::npos)
