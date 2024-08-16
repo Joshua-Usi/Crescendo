@@ -11,6 +11,8 @@
 #include "Rendering/Vulkan/ResourceManager.hpp"
 #include "Rendering/Vulkan/FrameManager.hpp"
 
+#include "ApplicationCommandLineArgs.hpp"
+
 CS_NAMESPACE_BEGIN
 {
 	class Application
@@ -60,7 +62,7 @@ CS_NAMESPACE_BEGIN
 	private:
 		void InternalUpdate(double dt);
 	public:
-		Application();
+		Application(const ApplicationCommandLineArgs& args);
 		virtual ~Application();
 		void Run();
 		void Exit();
@@ -82,5 +84,5 @@ CS_NAMESPACE_BEGIN
 		static Application* Get();
 	};
 	// To be defined by the client to implement their own inherited Application class
-	std::unique_ptr<Application> CreateApplication();
+	std::unique_ptr<Application> CreateApplication(const ApplicationCommandLineArgs& args);
 }

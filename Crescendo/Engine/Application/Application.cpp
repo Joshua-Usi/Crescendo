@@ -16,11 +16,11 @@ CS_NAMESPACE_BEGIN
 	static bool isFirstWindow = true;
 	// Assign self and null as no instance exists yet
 	Application* Application::self = nullptr;
-	Application::Application() : isRunning(true), shouldRestart(false), taskQueue(cs_std::task_queue()), timestamp(), layerManager(LayerStack())
+	Application::Application(const ApplicationCommandLineArgs& args) : isRunning(true), shouldRestart(false), taskQueue(cs_std::task_queue()), timestamp(), layerManager(LayerStack())
 	{
 		self = this;
 		// Either use the default config, which should be in the same directory as the executable, named "config.xml" or can be specified in the command line
-		CVar::LoadConfigXML("./config.xml");
+		CVar::LoadConfigXML(args.HasArg("config") ? args.GetArg("config") : "config.xml");
 
 		this->CreateDefaultWindow();
 		this->GetWindow()->SetCursorLock(true);

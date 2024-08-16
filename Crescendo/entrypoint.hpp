@@ -1,15 +1,16 @@
 #pragma once
 
+#include "Engine/Application/ApplicationCommandLineArgs.hpp"
 #include "Engine/Application/Application.hpp"
 
 #ifdef CS_PLATFORM_WINDOWS
 	int main(int argc, char** argv)
 	{
-		// TODO Handle command line arguments
+		CrescendoEngine::ApplicationCommandLineArgs commandLineArgs(argc, argv);
 		std::unique_ptr<CrescendoEngine::Application> app;
 		do
 		{
-			app = CrescendoEngine::CreateApplication();
+			app = CrescendoEngine::CreateApplication(commandLineArgs);
 			app->Run();
 		} while (app->ShouldRestart());
 		return 0;

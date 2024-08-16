@@ -16,6 +16,7 @@ private:
 	double lastTime = 0.0;
 	uint32_t frames = 0;
 public:
+	using Application::Application;
 	void OnStartup()
 	{
 		Scene& currentScene = GetActiveScene();

@@ -18,4 +18,4 @@
 #include "cs_std/file.hpp"
 
 
-#define CrescendoRegisterApp(app) std::unique_ptr<CrescendoEngine::Application> CrescendoEngine::CreateApplication() { return std::make_unique<app>(); }
+#define CrescendoRegisterApp(app) std::unique_ptr<CrescendoEngine::Application> CrescendoEngine::CreateApplication(const ApplicationCommandLineArgs& args) { return std::make_unique<app>(args); }
