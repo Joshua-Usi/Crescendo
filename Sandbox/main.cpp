@@ -21,7 +21,7 @@ public:
 		Entity cameraEntity = currentScene.entityManager.CreateEntity();
 		cameraEntity.EmplaceComponent<Name>("Main Camera");
 		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
-		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, this->GetWindow()->GetAspectRatio(), 0.1f, 1000.0f);
+		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, 0.1f, 1000.0f);
 		cameraEntity.EmplaceComponent<Behaviours>(std::make_shared<CameraController>());
 		currentScene.activeCamera = cameraEntity;
 		currentScene.entities.insert(cameraEntity);

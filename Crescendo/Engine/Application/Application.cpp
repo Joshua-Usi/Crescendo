@@ -212,7 +212,7 @@ CS_NAMESPACE_BEGIN
 		Entity camera = currentScene.entityManager.GetEntity(currentScene.activeCamera);
 		cs_std::math::vec3 cameraPosition = camera.GetComponent<Transform>().GetPosition();
 		cs_std::math::mat4 cameraView = camera.GetComponent<Transform>().GetCameraViewMatrix();
-		cs_std::math::mat4 cameraViewProjection = camera.GetComponent<PerspectiveCamera>().GetViewProjectionMatrix(cameraView);
+		cs_std::math::mat4 cameraViewProjection = camera.GetComponent<PerspectiveCamera>().GetViewProjectionMatrix(this->GetWindow()->GetAspectRatio(), cameraView);
 		cs_std::graphics::frustum cameraFrustum(cameraViewProjection);
 
 		currentScene.entityManager.ForEach<Behaviours>([&](Behaviours& b) {
