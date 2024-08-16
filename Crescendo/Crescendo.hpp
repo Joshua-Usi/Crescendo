@@ -17,5 +17,7 @@
 
 #include "cs_std/file.hpp"
 
+#include "cs_std/math/math.hpp"
+namespace math = cs_std::math;
 
 #define CrescendoRegisterApp(app) std::unique_ptr<CrescendoEngine::Application> CrescendoEngine::CreateApplication(const ApplicationCommandLineArgs& args) { return std::make_unique<app>(args); }

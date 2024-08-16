@@ -24,7 +24,7 @@
 	<ec_windowheight type="int">720</ec_windowheight>
 	<ec_vsync type="bool">true</ec_vsync>
 	<!-- path configs -->
-	<pc_assetpath>./assets/</pc_assetpath>
+	<pc_assetpath type="string">./assets/</pc_assetpath>
 
-	<skybox_texture>./assets/skybox.png</skybox_texture>
+	<skybox_texture type="string">./assets/skybox.png</skybox_texture>
 </config>	

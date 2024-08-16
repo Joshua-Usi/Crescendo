@@ -1,12 +1,9 @@
-#define CS_SHOW_TIMINGS
 #include "Crescendo.hpp"
 using namespace CrescendoEngine;
 
-#include "cs_std/math/math.hpp"
-#include "cs_std/graphics/algorithms.hpp"
 #include "cs_std/xml/xml.hpp"
-namespace math = cs_std::math;
 
+// Scripts
 #include "scripts/CameraController.hpp"
 
 class Sandbox : public Application
@@ -26,16 +23,8 @@ public:
 		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
 		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, this->GetWindow()->GetAspectRatio(), 0.1f, 1000.0f);
 		cameraEntity.EmplaceComponent<Behaviours>(std::make_shared<CameraController>());
-		// cameraEntity.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 25.0f, math::radians(1.0f), math::radians(30.0f), true);
 		currentScene.activeCamera = cameraEntity;
 		currentScene.entities.insert(cameraEntity);
-	
-		// Default sky light
-		/*Entity skyLight = currentScene.entityManager.CreateEntity();
-		skyLight.EmplaceComponent<Name>("Default Sunlight");
-		skyLight.EmplaceComponent<Transform>(math::vec3(0.0f, 75.0f, 0.0f)).LookAt(math::vec3(0.0f, 0.0f, 0.0f));
-		skyLight.EmplaceComponent<DirectionalLight>(glm::vec3(0.992f, 0.984f, 0.827f), 5.0f, true);
-		currentScene.entities.insert(skyLight);*/
 
 		// Each of the different lights in the default sponza scene
 		std::vector<math::vec3> pointLights =
@@ -64,14 +53,6 @@ public:
 			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 5.0f, true);
 			currentScene.entities.insert(pointLight);
 		}
-		
-		// Camera following spotlight
-		/*Entity spotLight = currentScene.entityManager.CreateEntity();
-		spotLight.EmplaceComponent<Name>("Default Spotlight");
-		spotLight.EmplaceComponent<Transform>(math::vec3(15.0f, 1.0f, 0.0f));
-		spotLight.GetComponent<Transform>().LookAt(math::vec3(0.0f, 1.0f, 0.0f));
-		spotLight.EmplaceComponent<SpotLight>(glm::vec3(1.0f, 1.0f, 1.0f), 30.0f, math::radians(1.0f), math::radians(12.5f), true);
-		currentScene.entities.insert(spotLight);*/
 
 		std::string assetPath = CVar::Get<std::string>("pc_assetpath");
 		cs_std::xml::document modelsXML(cs_std::text_file("./configs/models.xml").open().read());
