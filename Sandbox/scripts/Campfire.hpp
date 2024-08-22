@@ -7,6 +7,7 @@ class Campfire : public Behaviour
 {
 public:
 	PointLight* pointLight;
+
 	double accumulator = 0.0;
 	double flickerTime = 0.0;
 	virtual void OnAttach(Entity e) override

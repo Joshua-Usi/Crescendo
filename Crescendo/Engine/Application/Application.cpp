@@ -225,7 +225,7 @@ CS_NAMESPACE_BEGIN
 		std::vector<ParticleEmitter::ParticleShaderRepresentation> particles;
 		std::vector<ParticleEmitterRenderData> particleEmitters;
 		currentScene.entityManager.ForEach<Transform, ParticleEmitter>([&](Transform& transform, ParticleEmitter& emitter) {
-			emitter.Update(dt);
+			emitter.Update(GetTime<float>(), dt);
 			meshTransforms.push_back(transform.GetModelMatrix());
 			ParticleEmitterRenderData data(
 				particles.size(), emitter.liveParticleCount, emitter.texture, meshTransforms.size() - 1

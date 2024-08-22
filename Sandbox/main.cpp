@@ -32,18 +32,30 @@ public:
 
 		Entity particleEmitter = currentScene.entityManager.CreateEntity();
 		particleEmitter.EmplaceComponent<Name>("Particle Emitter");
-		particleEmitter.EmplaceComponent<Transform>(math::vec3(0.0f, 0.1f, 0.0f));
-		particleEmitter.EmplaceComponent<ParticleEmitter>(12000, 0.0004f,
+		particleEmitter.EmplaceComponent<Transform>(math::vec3(0.0f, 45.0f, 0.0f));
+		particleEmitter.EmplaceComponent<ParticleEmitter>(12000, 5.0f, 10000,
 			[](float currentTime, float dt, ParticleEmitter::Particle& p) {
-				p.velocity.y += 0.2f * dt;
+				p.velocity *= 0.95f;
+				p.velocity.y += 5.0f * dt;
 				p.position += p.velocity * dt;
 			},
 			[](float currentTime) {
 				ParticleEmitter::Particle p;
-				float length = math::random<float>(0.0f, 10.0f);
-				float angle = math::random<float>(0.0f, math::two_pi<float>());
-				p.position = math::vec3(length * std::cos(angle), 0.0f, length * std::sin(angle));
-				p.velocity = math::vec3(math::random<float>(-0.3f, 0.3f), math::random<float>(-0.7f, -1.5f), math::random<float>(-0.3f, 0.3f));
+
+				float radius = math::random(80.0f, 100.0f);
+
+				float u = math::random<float>(0.0f, 1.0f);
+				float v = math::random<float>(0.0f, 1.0f);
+
+				float theta = 2.0f * math::pi<float>() * u; // azimuthal angle
+				float phi = math::acos(2.0 * v - 1.0); // polar angle
+
+				float x = radius * sinf(phi) * cosf(theta);
+				float y = radius * sinf(phi) * sinf(theta);
+				float z = radius * cosf(phi);
+
+				p.position = math::vec3(0.0f);
+				p.velocity = math::vec3(x, y, z);
 				p.deathTime = currentTime + math::random<float>(3.0f, 5.0f);
 				return p;
 			},

@@ -37,41 +37,46 @@ CS_NAMESPACE_BEGIN
 
 		// Hard limit for particles
 		uint32_t maxParticles, liveParticleCount;
-		// In seconds, if less than a frame, will spawn multiple particles
-		float emissionRate, accumulator;
-		// The total time the particle system has ticked throught
-		float runTime;
+		// In seconds, if less than a frame, will spawn multiple particles, if 0, will not spawn any particles
+		float emissionRate;
+		// How many particles are spawned per emission
+		uint32_t particlesPerEmission;
+
+		float accumulator;
+
+		bool isActive;
 
 		Vulkan::TextureHandle texture;
 
-		ParticleEmitter(uint32_t maxParticles, float emissionRate, std::function<void(float, float, Particle&)> updateFunction, std::function<Particle(float)> spawnFunction, Vulkan::TextureHandle texture)
-			: runTime(0.0f), maxParticles(maxParticles), liveParticleCount(0), emissionRate(emissionRate), accumulator(0.0f), particles(maxParticles),
-			updateFunction(updateFunction), spawnFunction(spawnFunction), texture(texture)
+		ParticleEmitter(uint32_t maxParticles, float emissionRate, uint32_t particlesPerEmission, std::function<void(float, float, Particle&)> updateFunction, std::function<Particle(float)> spawnFunction, Vulkan::TextureHandle texture)
+			: maxParticles(maxParticles), liveParticleCount(0), emissionRate(emissionRate), particlesPerEmission(particlesPerEmission), accumulator(0.0f), particles(maxParticles),
+			updateFunction(updateFunction), spawnFunction(spawnFunction), texture(texture), isActive(true)
 		{}
 
-		void Update(float dt)
+		void Update(float currentTime, float dt)
 		{
 			// Update time
 			accumulator += dt;
-			runTime += dt;
 
 			// Emit particles
-			while (accumulator >= emissionRate)
+			if (isActive)
 			{
-				accumulator -= emissionRate;
-				if (liveParticleCount < maxParticles)
+				while (accumulator >= emissionRate)
 				{
-					particles[liveParticleCount] = spawnFunction(runTime);
-					liveParticleCount++;
+					accumulator -= emissionRate;
+					for (uint32_t i = 0; liveParticleCount < maxParticles && i < particlesPerEmission; i++, liveParticleCount++)
+					{
+						particles[liveParticleCount] = spawnFunction(currentTime);
+					}
 				}
 			}
 
 			// Update particles
 			for (uint32_t i = 0; i < liveParticleCount; i++)
 			{
-				if (runTime < particles[i].deathTime)
+				if (currentTime < particles[i].deathTime)
 				{
-					updateFunction(runTime, dt, particles[i]);
+					updateFunction(currentTime, dt, particles[i]);
 				}
 				else
 				{
@@ -80,6 +85,5 @@ CS_NAMESPACE_BEGIN
 				}
 			}
 		}
-
 	};
 }
