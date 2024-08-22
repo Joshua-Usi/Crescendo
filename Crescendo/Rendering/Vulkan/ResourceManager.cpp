@@ -174,8 +174,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		if (samplers.size() == 0)
 		{
 			VkSamplerCreateInfo samplerInfo = Create::SamplerCreateInfo(
-				VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
-				1.0f, 1.0f
+				VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1.0f, 1.0f
 			);
 			samplers.emplace_back(*device, samplerInfo);
 		}

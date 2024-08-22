@@ -5,6 +5,7 @@ using namespace CrescendoEngine;
 
 // Scripts
 #include "scripts/CameraController.hpp"
+#include "scripts/Campfire.hpp"
 
 class Sandbox : public Application
 {
@@ -18,6 +19,9 @@ public:
 	{
 		Scene& currentScene = GetActiveScene();
 
+		cs_std::image fireParticle = LoadImage("./assets/fire-particle.png");
+		Vulkan::TextureHandle fireParticleHandle = resourceManager.UploadTexture(fireParticle);
+
 		Entity cameraEntity = currentScene.entityManager.CreateEntity();
 		cameraEntity.EmplaceComponent<Name>("Main Camera");
 		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
@@ -25,6 +29,29 @@ public:
 		cameraEntity.EmplaceComponent<Behaviours>(std::make_shared<CameraController>());
 		currentScene.activeCamera = cameraEntity;
 		currentScene.entities.insert(cameraEntity);
+
+		Entity particleEmitter = currentScene.entityManager.CreateEntity();
+		particleEmitter.EmplaceComponent<Name>("Particle Emitter");
+		particleEmitter.EmplaceComponent<Transform>(math::vec3(0.0f, 0.1f, 0.0f));
+		particleEmitter.EmplaceComponent<ParticleEmitter>(12000, 0.0004f,
+			[](float currentTime, float dt, ParticleEmitter::Particle& p) {
+				p.velocity.y += 0.2f * dt;
+				p.position += p.velocity * dt;
+			},
+			[](float currentTime) {
+				ParticleEmitter::Particle p;
+				float length = math::random<float>(0.0f, 10.0f);
+				float angle = math::random<float>(0.0f, math::two_pi<float>());
+				p.position = math::vec3(length * std::cos(angle), 0.0f, length * std::sin(angle));
+				p.velocity = math::vec3(math::random<float>(-0.3f, 0.3f), math::random<float>(-0.7f, -1.5f), math::random<float>(-0.3f, 0.3f));
+				p.deathTime = currentTime + math::random<float>(3.0f, 5.0f);
+				return p;
+			},
+			fireParticleHandle
+		);
+		// Create point light for fire
+		particleEmitter.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.55f, 0.0f), 10.0f, true);
+		particleEmitter.EmplaceComponent<Behaviours>(std::make_shared<Campfire>());
 
 		// Each of the different lights in the default sponza scene
 		std::vector<math::vec3> pointLights =
@@ -50,7 +77,7 @@ public:
 			Entity pointLight = currentScene.entityManager.CreateEntity();
 			pointLight.EmplaceComponent<Name>("Default Pointlight " + std::to_string(i));
 			pointLight.EmplaceComponent<Transform>(pointLights[i]);
-			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 5.0f, true);
+			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 0.5f, true);
 			currentScene.entities.insert(pointLight);
 		}
 

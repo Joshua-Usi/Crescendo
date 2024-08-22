@@ -30,7 +30,9 @@ CS_NAMESPACE_BEGIN
 		Scene* activeScene;
 	private:
 		Vulkan::Instance instance;
+	public:
 		Vulkan::ResourceManager resourceManager;
+	private:
 		Vulkan::FrameManager frameManager;
 
 		Vulkan::Vk::Pipeline postProcessingPipeline;
@@ -38,7 +40,7 @@ CS_NAMESPACE_BEGIN
 
 		Vulkan::Vk::RenderPass depthRenderPass;
 		Vulkan::Vk::Framebuffer depthFramebuffer;
-		Vulkan::Vk::Image depthImage;
+		Vulkan::TextureHandle depthImageHandle;
 		Vulkan::Vk::Pipeline depthPipeline;
 
 		Vulkan::Vk::RenderPass mainRenderPass;
@@ -48,6 +50,9 @@ CS_NAMESPACE_BEGIN
 
 		std::vector<Vulkan::BufferHandle> transformsHandle;
 		Vulkan::TextureHandle bufferHandle;
+
+		Vulkan::Vk::Pipeline particlePipeline;
+		std::vector<Vulkan::BufferHandle> particleBufferHandle;
 
 		std::vector<Vulkan::BufferHandle> directionalLightsHandle;
 		std::vector<Vulkan::BufferHandle> pointLightsHandle;

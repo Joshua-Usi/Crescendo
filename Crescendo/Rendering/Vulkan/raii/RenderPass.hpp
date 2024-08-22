@@ -23,5 +23,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		RenderPass& operator=(RenderPass&& other) noexcept;
 		operator VkRenderPass() const;
 		VkRenderPass GetRenderPass() const;
+
+		static RenderPass CreateReversedZDepthRenderPass(VkDevice device, VkFormat depthFormat, VkSampleCountFlagBits samples);
+		static RenderPass CreateMainRenderPass(VkDevice device, VkFormat colorFormat, VkFormat depthFormat, VkSampleCountFlagBits samples);
 	};
 }

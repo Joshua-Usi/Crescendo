@@ -48,15 +48,15 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		static VkCompareOp GetDepthFunc(DepthFunc depthFunc);
 		static VkBool32 GetDepthTest(DepthTest depthTest);
 		static VkBool32 GetDepthWrite(DepthWrite depthWrite);
-		static Multisamples ConvertSamplesToVariant(uint32_t samples);
 	public:
 		// Generate optimised pipelines for specific use cases
-		static PipelineVariants GetDefaultVariant(uint32_t samples = 1);
-		static PipelineVariants GetSkyboxVariant(uint32_t samples = 1);
-		static PipelineVariants GetShadowVariant(uint32_t samples = 1);
-		static PipelineVariants GetDepthPrepassVariant(uint32_t samples = 1);
-		static PipelineVariants GetUIVariant(uint32_t samples = 1);
-		static PipelineVariants GetPostProcessingVariant(uint32_t samples = 1);
+		static PipelineVariants GetDefaultVariant(Multisamples samples = Multisamples::One);
+		static PipelineVariants GetSkyboxVariant(Multisamples samples = Multisamples::One);
+		static PipelineVariants GetShadowVariant(Multisamples samples = Multisamples::One);
+		static PipelineVariants GetDepthPrepassVariant(Multisamples samples = Multisamples::One);
+		static PipelineVariants GetUIVariant(Multisamples samples = Multisamples::One);
+		static PipelineVariants GetPostProcessingVariant(Multisamples samples = Multisamples::One);
+		static PipelineVariants GetParticleVariant(Multisamples samples = Multisamples::One);
 	public:
 		PipelineVariants operator[](uint32_t index) const;
 	public:

@@ -24,13 +24,11 @@ CS_NAMESPACE_BEGIN
 		if (cs_std::text_file(config).exists()) CVar::LoadConfigXML(config);
 
 		this->CreateDefaultWindow();
-		this->GetWindow()->SetCursorLock(true);
 
-		Vulkan::InstanceSpecification spec {
+		this->instance = Vulkan::Instance({
 			CVar::Get<bool>("irc_validationlayers"),
 			CVar::Get<std::string>("ec_appname"), "Crescendo",
-		};
-		this->instance = Vulkan::Instance(spec);
+		});
 		this->instance.CreateSurface(this->GetWindow()->GetNative(), {
 			.swapchainRecreationCallback = nullptr
 		});
@@ -49,15 +47,51 @@ CS_NAMESPACE_BEGIN
 			Vulkan::Vk::Swapchain& swapchain = surface.GetSwapchain();
 			Vulkan::Vk::Device& device = surface.GetDevice();
 
-			const std::string postProcessingShader = CVar::Get<std::string>("ircs_postprocessing");
-			const std::string depthPrepassShader = CVar::Get<std::string>("ircs_depthprepass");
-			const std::string mainShader = CVar::Get<std::string>("ircs_main");
-			const std::string skyboxShader = CVar::Get<std::string>("ircs_skybox");
-
+			// HDR
 			constexpr VkFormat COLOR_FORMAT = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
 			constexpr VkFormat DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
 			constexpr VkSampleCountFlagBits MULTISAMPLES = VK_SAMPLE_COUNT_1_BIT;
 			const double RENDER_SCALE = CVar::Get<double>("rc_renderscale");
+
+			depthRenderPass = Vulkan::Vk::RenderPass::CreateReversedZDepthRenderPass(device, DEPTH_FORMAT, MULTISAMPLES);
+			mainRenderPass = Vulkan::Vk::RenderPass::CreateMainRenderPass(device, COLOR_FORMAT, DEPTH_FORMAT, MULTISAMPLES);
+
+			resourceManager.DestroyTexture(depthImageHandle);
+			depthImageHandle = resourceManager.CreateTexture(
+				Vulkan::Create::ImageCreateInfo(
+					VK_IMAGE_TYPE_2D, DEPTH_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), RENDER_SCALE),
+					1, 1, MULTISAMPLES, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+				),
+				Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
+			);
+			const VkImageView depthImageView = resourceManager.GetTexture(depthImageHandle).image.GetImageView();
+			depthFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
+				depthRenderPass, &depthImageView, Vulkan::Create::Extent2D(swapchain.GetExtent(), RENDER_SCALE), 1
+			));
+
+			resourceManager.DestroyTexture(mainImageHandle);
+			mainImageHandle = resourceManager.CreateTexture(
+				Vulkan::Create::ImageCreateInfo(
+					VK_IMAGE_TYPE_2D, COLOR_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), RENDER_SCALE),
+					1, 1, MULTISAMPLES, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+				),
+				Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
+			);
+			const std::array<VkImageView, 2> attachments2 = { resourceManager.GetTexture(mainImageHandle).image, depthImageView };
+			mainFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
+				mainRenderPass, attachments2, Vulkan::Create::Extent2D(swapchain.GetExtent(), RENDER_SCALE), 1
+			));
+		}
+		{
+			Vulkan::Surface& surface = this->instance.GetSurface(0);
+			Vulkan::Vk::Swapchain& swapchain = surface.GetSwapchain();
+			Vulkan::Vk::Device& device = surface.GetDevice();
+
+			const std::string postProcessingShader = CVar::Get<std::string>("ircs_postprocessing");
+			const std::string depthPrepassShader = CVar::Get<std::string>("ircs_depthprepass");
+			const std::string mainShader = CVar::Get<std::string>("ircs_main");
+			const std::string skyboxShader = CVar::Get<std::string>("ircs_skybox");
+			const std::string particleShader = CVar::Get<std::string>("ircs_particle");
 
 			postProcessingPipeline = Vulkan::Vk::Pipeline(device, {
 				cs_std::binary_file(postProcessingShader + ".vert.spv").open().read_if_exists(),
@@ -66,118 +100,45 @@ CS_NAMESPACE_BEGIN
 				resourceManager.GetDescriptorSetLayout(),
 				swapchain.GetRenderPass()
 			});
-
-			VkAttachmentDescription depthAttachment = Vulkan::Create::AttachmentDescription(
-				DEPTH_FORMAT, MULTISAMPLES, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-				VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-			);
-			VkAttachmentReference depthAttachmentRef = Vulkan::Create::AttachmentReference(0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-			VkSubpassDescription depthSubpass = Vulkan::Create::SubpassDescription(VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, nullptr, nullptr, &depthAttachmentRef, nullptr);
-			const std::array<VkSubpassDependency, 2> depthDependencies = {
-				Vulkan::Create::SubpassDependency(
-					VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-					VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_SHADER_READ_BIT,
-					VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_DEPENDENCY_BY_REGION_BIT
-				),
-				Vulkan::Create::SubpassDependency(
-					0, VK_SUBPASS_EXTERNAL, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-					VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-					VK_ACCESS_SHADER_READ_BIT, VK_DEPENDENCY_BY_REGION_BIT
-				)
-			};
-
-			depthRenderPass = Vulkan::Vk::RenderPass(device, Vulkan::Create::RenderPassCreateInfo(&depthAttachment, &depthSubpass, depthDependencies));
 			depthPipeline = Vulkan::Vk::Pipeline(device, {
 				cs_std::binary_file(depthPrepassShader + ".vert.spv").open().read_if_exists(), {},
 				Vulkan::Vk::PipelineVariants::GetDepthPrepassVariant(),
 				resourceManager.GetDescriptorSetLayout(), depthRenderPass
 			});
-			depthImage = Vulkan::Vk::Image(device, device.GetAllocator(), Vulkan::Create::ImageCreateInfo(
-				VK_IMAGE_TYPE_2D, DEPTH_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), RENDER_SCALE),
-				1, 1, MULTISAMPLES, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-			), Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY));
-			const VkImageView depthImageView = depthImage.GetImageView();
-			depthFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
-				depthRenderPass, &depthImageView, Vulkan::Create::Extent2D(swapchain.GetExtent(), RENDER_SCALE), 1
-			));
-
-			VkAttachmentDescription colorAttachment = Vulkan::Create::AttachmentDescription(
-				COLOR_FORMAT, MULTISAMPLES,
-				VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-				VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-			);
-			VkAttachmentReference colorAttachmentRef = Vulkan::Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-			depthAttachment = Vulkan::Create::AttachmentDescription(
-				DEPTH_FORMAT, MULTISAMPLES,
-				VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-				VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-			);
-			depthAttachmentRef = Vulkan::Create::AttachmentReference(1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-			const VkSubpassDescription subpass = Vulkan::Create::SubpassDescription(
-				VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, &colorAttachmentRef, nullptr, &depthAttachmentRef, nullptr
-			);
-			VkSubpassDependency colorDependency = Vulkan::Create::SubpassDependency(
-				VK_SUBPASS_EXTERNAL, 0,
-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_DEPENDENCY_BY_REGION_BIT
-			);
-			VkSubpassDependency colorDependency2 = Vulkan::Create::SubpassDependency(
-				0, VK_SUBPASS_EXTERNAL,
-				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-				VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_DEPENDENCY_BY_REGION_BIT
-			);
-			VkSubpassDependency depthDependency = Vulkan::Create::SubpassDependency(
-				VK_SUBPASS_EXTERNAL, 0,
-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-				VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_DEPENDENCY_BY_REGION_BIT
-			);
-			std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
-			std::array<VkSubpassDependency, 3> dependencies = { colorDependency, colorDependency2, depthDependency };
-
-			mainRenderPass = Vulkan::Vk::RenderPass(device, Vulkan::Create::RenderPassCreateInfo(attachments, &subpass, dependencies));
 			mainPipeline = Vulkan::Vk::Pipeline(device, {
 				cs_std::binary_file(mainShader + ".vert.spv").open().read_if_exists(),
 				cs_std::binary_file(mainShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetDefaultVariant(),
 				resourceManager.GetDescriptorSetLayout(), mainRenderPass
 			});
-			mainImageHandle = resourceManager.CreateTexture(
-				Vulkan::Create::ImageCreateInfo(
-					VK_IMAGE_TYPE_2D, COLOR_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), RENDER_SCALE),
-					1, 1, MULTISAMPLES, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
-				),
-				Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
-			);
-
-			const std::array<VkImageView, 2> attachments2 = { resourceManager.GetTexture(mainImageHandle).image, depthImageView };
-			mainFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
-				mainRenderPass, attachments2, Vulkan::Create::Extent2D(swapchain.GetExtent(), RENDER_SCALE), 1
-			));
-
-			// Skybox
 			skyboxPipeline = Vulkan::Vk::Pipeline(device, {
 				cs_std::binary_file(skyboxShader + ".vert.spv").open().read_if_exists(),
 				cs_std::binary_file(skyboxShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetSkyboxVariant(),
 				resourceManager.GetDescriptorSetLayout(), mainRenderPass
 			});
+			particlePipeline = Vulkan::Vk::Pipeline(device, {
+				cs_std::binary_file(particleShader + ".vert.spv").open().read_if_exists(),
+				cs_std::binary_file(particleShader + ".frag.spv").open().read_if_exists(),
+				Vulkan::Vk::PipelineVariants::GetParticleVariant(),
+				resourceManager.GetDescriptorSetLayout(), mainRenderPass
+			});
+
+			// Skybox
 			Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
 			cs_std::graphics::mesh skyboxMesh;
 			skyboxMesh.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices);
 			skyboxMesh.add_attribute(cs_std::graphics::Attribute::NORMAL, skybox.normals);
 			skyboxMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
 			skyboxMesh.indices = skybox.indices;
-			
+
 			skyboxMeshHandle = resourceManager.UploadMesh(skyboxMesh);
 			skyboxTextureHandle = resourceManager.UploadTexture(LoadImage(CVar::Get<std::string>("skybox_texture")), { Vulkan::ResourceManager::Colorspace::SRGB, 1.0f, true });
 
 			const uint32_t MAX_OBJECT_COUNT = CVar::Get<uint32_t>("irc_maxobjectcount");
-			const uint32_t MAX_DIRECTIONAL_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxdirectionallightcount") * 2;
-			const uint32_t MAX_POINT_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxpointlightcount") * 2;
-			const uint32_t MAX_SPOT_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxspotlightcount") * 2;
+			const uint32_t MAX_DIRECTIONAL_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxdirectionallightcount");
+			const uint32_t MAX_POINT_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxpointlightcount");
+			const uint32_t MAX_SPOT_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxspotlightcount");
 
 			for (uint32_t i = 0; i < frameManager.GetFrameCount(); i++)
 			{
@@ -188,6 +149,9 @@ CS_NAMESPACE_BEGIN
 				directionalLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(DirectionalLight::ShaderRepresentation) * MAX_DIRECTIONAL_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
 				pointLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(PointLight::ShaderRepresentation) * MAX_POINT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
 				spotLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(SpotLight::ShaderRepresentation) * MAX_SPOT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
+
+				// Create particle buffer
+				particleBufferHandle.push_back(resourceManager.CreateBuffer(sizeof(ParticleEmitter::ParticleShaderRepresentation) * 131072, VK_SHADER_STAGE_ALL));
 			}
 		}
 	}
@@ -212,7 +176,8 @@ CS_NAMESPACE_BEGIN
 		Entity camera = currentScene.entityManager.GetEntity(currentScene.activeCamera);
 		cs_std::math::vec3 cameraPosition = camera.GetComponent<Transform>().GetPosition();
 		cs_std::math::mat4 cameraView = camera.GetComponent<Transform>().GetCameraViewMatrix();
-		cs_std::math::mat4 cameraViewProjection = camera.GetComponent<PerspectiveCamera>().GetViewProjectionMatrix(this->GetWindow()->GetAspectRatio(), cameraView);
+		cs_std::math::mat4 cameraProjection = camera.GetComponent<PerspectiveCamera>().GetProjectionMatrix(this->GetWindow()->GetAspectRatio());
+		cs_std::math::mat4 cameraViewProjection = cameraProjection * cameraView;
 		cs_std::graphics::frustum cameraFrustum(cameraViewProjection);
 
 		currentScene.entityManager.ForEach<Behaviours>([&](Behaviours& b) {
@@ -246,13 +211,39 @@ CS_NAMESPACE_BEGIN
 		std::deque<MainPassRenderData> meshes;
 		uint32_t depthPrepassMeshCount = 0;
 
+		meshTransforms.push_back(cameraView);
+		meshTransforms.push_back(cameraProjection);
+		meshTransforms.push_back(cameraViewProjection);
+
+		struct ParticleEmitterRenderData
+		{
+			uint32_t startIdx, count;
+			Vulkan::TextureHandle texture;
+			uint32_t modelID;
+		};
+
+		std::vector<ParticleEmitter::ParticleShaderRepresentation> particles;
+		std::vector<ParticleEmitterRenderData> particleEmitters;
+		currentScene.entityManager.ForEach<Transform, ParticleEmitter>([&](Transform& transform, ParticleEmitter& emitter) {
+			emitter.Update(dt);
+			meshTransforms.push_back(transform.GetModelMatrix());
+			ParticleEmitterRenderData data(
+				particles.size(), emitter.liveParticleCount, emitter.texture, meshTransforms.size() - 1
+			);
+			particleEmitters.push_back(data);
+			for (uint32_t i = 0; i < emitter.liveParticleCount; i++)
+			{
+				particles.push_back(emitter.particles[i].CreateShaderRepresentation());
+			}
+		});
+
 		currentScene.entityManager.ForEach<Transform, MeshData, Material>([&](Transform& transform, MeshData& mesh, Material& material) {
 			// frustum cull
 			//if (!cameraFrustum.intersects(mesh.bounds)) return;
-			MainPassRenderData data(
-				mesh.meshHandle, material.diffuseHandle, material.normalHandle, meshTransforms.size() + 1, material.isDoubleSided
-			);
 			meshTransforms.push_back(transform.GetModelMatrix());
+			MainPassRenderData data(
+				mesh.meshHandle, material.diffuseHandle, material.normalHandle, meshTransforms.size() - 1, material.isDoubleSided
+			);
 			if (material.isTransparent)
 			{
 				meshes.push_back(data);
@@ -276,11 +267,11 @@ CS_NAMESPACE_BEGIN
 		cmd.WaitCompletion();
 
 		// Write data to buffers
-		resourceManager.GetBuffer(transformsHandle[currentFrameIndex]).buffer.memcpy(&cameraViewProjection, sizeof(cs_std::math::mat4));
-		resourceManager.GetBuffer(transformsHandle[currentFrameIndex]).buffer.memcpy(meshTransforms.data(), sizeof(cs_std::math::mat4) * meshTransforms.size(), sizeof(cs_std::math::mat4));
+		resourceManager.GetBuffer(transformsHandle[currentFrameIndex]).buffer.memcpy(meshTransforms.data(), sizeof(cs_std::math::mat4) * meshTransforms.size());
 		resourceManager.GetBuffer(directionalLightsHandle[currentFrameIndex]).buffer.memcpy(directionalLights.data(), sizeof(DirectionalLight::ShaderRepresentation) * directionalLights.size());
 		resourceManager.GetBuffer(pointLightsHandle[currentFrameIndex]).buffer.memcpy(pointLights.data(), sizeof(PointLight::ShaderRepresentation) * pointLights.size());
 		resourceManager.GetBuffer(spotLightsHandle[currentFrameIndex]).buffer.memcpy(spotLights.data(), sizeof(SpotLight::ShaderRepresentation) * spotLights.size());
+		resourceManager.GetBuffer(particleBufferHandle[currentFrameIndex]).buffer.memcpy(particles.data(), sizeof(ParticleEmitter::ParticleShaderRepresentation) * particles.size());
 
 		cmd.Reset();
 
@@ -298,7 +289,7 @@ CS_NAMESPACE_BEGIN
 
 		const struct DepthPrepassParams {
 			uint32_t cameraIdx, transformBufferIdx;
-		} depthPrepassParams { 0, transformsHandle[currentFrameIndex].GetIndex()};
+		} depthPrepassParams { 2, transformsHandle[currentFrameIndex].GetIndex()};
 		cmd.PushConstants(depthPipeline, depthPrepassParams, VK_SHADER_STAGE_VERTEX_BIT);
  
 		for (size_t i = 0; i < depthPrepassMeshCount; i++)
@@ -324,7 +315,7 @@ CS_NAMESPACE_BEGIN
 
 		const struct SkyboxParams {
 			uint32_t cameraIdx, transformBufferIdx;
-		} skyboxParams{ 0, transformsHandle[currentFrameIndex].GetIndex() };
+		} skyboxParams{ 2, transformsHandle[currentFrameIndex].GetIndex() };
 		const uint32_t skyboxTexture = skyboxTextureHandle.GetIndex();
 		cmd.PushConstants(skyboxPipeline, skyboxParams, VK_SHADER_STAGE_VERTEX_BIT);
 		cmd.PushConstants(skyboxPipeline, skyboxTexture, VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
@@ -339,7 +330,7 @@ CS_NAMESPACE_BEGIN
 		// main pass has two push constants, one in the vertex shader, one in the fragment shader
 		const struct MainPassVertexParams {
 			uint32_t cameraIdx, transformBufferIdx;
-		} mainPassParams { 0, transformsHandle[currentFrameIndex].GetIndex()};
+		} mainPassParams { 2, transformsHandle[currentFrameIndex].GetIndex()};
 		cmd.PushConstants(mainPipeline, mainPassParams, VK_SHADER_STAGE_VERTEX_BIT);
 		// Render objects, renders opaque first, then transparent
 		for (size_t i = 0; i < meshes.size(); i++)
@@ -361,7 +352,7 @@ CS_NAMESPACE_BEGIN
 				uint32_t dummy0, dummy1;
 				cs_std::math::vec4 cameraViewPos;
 			} texturesParams {
-				data.diffuse.GetIndex(), data.normal.GetIndex(), // first image is the offscreen image
+				data.diffuse.GetIndex(), data.normal.GetIndex(),
 				directionalLightsHandle[currentFrameIndex].GetIndex(), pointLightsHandle[currentFrameIndex].GetIndex(), spotLightsHandle[currentFrameIndex].GetIndex(),
 				static_cast<uint32_t>(directionalLights.size()), static_cast<uint32_t>(pointLights.size()), static_cast<uint32_t>(spotLights.size()),
 				0, 0,
@@ -371,6 +362,31 @@ CS_NAMESPACE_BEGIN
 			cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, data.modelID);
 		}
 
+		// Particle pass
+		cmd.BindPipeline(particlePipeline);
+		cmd.BindDescriptorSet(particlePipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+		for (uint32_t i = 0; i < particleEmitters.size(); i++ )
+		{
+			ParticleEmitterRenderData& data = particleEmitters[i];
+			const struct ParticleVertexParams {
+				uint32_t cameraIdx, transformBufferIdx, particleBufferIdx, particleStartingIdx;
+				float currentTime;
+			} particleParams {
+				0, transformsHandle[currentFrameIndex].GetIndex(), particleBufferHandle[currentFrameIndex].GetIndex(), data.startIdx,
+				GetTime<float>()
+			};
+			const struct ParticleFragmentParams {
+				float currentTime;
+				uint32_t diffuseTexIdx;
+			} particleParamsFrag {
+				GetTime<float>(),
+				data.texture.GetIndex()
+			};
+			cmd.PushConstants(particlePipeline, particleParams, VK_SHADER_STAGE_VERTEX_BIT);
+			cmd.PushConstants(particlePipeline, particleParamsFrag, VK_SHADER_STAGE_FRAGMENT_BIT, 5 * sizeof(uint32_t));
+			// One quad for each particle, hence 6 vertices
+			cmd.Draw(data.count * 6, 1, 0, data.modelID);
+		}
 		cmd.EndRenderPass();
 
 
@@ -384,7 +400,7 @@ CS_NAMESPACE_BEGIN
 		cmd.BindPipeline(postProcessingPipeline);
 		cmd.BindDescriptorSet(postProcessingPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
 
-		uint32_t offscreenTexIdx = 0;
+		uint32_t offscreenTexIdx = mainImageHandle.GetIndex();
 		cmd.PushConstants(postProcessingPipeline, offscreenTexIdx, VK_SHADER_STAGE_FRAGMENT_BIT);
 		cmd.Draw(6);
 		cmd.EndRenderPass();

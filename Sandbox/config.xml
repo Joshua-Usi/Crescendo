@@ -13,6 +13,7 @@
 	<ircs_postprocessing type="string">./shaders/compiled/post_processing</ircs_postprocessing>
 	<ircs_main type="string">./shaders/compiled/main</ircs_main>
 	<ircs_skybox type="string">./shaders/compiled/skybox_sphere</ircs_skybox>
+	<ircs_particle type="string">./shaders/compiled/particle</ircs_particle>
 	<!-- render config-->
 	<rc_framesinflight type="int">3</rc_framesinflight>
 	<rc_multisamples type="int">1</rc_multisamples>
@@ -26,5 +27,5 @@
 	<!-- path configs -->
 	<pc_assetpath type="string">./assets/</pc_assetpath>
 
-	<skybox_texture type="string">./assets/skybox.png</skybox_texture>
+	<skybox_texture type="string">./assets/skybox-night.png</skybox_texture>
 </config>	

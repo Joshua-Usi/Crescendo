@@ -2,8 +2,6 @@
 
 #include "Crescendo.hpp"
 using namespace CrescendoEngine;
-#include "cs_std/math/math.hpp"
-namespace math = cs_std::math;
 
 #include <numbers>
 

@@ -20,6 +20,7 @@
 // Rendering Components
 #include "Components/Material.hpp"
 #include "Components/MeshData.hpp"
+#include "Components/ParticleEmitter.hpp"
 
 // Camera Components
 #include "Components/OrthographicCamera.hpp"

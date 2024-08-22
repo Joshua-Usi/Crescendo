@@ -123,7 +123,7 @@ void main()
 	vec3 normal_ts = normalize(iTBN * (normalColor.rgb * 2.0f - 1.0f));
 	vec3 viewDir_ws = normalize(cameraViewPos.xyz - iPosition_ws);
 
-	vec3 lightIntensity = vec3(0.2f);
+	vec3 lightIntensity = vec3(0.0f);
 
 	// Directional lights
 	for (uint i = 0; i < directionalLightCount; i++)

@@ -174,44 +174,35 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		// TODO assert or quietly assert
 		return VK_FALSE;
 	}
-	PipelineVariants::Multisamples PipelineVariants::ConvertSamplesToVariant(uint32_t samples)
-	{
-		switch (samples)
-		{
-			case 64: return Multisamples::SixtyFour;
-			case 32: return Multisamples::ThirtyTwo;
-			case 16: return Multisamples::Sixteen;
-			case 8: return Multisamples::Eight;
-			case 4: return Multisamples::Four;
-			case 2: return Multisamples::Two;
-		}
-		return Multisamples::One;
-	}
 	// Generate optimised pipelines for specific use cases
 	// Generates pipelines for double-sided and transparent objects
-	PipelineVariants PipelineVariants::GetDefaultVariant(uint32_t samples)
+	PipelineVariants PipelineVariants::GetDefaultVariant(Multisamples samples)
 	{
-		return PipelineVariants(FillMode::Solid, CullMode::Back | CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::GreaterEqual, DepthTest::Enabled, DepthWrite::Disabled);
+		return PipelineVariants(FillMode::Solid, CullMode::Back | CullMode::None, samples, DepthFunc::GreaterEqual, DepthTest::Enabled, DepthWrite::Disabled);
 	}
-	PipelineVariants PipelineVariants::GetSkyboxVariant(uint32_t samples)
+	PipelineVariants PipelineVariants::GetSkyboxVariant(Multisamples samples)
 	{
-		return PipelineVariants(FillMode::Solid, CullMode::Back, ConvertSamplesToVariant(samples), DepthFunc::Always, DepthTest::Enabled, DepthWrite::Disabled);
+		return PipelineVariants(FillMode::Solid, CullMode::Back, samples, DepthFunc::Always, DepthTest::Enabled, DepthWrite::Disabled);
 	}
-	PipelineVariants PipelineVariants::GetShadowVariant(uint32_t samples)
+	PipelineVariants PipelineVariants::GetShadowVariant(Multisamples samples)
 	{
-		return PipelineVariants(FillMode::Solid, CullMode::Front, ConvertSamplesToVariant(samples), DepthFunc::LessEqual, DepthTest::Enabled, DepthWrite::Enabled);
+		return PipelineVariants(FillMode::Solid, CullMode::Front, samples, DepthFunc::LessEqual, DepthTest::Enabled, DepthWrite::Enabled);
 	}
-	PipelineVariants PipelineVariants::GetDepthPrepassVariant(uint32_t samples)
+	PipelineVariants PipelineVariants::GetDepthPrepassVariant(Multisamples samples)
 	{
-		return PipelineVariants(FillMode::Solid, CullMode::Back | CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::GreaterEqual, DepthTest::Enabled, DepthWrite::Enabled);
+		return PipelineVariants(FillMode::Solid, CullMode::Back | CullMode::None, samples, DepthFunc::GreaterEqual, DepthTest::Enabled, DepthWrite::Enabled);
 	}
-	PipelineVariants PipelineVariants::GetUIVariant(uint32_t samples)
+	PipelineVariants PipelineVariants::GetUIVariant(Multisamples samples)
 	{
-		return PipelineVariants(FillMode::Solid, CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::Never, DepthTest::Disabled, DepthWrite::Disabled);
+		return PipelineVariants(FillMode::Solid, CullMode::None, samples, DepthFunc::Never, DepthTest::Disabled, DepthWrite::Disabled);
 	}
-	PipelineVariants PipelineVariants::GetPostProcessingVariant(uint32_t samples)
+	PipelineVariants PipelineVariants::GetPostProcessingVariant(Multisamples samples)
 	{
-		return PipelineVariants(FillMode::Solid, CullMode::None, ConvertSamplesToVariant(samples), DepthFunc::Always, DepthTest::Disabled, DepthWrite::Disabled);
+		return PipelineVariants(FillMode::Solid, CullMode::None, samples, DepthFunc::Always, DepthTest::Disabled, DepthWrite::Disabled);
+	}
+	PipelineVariants PipelineVariants::GetParticleVariant(Multisamples samples)
+	{
+		return PipelineVariants(FillMode::Solid, CullMode::None, samples, DepthFunc::GreaterEqual, DepthTest::Enabled, DepthWrite::Disabled);
 	}
 	PipelineVariants PipelineVariants::operator[](uint32_t index) const { return GetVariant(index); }
 };
