@@ -49,7 +49,7 @@ CS_NAMESPACE_BEGIN
 		Vulkan::TextureHandle texture;
 
 		ParticleEmitter(uint32_t maxParticles, float emissionRate, uint32_t particlesPerEmission, std::function<void(float, float, Particle&)> updateFunction, std::function<Particle(float)> spawnFunction, Vulkan::TextureHandle texture)
-			: maxParticles(maxParticles), liveParticleCount(0), emissionRate(emissionRate), particlesPerEmission(particlesPerEmission), accumulator(0.0f), particles(maxParticles),
+			: maxParticles(maxParticles), liveParticleCount(0), emissionRate(emissionRate), particlesPerEmission(particlesPerEmission), accumulator(0.0f),
 			updateFunction(updateFunction), spawnFunction(spawnFunction), texture(texture), isActive(true)
 		{}
 
@@ -66,7 +66,14 @@ CS_NAMESPACE_BEGIN
 					accumulator -= emissionRate;
 					for (uint32_t i = 0; liveParticleCount < maxParticles && i < particlesPerEmission; i++, liveParticleCount++)
 					{
-						particles[liveParticleCount] = spawnFunction(currentTime);
+						if (liveParticleCount >= particles.size())
+						{
+							particles.push_back(spawnFunction(currentTime));
+						}
+						else
+						{
+							particles[liveParticleCount] = spawnFunction(currentTime);
+						}
 					}
 				}
 			}
