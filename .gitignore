@@ -11,6 +11,7 @@ vendor/
 # Intermediate build files
 bin-intermediate/
 
+## Obsidian related files
 .obsidian/
 
 #ignore assets folder
