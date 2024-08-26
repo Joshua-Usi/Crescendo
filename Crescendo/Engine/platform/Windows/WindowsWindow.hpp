@@ -28,12 +28,10 @@ CS_NAMESPACE_BEGIN
 		virtual void* GetNative() const override final;
 		virtual int32_t GetRefreshRate() const override final;
 		virtual std::string GetName() const override final;
-		virtual void SetVSync(bool isEnabled) override final;
 		virtual void SetCursorLock(bool isEnabled) override final;
 		virtual void SetName(const std::string& name) override final;
 		virtual void SetFullScreen(bool isFullScreen) override final;
 		virtual void SetSize(uint32_t width, uint32_t height) override final;
-		virtual bool IsVSynced() const override final;
 		virtual bool IsCursorLocked() const override final;
 		virtual bool IsOpen() const override final;
 		virtual bool IsFullScreen() const override final;

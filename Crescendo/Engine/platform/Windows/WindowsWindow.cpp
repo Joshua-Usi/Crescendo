@@ -82,19 +82,6 @@ CS_NAMESPACE_BEGIN
 	{
 		return this->data.title;
 	}
-	// TODO
-	void WindowsWindow::SetVSync(bool isEnabled)
-	{
-		if (isEnabled)
-		{
-			// Enable vsync
-		}
-		else
-		{
-			// Disable vsync
-		}
-		this->data.vSync = isEnabled;
-	}
 	void WindowsWindow::SetCursorLock(bool isEnabled)
 	{
 		glfwSetInputMode(window, GLFW_CURSOR, (isEnabled) ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
@@ -128,10 +115,6 @@ CS_NAMESPACE_BEGIN
 		this->data.width = width;
 		this->data.height = height;
 		glfwSetWindowMonitor(this->window, nullptr, (mode->width - width) / 2, (mode->height - height) / 2, width, height, GLFW_DONT_CARE);
-	}
-	bool WindowsWindow::IsVSynced() const
-	{
-		return this->data.vSync;
 	}
 	bool WindowsWindow::IsCursorLocked() const
 	{
