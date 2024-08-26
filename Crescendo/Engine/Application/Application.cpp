@@ -13,6 +13,22 @@
 
 CS_NAMESPACE_BEGIN
 {
+	struct MainPassRenderData
+	{
+		Vulkan::MeshHandle mesh;
+		Vulkan::TextureHandle diffuse;
+		Vulkan::TextureHandle normal;
+		uint32_t modelID;
+		bool doubleSided;
+	};
+
+	struct ParticleEmitterRenderData
+	{
+		uint32_t startIdx, count;
+		Vulkan::TextureHandle texture;
+		uint32_t modelID;
+	};
+
 	static bool isFirstWindow = true;
 	// Assign self and null as no instance exists yet
 	Application* Application::self = nullptr;
@@ -133,8 +149,10 @@ CS_NAMESPACE_BEGIN
 			skyboxMesh.indices = skybox.indices;
 
 			skyboxMeshHandle = resourceManager.UploadMesh(skyboxMesh);
-			skyboxTextureHandle = resourceManager.UploadTexture(LoadImage(CVar::Get<std::string>("skybox_texture")), { Vulkan::ResourceManager::Colorspace::SRGB, 1.0f, true });
-
+			if (CVar::Exists("skybox_texture"))
+			{
+				skyboxTextureHandle = resourceManager.UploadTexture(LoadImage(CVar::Get<std::string>("skybox_texture")), { Vulkan::ResourceManager::Colorspace::SRGB, 1.0f, true });
+			}
 			const uint32_t MAX_OBJECT_COUNT = CVar::Get<uint32_t>("irc_maxobjectcount");
 			const uint32_t MAX_DIRECTIONAL_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxdirectionallightcount");
 			const uint32_t MAX_POINT_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxpointlightcount");
@@ -174,20 +192,36 @@ CS_NAMESPACE_BEGIN
 
 		// Active camera in the scene
 		Entity camera = currentScene.entityManager.GetEntity(currentScene.activeCamera);
+		if (!camera.IsValid()) return;
+
 		cs_std::math::vec3 cameraPosition = camera.GetComponent<Transform>().GetPosition();
 		cs_std::math::mat4 cameraView = camera.GetComponent<Transform>().GetCameraViewMatrix();
 		cs_std::math::mat4 cameraProjection = camera.GetComponent<PerspectiveCamera>().GetProjectionMatrix(this->GetWindow()->GetAspectRatio());
 		cs_std::math::mat4 cameraViewProjection = cameraProjection * cameraView;
 		cs_std::graphics::frustum cameraFrustum(cameraViewProjection);
 
-		currentScene.entityManager.ForEach<Behaviours>([&](Behaviours& b) {
-			b.OnUpdate(dt);
-		});
-
 		std::vector<DirectionalLight::ShaderRepresentation> directionalLights;
 		std::vector<PointLight::ShaderRepresentation> pointLights;
 		std::vector<SpotLight::ShaderRepresentation> spotLights;
 
+		std::vector<cs_std::math::mat4> meshTransforms;
+		std::deque<MainPassRenderData> meshes;
+		uint32_t depthPrepassMeshCount = 0;
+
+		std::vector<ParticleEmitter::ParticleShaderRepresentation> particles;
+		std::vector<ParticleEmitterRenderData> particleEmitters;
+
+		// Add active camera matrices to the buffer
+		meshTransforms.push_back(cameraView); // Used for billboarding
+		meshTransforms.push_back(cameraProjection);  // Used for billboarding
+		meshTransforms.push_back(cameraViewProjection);
+
+		// Update entity behaviours
+		currentScene.entityManager.ForEach<Behaviours>([&](Behaviours& b) {
+			b.OnUpdate(dt);
+		});
+
+		// Add lights to the buffer
 		currentScene.entityManager.ForEach<Transform, DirectionalLight>([&](Transform& transform, DirectionalLight& light) {
 			directionalLights.push_back(light.CreateShaderRepresentation(transform));
 		});
@@ -198,34 +232,11 @@ CS_NAMESPACE_BEGIN
 			spotLights.push_back(light.CreateShaderRepresentation(transform));
 		});
 
-		struct MainPassRenderData
-		{
-			Vulkan::MeshHandle mesh;
-			Vulkan::TextureHandle diffuse;
-			Vulkan::TextureHandle normal;
-			uint32_t modelID;
-			bool doubleSided;
-		};
-
-		std::vector<cs_std::math::mat4> meshTransforms;
-		std::deque<MainPassRenderData> meshes;
-		uint32_t depthPrepassMeshCount = 0;
-
-		meshTransforms.push_back(cameraView);
-		meshTransforms.push_back(cameraProjection);
-		meshTransforms.push_back(cameraViewProjection);
-
-		struct ParticleEmitterRenderData
-		{
-			uint32_t startIdx, count;
-			Vulkan::TextureHandle texture;
-			uint32_t modelID;
-		};
-
-		std::vector<ParticleEmitter::ParticleShaderRepresentation> particles;
-		std::vector<ParticleEmitterRenderData> particleEmitters;
 		currentScene.entityManager.ForEach<Transform, ParticleEmitter>([&](Transform& transform, ParticleEmitter& emitter) {
+			// Update particle emitters
 			emitter.Update(GetTime<float>(), dt);
+
+			// Gather render data
 			meshTransforms.push_back(transform.GetModelMatrix());
 			ParticleEmitterRenderData data(
 				particles.size(), emitter.liveParticleCount, emitter.texture, meshTransforms.size() - 1
@@ -310,22 +321,25 @@ CS_NAMESPACE_BEGIN
 		cmd.BeginRenderPass(mainRenderPass, mainFramebuffer, mainFramebuffer.GetScissor(), { Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 1.0f) });
 
 		// Render skybox
-		cmd.BindPipeline(skyboxPipeline);
-		cmd.BindDescriptorSet(skyboxPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+		if (skyboxTextureHandle.IsValid())
+		{
+			cmd.BindPipeline(skyboxPipeline);
+			cmd.BindDescriptorSet(skyboxPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
 
-		const struct SkyboxParams {
-			uint32_t cameraIdx, transformBufferIdx;
-		} skyboxParams{ 2, transformsHandle[currentFrameIndex].GetIndex() };
-		const uint32_t skyboxTexture = skyboxTextureHandle.GetIndex();
-		cmd.PushConstants(skyboxPipeline, skyboxParams, VK_SHADER_STAGE_VERTEX_BIT);
-		cmd.PushConstants(skyboxPipeline, skyboxTexture, VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
-		cmd.BindIndexBuffer(resourceManager.GetMesh(skyboxMeshHandle).indexBuffer);
-		cmd.BindVertexBuffers({
-			*resourceManager.GetMesh(skyboxMeshHandle).GetAttributeBuffer(cs_std::graphics::Attribute::POSITION),
-			*resourceManager.GetMesh(skyboxMeshHandle).GetAttributeBuffer(cs_std::graphics::Attribute::TEXCOORD_0),
-			}, { 0, 0 });
-		cmd.DrawIndexed(resourceManager.GetMesh(skyboxMeshHandle).indexCount, 1, 0, 0, 0);
-		cmd.BindDescriptorSet(mainPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+			const struct SkyboxParams {
+				uint32_t cameraIdx, transformBufferIdx;
+			} skyboxParams{ 2, transformsHandle[currentFrameIndex].GetIndex() };
+			const uint32_t skyboxTexture = skyboxTextureHandle.GetIndex();
+			cmd.PushConstants(skyboxPipeline, skyboxParams, VK_SHADER_STAGE_VERTEX_BIT);
+			cmd.PushConstants(skyboxPipeline, skyboxTexture, VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
+			cmd.BindIndexBuffer(resourceManager.GetMesh(skyboxMeshHandle).indexBuffer);
+			cmd.BindVertexBuffers({
+				*resourceManager.GetMesh(skyboxMeshHandle).GetAttributeBuffer(cs_std::graphics::Attribute::POSITION),
+				*resourceManager.GetMesh(skyboxMeshHandle).GetAttributeBuffer(cs_std::graphics::Attribute::TEXCOORD_0),
+				}, { 0, 0 });
+			cmd.DrawIndexed(resourceManager.GetMesh(skyboxMeshHandle).indexCount, 1, 0, 0, 0);
+			cmd.BindDescriptorSet(mainPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+		}
 
 		// main pass has two push constants, one in the vertex shader, one in the fragment shader
 		const struct MainPassVertexParams {
@@ -420,6 +434,12 @@ CS_NAMESPACE_BEGIN
 			const double time = this->timestamp.elapsed<double>();
 			this->layerManager.QueryForUpdate(time);
 			this->layerManager.Update(time);
+
+			// Check if all windows are closed, then terminate app
+			bool allWindowsClosed = true;
+			for (auto& window : this->windows) allWindowsClosed &= !window->IsOpen();
+			if (allWindowsClosed) this->Exit();
+
 		}
 		this->OnExit();
 	}

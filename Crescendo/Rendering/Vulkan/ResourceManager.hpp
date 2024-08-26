@@ -15,13 +15,19 @@
 class name\
 {\
 private:\
-	cs_std::slotmap_key<type> key;\
+	union k\
+	{\
+		/* If set to 4,293,967,295, the key will be invalid */\
+		uint32_t index;\
+		cs_std::slotmap_key<type> key; \
+	} key;\
 public:\
-	name() = default;\
-	name(cs_std::slotmap_key<type> key) : key(key) {}\
-	operator cs_std::slotmap_key<type>() const { return key; }\
-	uint32_t GetIndex() const { return cs_std::slotmap_key<type>::toIndex(key); }\
-};
+	name() { key.index = 0xFFFFFFFF; }\
+	name(cs_std::slotmap_key<type> k) { key.key = k; }\
+	operator cs_std::slotmap_key<type>() const { return key.key; }\
+	uint32_t GetIndex() const { return cs_std::slotmap_key<type>::toIndex(key.key); }\
+	bool IsValid() const { return key.index != 0xFFFFFFFF; }\
+}
 
 CS_NAMESPACE_BEGIN::Vulkan
 {
