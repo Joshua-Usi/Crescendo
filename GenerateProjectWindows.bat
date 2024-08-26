@@ -49,9 +49,9 @@ cd ../../../
 :: Ask the user for the project name
 set /p projectName="Enter the project name: "
 
-:: Check if GenerateProjectFiles.base exists and copy it to GenerateProjectFiles.lua
-if exist "GenerateProjectFiles.base" (
-    copy /Y "GenerateProjectFiles.base" "GenerateProjectFiles.lua"
+:: Check if GenerateProjectFiles.template.lua exists and copy it to GenerateProjectFiles.lua
+if exist templates\GenerateProjectFiles.template.lua (
+    copy /Y templates\GenerateProjectFiles.template.lua GenerateProjectFiles.lua
     :: Replace <project_name> with the user-provided project name
     powershell -Command "(Get-Content 'GenerateProjectFiles.lua') -replace '<project_name>', '%projectName%' | Set-Content 'GenerateProjectFiles.lua'"
     powershell -Command "(Get-Content 'GenerateProjectFiles.lua') -replace '<vulkan_ver>', '%VULKAN_VERSION%' | Set-Content 'GenerateProjectFiles.lua'"
@@ -62,7 +62,6 @@ if exist "GenerateProjectFiles.base" (
     exit /b
 )
 
-:: Ask the user to select the IDE
 :: Ask the user to select the IDE
 echo Select the IDE you want to generate project files for:
 echo.
@@ -82,9 +81,37 @@ if "%IDEChoice%"=="7" set IDE=gmake2
 
 :: Generate project files with the selected IDE
 if defined IDE (
+    if not exist %projectName% mkdir %projectName%
+
+    if exist templates/main.template.cpp (
+        :: Check if the main.cpp already exists, we don't want to overwrite the main file of a user
+        if not exist %projectName%\main.cpp (
+            copy templates\main.template.cpp %projectName%\main.cpp
+            powershell -Command "(Get-Content '%projectName%\main.cpp') -replace '<project_name>', '%projectName%' | Set-Content '%projectName%\main.cpp'"
+        ) else (
+            echo main.cpp already detected, not copying template over
+        )
+    ) else (
+        echo Error: main.template.cpp is missing
+        pause
+        exit /b
+    )
+
+    if exist templates/config.template.xml (
+        :: Likewise copy the config over, but don't overwrite a user's config
+        if not exist %projectName%\config.xml (
+            copy templates\config.template.xml %projectName%\config.xml
+            powershell -Command "(Get-Content '%projectName%\config.xml') -replace '<project_name>', '%projectName%' | Set-Content '%projectName%\config.xml'"
+        ) else (
+            echo config/xml already detected, not copying template over
+        )
+    ) else (
+        echo Error: config.template.xml is missing
+    )
     vendor\bins\premake\premake5.exe --file=GenerateProjectFiles.lua %IDE%
-    :: Clean up the project file lua
+    :: Clean up the project generation file
     del /q GenerateProjectFiles.lua
+
     pause
 ) else (
     echo Invalid selection. Exiting...

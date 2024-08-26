@@ -38,7 +38,7 @@ universal_defines = {
 	"VK_NO_PROTOTYPES",
 }
 
-workspace "Crescendo"
+workspace(project_name)
 	architecture "x64"
 	startproject(project_name)
 	configurations {
