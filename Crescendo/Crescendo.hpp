@@ -7,6 +7,7 @@
  *		Epic Games - For maintaining a cutting-edge engine that started my fascination with engine development in UE5
  * 
  *		Bailey (mungo_) and mart (martplus) - For the idea of a game engine competition
+ *		Omni - Fellow game engine developer and competitor
  */
 
 #include "entrypoint.hpp"
