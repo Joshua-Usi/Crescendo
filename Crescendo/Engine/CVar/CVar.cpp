@@ -39,6 +39,10 @@ CS_NAMESPACE_BEGIN
 		for (auto& [name, value] : data) names.push_back(name);
 		return names;
 	}
+	bool CVar::Exists(const std::string& name)
+	{
+		return data.count(name) != 0;	
+	}
 	void CVar::LoadConfigXML(const std::string& path, bool clearRegistry)
 	{
 		if (clearRegistry) data.clear();

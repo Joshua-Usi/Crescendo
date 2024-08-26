@@ -31,6 +31,7 @@ CS_NAMESPACE_BEGIN
 
 		operator entt::entity& () { return this->entity; };
 		uint32_t GetID() const { return static_cast<uint32_t>(this->entity); }
+		bool IsValid() const { return registry->valid(this->entity); }
 
 		template<ValidComponent T> T& GetComponent() { return registry->get<T>(this->entity); }
 		template<ValidComponent T> bool HasComponent() const { return registry->all_of<T>(this->entity); }

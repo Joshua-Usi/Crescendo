@@ -33,6 +33,7 @@ CS_NAMESPACE_BEGIN
 			else if constexpr (std::is_same<T, std::string>::value) data.emplace(name, value);
 		}
 		static std::vector<std::string> GetNames();
+		static bool Exists(const std::string& name);
 	public:
 		template<CVarSetType T>
 		static T Get(const std::string& name)
