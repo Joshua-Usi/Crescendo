@@ -47,7 +47,6 @@ CS_NAMESPACE_BEGIN
 		}
 		if (bufferElementCount > buffer.buffer.GetElementCount<T>())
 		{
-			cs_std::console::info("Resizing buffer: ", buffer.buffer.GetElementCount<T>(), " -> ", bufferElementCount, " (", requiredElementCount, ")");
 			resourceManager.DestroyBuffer(bufferHandle);
 			return resourceManager.CreateBuffer(sizeof(T) * bufferElementCount, VK_SHADER_STAGE_ALL);
 		}
