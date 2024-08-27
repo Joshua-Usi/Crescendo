@@ -16,6 +16,9 @@
 #define CS_STARTING_POINT_LIGHT_COUNT 8
 #define CS_STARTING_SPOT_LIGHT_COUNT 8
 #define CS_STARTING_PARTICLE_COUNT 1024
+// HDR
+#define CS_FRAMEBUFFER_COLOR_FORMAT VK_FORMAT_B10G11R11_UFLOAT_PACK32
+#define CS_FRAMEBUFFER_DEPTH_FORMAT VK_FORMAT_D32_SFLOAT
 
 CS_NAMESPACE_BEGIN
 {
@@ -71,9 +74,40 @@ CS_NAMESPACE_BEGIN
 			CVar::Get<std::string>("ec_appname"), "Crescendo",
 		});
 		this->instance.CreateSurface(this->GetWindow()->GetNative(), {
-			.swapchainRecreationCallback = [](uint32_t width, uint32_t height, VkPresentModeKHR presentMode)
+			.swapchainRecreationCallback = [&](Vulkan::Surface& surface, uint32_t width, uint32_t height, VkPresentModeKHR presentMode)
 			{
-				cs_std::console::log("Window resized to ", width, ", ", height);
+				cs_std::console::info("Window sized to ", width, "x", height);
+
+				const Vulkan::Vk::Device& device = surface.GetDevice();
+				const Vulkan::Vk::Swapchain& swapchain = surface.GetSwapchain();
+				const VkSampleCountFlagBits multisamples = static_cast<VkSampleCountFlagBits>(CVar::Get<uint64_t>("rc_multisamples"));
+				const double renderScale = CVar::Get<double>("rc_renderscale");
+
+				resourceManager.DestroyTexture(depthImageHandle);
+				depthImageHandle = resourceManager.CreateTexture(
+					Vulkan::Create::ImageCreateInfo(
+						VK_IMAGE_TYPE_2D, CS_FRAMEBUFFER_DEPTH_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), renderScale),
+						1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+					),
+					Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
+				);
+				const VkImageView depthImageView = resourceManager.GetTexture(depthImageHandle).image.GetImageView();
+				depthFramebuffer = Vulkan::Vk::Framebuffer(surface.GetDevice(), Vulkan::Create::FramebufferCreateInfo(
+					depthRenderPass, &depthImageView, Vulkan::Create::Extent2D(swapchain.GetExtent(), renderScale), 1
+				));
+
+				resourceManager.DestroyTexture(mainImageHandle);
+				mainImageHandle = resourceManager.CreateTexture(
+					Vulkan::Create::ImageCreateInfo(
+						VK_IMAGE_TYPE_2D, CS_FRAMEBUFFER_COLOR_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), renderScale),
+						1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+					),
+					Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
+				);
+				const std::array<VkImageView, 2> attachments2 = { resourceManager.GetTexture(mainImageHandle).image, depthImageView };
+				mainFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
+					mainRenderPass, attachments2, Vulkan::Create::Extent2D(swapchain.GetExtent(), renderScale), 1
+				));
 			},
 			.presentMode = (CVar::Get<bool>("ec_vsync")) ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR
 		});
@@ -92,45 +126,12 @@ CS_NAMESPACE_BEGIN
 			Vulkan::Vk::Swapchain& swapchain = surface.GetSwapchain();
 			Vulkan::Vk::Device& device = surface.GetDevice();
 
-			// HDR
-			constexpr VkFormat COLOR_FORMAT = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
-			constexpr VkFormat DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
-			constexpr VkSampleCountFlagBits MULTISAMPLES = VK_SAMPLE_COUNT_1_BIT;
-			const double RENDER_SCALE = CVar::Get<double>("rc_renderscale");
+			const VkSampleCountFlagBits multisamples = static_cast<VkSampleCountFlagBits>(CVar::Get<uint64_t>("rc_multisamples"));
 
-			depthRenderPass = Vulkan::Vk::RenderPass::CreateReversedZDepthRenderPass(device, DEPTH_FORMAT, MULTISAMPLES);
-			mainRenderPass = Vulkan::Vk::RenderPass::CreateMainRenderPass(device, COLOR_FORMAT, DEPTH_FORMAT, MULTISAMPLES);
+			depthRenderPass = Vulkan::Vk::RenderPass::CreateReversedZDepthRenderPass(device, CS_FRAMEBUFFER_DEPTH_FORMAT, multisamples);
+			mainRenderPass = Vulkan::Vk::RenderPass::CreateMainRenderPass(device, CS_FRAMEBUFFER_COLOR_FORMAT, CS_FRAMEBUFFER_DEPTH_FORMAT, multisamples);
 
-			resourceManager.DestroyTexture(depthImageHandle);
-			depthImageHandle = resourceManager.CreateTexture(
-				Vulkan::Create::ImageCreateInfo(
-					VK_IMAGE_TYPE_2D, DEPTH_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), RENDER_SCALE),
-					1, 1, MULTISAMPLES, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
-				),
-				Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
-			);
-			const VkImageView depthImageView = resourceManager.GetTexture(depthImageHandle).image.GetImageView();
-			depthFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
-				depthRenderPass, &depthImageView, Vulkan::Create::Extent2D(swapchain.GetExtent(), RENDER_SCALE), 1
-			));
-
-			resourceManager.DestroyTexture(mainImageHandle);
-			mainImageHandle = resourceManager.CreateTexture(
-				Vulkan::Create::ImageCreateInfo(
-					VK_IMAGE_TYPE_2D, COLOR_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), RENDER_SCALE),
-					1, 1, MULTISAMPLES, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
-				),
-				Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
-			);
-			const std::array<VkImageView, 2> attachments2 = { resourceManager.GetTexture(mainImageHandle).image, depthImageView };
-			mainFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
-				mainRenderPass, attachments2, Vulkan::Create::Extent2D(swapchain.GetExtent(), RENDER_SCALE), 1
-			));
-		}
-		{
-			Vulkan::Surface& surface = this->instance.GetSurface(0);
-			Vulkan::Vk::Swapchain& swapchain = surface.GetSwapchain();
-			Vulkan::Vk::Device& device = surface.GetDevice();
+			surface.CallRecreationCallback();
 
 			const std::string postProcessingShader = CVar::Get<std::string>("ircs_postprocessing");
 			const std::string depthPrepassShader = CVar::Get<std::string>("ircs_depthprepass");
@@ -213,7 +214,6 @@ CS_NAMESPACE_BEGIN
 
 		// Active camera in the scene
 		Entity camera = currentScene.entityManager.GetEntity(currentScene.activeCamera);
-		if (!camera.IsValid()) return;
 
 		cs_std::math::vec3 cameraPosition = camera.GetComponent<Transform>().GetPosition();
 		cs_std::math::mat4 cameraView = camera.GetComponent<Transform>().GetCameraViewMatrix();

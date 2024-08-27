@@ -32,7 +32,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 		this->swapchain = Vk::Swapchain(this->physicalDevice, this->device, this->surface,{
 			presentMode, { 0, 0 }, VK_SAMPLE_COUNT_1_BIT
 		});
-		if (this->swapchainRecreationCallback != nullptr) this->swapchainRecreationCallback(swapchain.GetExtent().width, swapchain.GetExtent().height, presentMode);
 	}
 	Surface::~Surface()
 	{
@@ -83,7 +82,11 @@ CS_NAMESPACE_BEGIN::Vulkan
 		this->swapchain = Vk::Swapchain(this->physicalDevice, this->device, this->surface, {
 			presentMode, { 0, 0 }, VK_SAMPLE_COUNT_1_BIT
 		});
-		if (this->swapchainRecreationCallback != nullptr) this->swapchainRecreationCallback(swapchain.GetExtent().width, swapchain.GetExtent().height, presentMode);
+		this->CallRecreationCallback();
+	}
+	void Surface::CallRecreationCallback()
+	{
+		if (this->swapchainRecreationCallback != nullptr) this->swapchainRecreationCallback(*this, swapchain.GetExtent().width, swapchain.GetExtent().height, presentMode);
 	}
 	void Surface::AcquireNextImage(VkSemaphore imageAvailableSemaphore, uint64_t timeout)
 	{
