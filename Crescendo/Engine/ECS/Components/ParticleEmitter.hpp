@@ -69,6 +69,11 @@ CS_NAMESPACE_BEGIN
 						if (liveParticleCount >= particles.size())
 						{
 							particles.push_back(spawnFunction(currentTime));
+							// Ensure the particle buffer doesn't get too large, wasting memory
+							if (particles.capacity() > maxParticles)
+							{
+								particles.resize(maxParticles);
+							}
 						}
 						else
 						{
@@ -81,7 +86,7 @@ CS_NAMESPACE_BEGIN
 			// Update particles
 			for (uint32_t i = 0; i < liveParticleCount; i++)
 			{
-				if (currentTime < particles[i].deathTime)
+				if (particles[i].IsAlive(currentTime))
 				{
 					updateFunction(currentTime, dt, particles[i]);
 				}
