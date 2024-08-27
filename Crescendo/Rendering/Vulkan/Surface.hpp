@@ -12,6 +12,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		struct SurfaceSpecification
 		{
 			std::function<void()> swapchainRecreationCallback = nullptr;
+			VkPresentModeKHR presentMode;
 		};
 	private:
 		VkInstance instance;

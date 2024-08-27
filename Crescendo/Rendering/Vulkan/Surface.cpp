@@ -30,7 +30,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		}));
 
 		this->swapchain = Vk::Swapchain(this->physicalDevice, this->device, this->surface,{
-			VK_PRESENT_MODE_MAILBOX_KHR, { 0, 0 }, VK_SAMPLE_COUNT_1_BIT
+			spec.presentMode, { 0, 0 }, VK_SAMPLE_COUNT_1_BIT
 		});
 		if (this->swapchainRecreationCallback != nullptr) this->swapchainRecreationCallback();
 	}

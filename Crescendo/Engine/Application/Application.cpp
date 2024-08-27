@@ -71,7 +71,8 @@ CS_NAMESPACE_BEGIN
 			CVar::Get<std::string>("ec_appname"), "Crescendo",
 		});
 		this->instance.CreateSurface(this->GetWindow()->GetNative(), {
-			.swapchainRecreationCallback = nullptr
+			.swapchainRecreationCallback = nullptr,
+			.presentMode = (CVar::Get<bool>("ec_vsync")) ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR
 		});
 		this->frameManager = Vulkan::FrameManager(this->instance.GetSurface(0).GetDevice(), CVar::Get<uint32_t>("rc_framesinflight"));
 		this->resourceManager = Vulkan::ResourceManager(this->instance.GetSurface(0).GetDevice(), {
