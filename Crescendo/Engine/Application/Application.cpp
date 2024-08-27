@@ -169,7 +169,7 @@ CS_NAMESPACE_BEGIN
 				spotLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(SpotLight::ShaderRepresentation) * MAX_SPOT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
 
 				// Create particle buffer
-				particleBufferHandle.push_back(resourceManager.CreateBuffer(sizeof(ParticleEmitter::ParticleShaderRepresentation) * 131072, VK_SHADER_STAGE_ALL));
+				particleBufferHandle.push_back(resourceManager.CreateBuffer(sizeof(ParticleEmitter::ParticleShaderRepresentation)* (2 << 20), VK_SHADER_STAGE_ALL));
 			}
 		}
 	}
@@ -232,19 +232,15 @@ CS_NAMESPACE_BEGIN
 			spotLights.push_back(light.CreateShaderRepresentation(transform));
 		});
 
+		// Update particle emitters and gather render data
 		currentScene.entityManager.ForEach<Transform, ParticleEmitter>([&](Transform& transform, ParticleEmitter& emitter) {
-			// Update particle emitters
 			emitter.Update(GetTime<float>(), dt);
 
-			// Gather render data
 			meshTransforms.push_back(transform.GetModelMatrix());
-			ParticleEmitterRenderData data(
-				particles.size(), emitter.liveParticleCount, emitter.texture, meshTransforms.size() - 1
-			);
-			particleEmitters.push_back(data);
-			for (uint32_t i = 0; i < emitter.liveParticleCount; i++)
+			particleEmitters.emplace_back(particles.size(), emitter.liveParticleCount, emitter.texture, meshTransforms.size() - 1);
+			for (const ParticleEmitter::Particle& particle : emitter.particles)
 			{
-				particles.push_back(emitter.particles[i].CreateShaderRepresentation());
+				particles.push_back(particle.CreateShaderRepresentation());
 			}
 		});
 
