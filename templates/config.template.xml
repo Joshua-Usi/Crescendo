@@ -4,10 +4,6 @@
 	<irc_validationlayers type="bool">true</irc_validationlayers>
 	<irc_maxbufferdescriptors_bindless type="int">1024</irc_maxbufferdescriptors_bindless>
 	<irc_maxtexturedescriptors_bindless type="int">1024</irc_maxtexturedescriptors_bindless>
-	<irc_maxobjectcount type="int">8192</irc_maxobjectcount>
-	<irc_maxdirectionallightcount type="int">16</irc_maxdirectionallightcount>
-	<irc_maxpointlightcount type="int">256</irc_maxpointlightcount>
-	<irc_maxspotlightcount type="int">256</irc_maxspotlightcount>
 	<!-- internal render config shaders -->
 	<ircs_depthprepass type="string">./shaders/compiled/depth</ircs_depthprepass>
 	<ircs_postprocessing type="string">./shaders/compiled/post_processing</ircs_postprocessing>

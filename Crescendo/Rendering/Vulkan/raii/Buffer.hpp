@@ -26,5 +26,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		void memcpy(const void* data, VkDeviceSize size, VkDeviceSize offset = 0);
 		operator VkBuffer() const;
 		VkDeviceSize GetSize() const;
+		template <typename T>
+		size_t GetElementCount() const { return static_cast<uint32_t>(size / sizeof(T)); }
 	};
 };

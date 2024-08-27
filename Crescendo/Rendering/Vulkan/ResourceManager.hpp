@@ -121,6 +121,12 @@ CS_NAMESPACE_BEGIN::Vulkan
 		void DestroyTexture(TextureHandle handle);
 		void DestroyMesh(MeshHandle handle);
 	public:
+		void ReplaceBuffer(BufferHandle handle, VkDeviceSize size, VkShaderStageFlags shaderStage);
+		void ReplaceTexture(TextureHandle handle, const VkImageCreateInfo& createInfo, const VmaAllocationCreateInfo& allocationCreateInfo);
+		void ReplaceAndUploadTexture(TextureHandle handle, const cs_std::image& image, const TextureSpecification& textureSpec = {});
+		template<cs_std::graphics::valid_index_type indice_type>
+		void ReplaceMesh(MeshHandle handle, const cs_std::graphics::mesh<indice_type>& mesh);
+	public:
 		size_t GetBufferCount() const;
 		size_t GetTextureCount() const;
 		size_t GetMeshCount() const;

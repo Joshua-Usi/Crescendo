@@ -11,6 +11,12 @@
 
 #include "Assets/ImageLoader/ImageLoaders.hpp"
 
+#define CS_STARTING_OBJECT_COUNT 1024
+#define CS_STARTING_DIRECTIONAL_LIGHT_COUNT 8
+#define CS_STARTING_POINT_LIGHT_COUNT 8
+#define CS_STARTING_SPOT_LIGHT_COUNT 8
+#define CS_STARTING_PARTICLE_COUNT 1024
+
 CS_NAMESPACE_BEGIN
 {
 	struct MainPassRenderData
@@ -28,6 +34,26 @@ CS_NAMESPACE_BEGIN
 		Vulkan::TextureHandle texture;
 		uint32_t modelID;
 	};
+
+	template<typename T>
+	Vulkan::BufferHandle ResizeBufferIfNecessary(Vulkan::ResourceManager& resourceManager, Vulkan::BufferHandle bufferHandle, size_t requiredElementCount)
+	{
+		Vulkan::Buffer& buffer = resourceManager.GetBuffer(bufferHandle);
+		uint32_t bufferElementCount = buffer.buffer.GetElementCount<T>();
+		// 1.5x increase
+		while (bufferElementCount < requiredElementCount)
+		{
+			bufferElementCount += bufferElementCount / 2;
+		}
+		if (bufferElementCount > buffer.buffer.GetElementCount<T>())
+		{
+			cs_std::console::info("Resizing buffer: ", buffer.buffer.GetElementCount<T>(), " -> ", bufferElementCount, " (", requiredElementCount, ")");
+			resourceManager.DestroyBuffer(bufferHandle);
+			return resourceManager.CreateBuffer(sizeof(T) * bufferElementCount, VK_SHADER_STAGE_ALL);
+		}
+		// If resize wasn't necessary, return the original buffer
+		return bufferHandle;
+	}
 
 	static bool isFirstWindow = true;
 	// Assign self and null as no instance exists yet
@@ -153,23 +179,19 @@ CS_NAMESPACE_BEGIN
 			{
 				skyboxTextureHandle = resourceManager.UploadTexture(LoadImage(CVar::Get<std::string>("skybox_texture")), { Vulkan::ResourceManager::Colorspace::SRGB, 1.0f, true });
 			}
-			const uint32_t MAX_OBJECT_COUNT = CVar::Get<uint32_t>("irc_maxobjectcount");
-			const uint32_t MAX_DIRECTIONAL_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxdirectionallightcount");
-			const uint32_t MAX_POINT_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxpointlightcount");
-			const uint32_t MAX_SPOT_LIGHT_COUNT = CVar::Get<uint32_t>("irc_maxspotlightcount");
 
 			for (uint32_t i = 0; i < frameManager.GetFrameCount(); i++)
 			{
 				// Create transforms buffer
-				transformsHandle.push_back(resourceManager.CreateBuffer(sizeof(cs_std::math::mat4) * MAX_OBJECT_COUNT, VK_SHADER_STAGE_ALL));
+				transformsHandle.push_back(resourceManager.CreateBuffer(sizeof(cs_std::math::mat4) * CS_STARTING_OBJECT_COUNT, VK_SHADER_STAGE_ALL));
 
 				// Create lights buffer
-				directionalLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(DirectionalLight::ShaderRepresentation) * MAX_DIRECTIONAL_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
-				pointLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(PointLight::ShaderRepresentation) * MAX_POINT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
-				spotLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(SpotLight::ShaderRepresentation) * MAX_SPOT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
+				directionalLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(DirectionalLight::ShaderRepresentation) * CS_STARTING_DIRECTIONAL_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
+				pointLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(PointLight::ShaderRepresentation) * CS_STARTING_POINT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
+				spotLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(SpotLight::ShaderRepresentation) * CS_STARTING_SPOT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
 
 				// Create particle buffer
-				particleBufferHandle.push_back(resourceManager.CreateBuffer(sizeof(ParticleEmitter::ParticleShaderRepresentation)* (2 << 20), VK_SHADER_STAGE_ALL));
+				particleBufferHandle.push_back(resourceManager.CreateBuffer(sizeof(ParticleEmitter::ParticleShaderRepresentation) * CS_STARTING_PARTICLE_COUNT, VK_SHADER_STAGE_ALL));
 			}
 		}
 	}
@@ -272,6 +294,13 @@ CS_NAMESPACE_BEGIN
 		});
 
 		cmd.WaitCompletion();
+
+		// Resize buffers if required
+		transformsHandle[currentFrameIndex] = ResizeBufferIfNecessary<cs_std::math::mat4>(resourceManager, transformsHandle[currentFrameIndex], meshTransforms.size());
+		directionalLightsHandle[currentFrameIndex] = ResizeBufferIfNecessary<DirectionalLight::ShaderRepresentation>(resourceManager, directionalLightsHandle[currentFrameIndex], directionalLights.size());
+		pointLightsHandle[currentFrameIndex] = ResizeBufferIfNecessary<PointLight::ShaderRepresentation>(resourceManager, pointLightsHandle[currentFrameIndex], pointLights.size());
+		spotLightsHandle[currentFrameIndex] = ResizeBufferIfNecessary<SpotLight::ShaderRepresentation>(resourceManager, spotLightsHandle[currentFrameIndex], spotLights.size());
+		particleBufferHandle[currentFrameIndex] = ResizeBufferIfNecessary<ParticleEmitter::ParticleShaderRepresentation>(resourceManager, particleBufferHandle[currentFrameIndex], particles.size());
 
 		// Write data to buffers
 		resourceManager.GetBuffer(transformsHandle[currentFrameIndex]).buffer.memcpy(meshTransforms.data(), sizeof(cs_std::math::mat4) * meshTransforms.size());
