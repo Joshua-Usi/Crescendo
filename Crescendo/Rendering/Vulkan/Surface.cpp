@@ -5,7 +5,7 @@
 CS_NAMESPACE_BEGIN::Vulkan
 {
 	Surface::Surface() : instance(nullptr), surface(), window(nullptr), physicalDevice(), device(), swapchain(), framebuffers(), swapchainRecreationCallback(nullptr), needsRecreation(false) {}
-	Surface::Surface(Vk::Instance& instance, void* window, const SurfaceSpecification& spec) : instance(instance), window(window), swapchainRecreationCallback(spec.swapchainRecreationCallback), needsRecreation(false)
+	Surface::Surface(Vk::Instance& instance, void* window, const SurfaceSpecification& spec) : instance(instance), window(window), swapchainRecreationCallback(spec.swapchainRecreationCallback), presentMode(spec.presentMode), needsRecreation(false)
 	{
 		this->surface = Vk::Surface(instance, window);
 
@@ -30,16 +30,16 @@ CS_NAMESPACE_BEGIN::Vulkan
 		}));
 
 		this->swapchain = Vk::Swapchain(this->physicalDevice, this->device, this->surface,{
-			spec.presentMode, { 0, 0 }, VK_SAMPLE_COUNT_1_BIT
+			presentMode, { 0, 0 }, VK_SAMPLE_COUNT_1_BIT
 		});
-		if (this->swapchainRecreationCallback != nullptr) this->swapchainRecreationCallback();
+		if (this->swapchainRecreationCallback != nullptr) this->swapchainRecreationCallback(swapchain.GetExtent().width, swapchain.GetExtent().height, presentMode);
 	}
 	Surface::~Surface()
 	{
 		if (this->instance == nullptr) return;
 		this->device.WaitIdle();
 	}
-	Surface::Surface(Surface&& other) noexcept : instance(other.instance), surface(std::move(other.surface)), window(other.window), physicalDevice(other.physicalDevice), device(std::move(other.device)), swapchain(std::move(other.swapchain)), framebuffers(std::move(other.framebuffers)), swapchainRecreationCallback(other.swapchainRecreationCallback), needsRecreation(other.needsRecreation)
+	Surface::Surface(Surface&& other) noexcept : instance(other.instance), surface(std::move(other.surface)), window(other.window), physicalDevice(other.physicalDevice), device(std::move(other.device)), swapchain(std::move(other.swapchain)), framebuffers(std::move(other.framebuffers)), swapchainRecreationCallback(other.swapchainRecreationCallback), presentMode(other.presentMode), needsRecreation(other.needsRecreation)
 	{
 		other.instance = nullptr;
 		other.window = nullptr;
@@ -58,6 +58,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		this->swapchain = std::move(other.swapchain);
 		this->framebuffers = std::move(other.framebuffers);
 		this->swapchainRecreationCallback = other.swapchainRecreationCallback; other.swapchainRecreationCallback = nullptr;
+		this->presentMode = other.presentMode;
 		this->needsRecreation = other.needsRecreation;
 
 		return *this;
@@ -80,9 +81,9 @@ CS_NAMESPACE_BEGIN::Vulkan
 
 		this->swapchain.~Swapchain();
 		this->swapchain = Vk::Swapchain(this->physicalDevice, this->device, this->surface, {
-			VK_PRESENT_MODE_MAILBOX_KHR, { 0, 0 }
+			presentMode, { 0, 0 }, VK_SAMPLE_COUNT_1_BIT
 		});
-		if (this->swapchainRecreationCallback != nullptr) this->swapchainRecreationCallback();
+		if (this->swapchainRecreationCallback != nullptr) this->swapchainRecreationCallback(swapchain.GetExtent().width, swapchain.GetExtent().height, presentMode);
 	}
 	void Surface::AcquireNextImage(VkSemaphore imageAvailableSemaphore, uint64_t timeout)
 	{
@@ -96,7 +97,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	{
 		VkResult result = this->swapchain.Present(queue, renderFinishSemaphore);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || this->needsRecreation) {
-			this->RecreateSwapchain();
+			this->RecreateSwapchain(this->presentMode);
 			this->needsRecreation = false;
 		}
 	}

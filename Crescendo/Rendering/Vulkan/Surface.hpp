@@ -11,7 +11,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	public:
 		struct SurfaceSpecification
 		{
-			std::function<void()> swapchainRecreationCallback = nullptr;
+			std::function<void(uint32_t width, uint32_t height, VkPresentModeKHR presentMode)> swapchainRecreationCallback = nullptr;
 			VkPresentModeKHR presentMode;
 		};
 	private:
@@ -22,7 +22,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Vk::Swapchain swapchain;
 		void* window;
 		std::vector<Vk::Framebuffer> framebuffers;
-		std::function<void()> swapchainRecreationCallback;
+		std::function<void(uint32_t width, uint32_t height, VkPresentModeKHR presentMode)> swapchainRecreationCallback;
+		VkPresentModeKHR presentMode;
 		bool needsRecreation;
 	public:
 		Surface();
@@ -39,7 +40,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Vk::Swapchain& GetSwapchain();
 		Vk::Swapchain::Image& GetImage(size_t index);
 	public:
-		void RecreateSwapchain(VkPresentModeKHR presentMode = VK_PRESENT_MODE_MAILBOX_KHR);
+		void RecreateSwapchain(VkPresentModeKHR presentMode);
 		void AcquireNextImage(VkSemaphore imageAvailableSemaphore, uint64_t timeout = std::numeric_limits<uint64_t>::max());
 		void Present(VkQueue queue, VkSemaphore renderFinishSemaphore);
 	};
