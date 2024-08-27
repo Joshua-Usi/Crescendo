@@ -12,6 +12,7 @@ CS_NAMESPACE_BEGIN
 		EntityManager entityManager;
 		cs_std::packed_vector<Entity> entities;
 		Entity activeCamera;
+		Vulkan::TextureHandle skybox;
 		Scene() : activeCamera() {}
 		void LoadModels(std::vector<cs_std::graphics::model>& models);
 	};

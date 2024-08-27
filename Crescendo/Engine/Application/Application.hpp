@@ -60,7 +60,6 @@ CS_NAMESPACE_BEGIN
 
 		Vulkan::Vk::Pipeline skyboxPipeline;
 		Vulkan::MeshHandle skyboxMeshHandle;
-		Vulkan::TextureHandle skyboxTextureHandle;
 
 		uint32_t frameIdx = 0;
 	protected:

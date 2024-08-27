@@ -22,6 +22,4 @@
 	<ec_vsync type="bool">true</ec_vsync>
 	<!-- path configs -->
 	<pc_assetpath type="string">./assets/</pc_assetpath>
-
-	<skybox_texture type="string">./assets/skybox-night.png</skybox_texture>
 </config>	

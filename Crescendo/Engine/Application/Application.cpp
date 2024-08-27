@@ -175,10 +175,6 @@ CS_NAMESPACE_BEGIN
 			skyboxMesh.indices = skybox.indices;
 
 			skyboxMeshHandle = resourceManager.UploadMesh(skyboxMesh);
-			if (CVar::Exists("skybox_texture"))
-			{
-				skyboxTextureHandle = resourceManager.UploadTexture(LoadImage(CVar::Get<std::string>("skybox_texture")), { Vulkan::ResourceManager::Colorspace::SRGB, 1.0f, true });
-			}
 
 			for (uint32_t i = 0; i < frameManager.GetFrameCount(); i++)
 			{
@@ -346,7 +342,7 @@ CS_NAMESPACE_BEGIN
 		cmd.BeginRenderPass(mainRenderPass, mainFramebuffer, mainFramebuffer.GetScissor(), { Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 1.0f) });
 
 		// Render skybox
-		if (skyboxTextureHandle.IsValid())
+		if (activeScene->skybox.IsValid())
 		{
 			cmd.BindPipeline(skyboxPipeline);
 			cmd.BindDescriptorSet(skyboxPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
@@ -354,7 +350,7 @@ CS_NAMESPACE_BEGIN
 			const struct SkyboxParams {
 				uint32_t cameraIdx, transformBufferIdx;
 			} skyboxParams{ 2, transformsHandle[currentFrameIndex].GetIndex() };
-			const uint32_t skyboxTexture = skyboxTextureHandle.GetIndex();
+			const uint32_t skyboxTexture = activeScene->skybox.GetIndex();
 			cmd.PushConstants(skyboxPipeline, skyboxParams, VK_SHADER_STAGE_VERTEX_BIT);
 			cmd.PushConstants(skyboxPipeline, skyboxTexture, VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
 			cmd.BindIndexBuffer(resourceManager.GetMesh(skyboxMeshHandle).indexBuffer);

@@ -22,6 +22,9 @@ public:
 		cs_std::image fireParticle = LoadImage("./assets/fire-particle.png");
 		Vulkan::TextureHandle fireParticleHandle = resourceManager.UploadTexture(fireParticle);
 
+		cs_std::image skybox = LoadImage("./assets/skybox-night.png");
+		currentScene.skybox = resourceManager.UploadTexture(skybox);
+
 		Entity cameraEntity = currentScene.entityManager.CreateEntity();
 		cameraEntity.EmplaceComponent<Name>("Main Camera");
 		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
