@@ -204,5 +204,9 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		return PipelineVariants(FillMode::Solid, CullMode::None, samples, DepthFunc::GreaterEqual, DepthTest::Enabled, DepthWrite::Disabled);
 	}
+	PipelineVariants PipelineVariants::GetTextVariant(Multisamples samples)
+	{
+		return PipelineVariants(FillMode::Solid, CullMode::None, samples, DepthFunc::GreaterEqual, DepthTest::Enabled | DepthTest::Disabled, DepthWrite::Disabled);
+	}
 	PipelineVariants PipelineVariants::operator[](uint32_t index) const { return GetVariant(index); }
 };

@@ -204,7 +204,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		const size_t imageSize = static_cast<size_t>(image.width) * static_cast<size_t>(image.height) * static_cast<size_t>(image.channels);
 		const uint8_t mipLevels = 1 + (textureSpec.generateMipmaps ? static_cast<uint8_t>(std::log2(std::max(image.width, image.height))) : 0);
 		VkSamplerCreateInfo samplerInfo = Create::SamplerCreateInfo(
-			VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+			VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
 			textureSpec.anisotropy, 1.0f
 		);
 

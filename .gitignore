@@ -43,3 +43,6 @@ bin-intermediate/
 Sandbox/assets/
 # Ignore compiled shaders, leave source
 Sandbox/shaders/compiled/
+
+# Ignore projects, shhh
+Cubefield/

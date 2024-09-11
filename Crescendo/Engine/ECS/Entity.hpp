@@ -71,5 +71,13 @@ CS_NAMESPACE_BEGIN
 		template<ValidComponent T> size_t GetComponentCount() const { return registry.view<T>().size(); }
 		template<ValidComponent ...T> void ForEach(std::function<void(entt::entity, T&...)> func) { registry.view<T...>().each(func); }
 		template<ValidComponent ...T> void ForEach(std::function<void(T&...)> func) { registry.view<T...>().each(func); }
+	public:
+		// Entity templates
+		Entity CreatePerspectiveCamera();
+		Entity CreateOrthographicCamera();
+		Entity CreatePointLight();
+		Entity CreateDirectionalLight();
+		Entity CreateSpotlight();
+		Entity CreateGameObject();
 	};
 }

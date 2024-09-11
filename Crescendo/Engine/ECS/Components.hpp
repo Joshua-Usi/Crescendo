@@ -17,10 +17,17 @@
 // Scripting Components
 #include "Components/Behaviours.hpp"
 
+// UI Components
+#include "Components/Text.hpp"
+
+// Effects Components
+#include "Components/ParticleEmitter.hpp"
+
 // Rendering Components
 #include "Components/Material.hpp"
 #include "Components/MeshData.hpp"
-#include "Components/ParticleEmitter.hpp"
+#include "Components/ParticleRenderer.hpp"
+#include "Components/TextRenderer.hpp"
 
 // Camera Components
 #include "Components/OrthographicCamera.hpp"

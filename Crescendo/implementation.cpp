@@ -1,0 +1,9 @@
+/*
+ *	Implementation defines for single-header libraries
+ */
+#define VMA_IMPLEMENTATION
+#include "vma/vk_mem_alloc.h"
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+#define MSDF_IMPLEMENTATION
+#include "msdf_c/msdf.h"

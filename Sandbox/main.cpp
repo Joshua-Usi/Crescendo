@@ -6,13 +6,10 @@ using namespace CrescendoEngine;
 // Scripts
 #include "scripts/CameraController.hpp"
 #include "scripts/Campfire.hpp"
+#include "scripts/FPS.hpp"
 
 class Sandbox : public Application
 {
-private:
-	// fps timers
-	double lastTime = 0.0;
-	uint32_t frames = 0;
 public:
 	using Application::Application;
 	void OnStartup()
@@ -33,10 +30,55 @@ public:
 		currentScene.activeCamera = cameraEntity;
 		currentScene.entities.insert(cameraEntity);
 
+		std::vector<std::string> fonts {
+			"Roboto",
+			"Roboto Mono",
+			"OpenSans",
+			"Lato",
+			"SourceCodePro"
+		};
+
+		float offset = -1.0f;
+		for (const std::string& font : fonts)
+		{
+			Entity textEntity = currentScene.entityManager.CreateEntity();
+			textEntity.EmplaceComponent<Transform>(math::vec3(0.0f, offset, 0.0));
+			textEntity.EmplaceComponent<Text>(
+				font + ": the quick brown fox jumps over the lazy dog. THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG",
+				font, Color(255), 1.0f, 1.0f, Text::Alignment::Left
+			);
+			textEntity.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::WorldSpace);
+			offset -= 1.0f;
+		}
+
+		Entity textCapsEntity = currentScene.entityManager.CreateEntity();
+		textCapsEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 3.0f, 0.0));
+		textCapsEntity.EmplaceComponent<Text>(
+			"THE QUICK BROWN\nFOX JUMPS OVER THE\nLAZY DOG",
+			"Roboto", Color(255, 128, 0), 1.0f, 1.0f, Text::Alignment::Right
+		);
+		textCapsEntity.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::WorldSpace);
+
+		Entity textPunctuationEntity = currentScene.entityManager.CreateEntity();
+		textPunctuationEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 4.0f, 0.0));
+		textPunctuationEntity.EmplaceComponent<Text>(
+			"\"Wait, what?!\" exclaimed John-surprised, confused, and somewhat amused-\"I can't believe it... can you?\"",
+			"Roboto", Color(255, 255, 255, 50), 1.0f, 1.0f, Text::Alignment::Center
+		);
+		textPunctuationEntity.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::WorldSpace);
+
+		Entity updatingText = currentScene.entityManager.CreateEntity();
+		updatingText.EmplaceComponent<Transform>(math::vec3(0.0f, -32.0f, 0.0));
+		updatingText.EmplaceComponent<Text>(
+			"0fps",
+			"Roboto", Color(255), 32.0f, 1.0f, Text::Alignment::Left);
+		updatingText.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::ScreenSpace);
+		updatingText.EmplaceComponent<Behaviours>(std::make_shared<FPS>());
+
 		Entity particleEmitter = currentScene.entityManager.CreateEntity();
 		particleEmitter.EmplaceComponent<Name>("Particle Emitter");
 		particleEmitter.EmplaceComponent<Transform>(math::vec3(0.0f, 45.0f, 0.0f));
-		particleEmitter.EmplaceComponent<ParticleEmitter>(12000, 5.0f, 10000,
+		particleEmitter.EmplaceComponent<ParticleEmitter>(12000, 0.05f, 100,
 			[](float currentTime, float dt, ParticleEmitter::Particle& p) {
 				p.velocity *= 0.95f;
 				p.velocity.y += 5.0f * dt;
@@ -61,9 +103,9 @@ public:
 				p.velocity = math::vec3(x, y, z);
 				p.deathTime = currentTime + math::random<float>(3.0f, 5.0f);
 				return p;
-			},
-			fireParticleHandle
+			}
 		);
+		particleEmitter.EmplaceComponent<ParticleRenderer>(fireParticleHandle);
 		// Create point light for fire
 		particleEmitter.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.55f, 0.0f), 10.0f, true);
 		particleEmitter.EmplaceComponent<Behaviours>(std::make_shared<Campfire>());
@@ -121,22 +163,12 @@ public:
 	}
 	void PostUpdateInputs()
 	{
-
 		Window* window = this->GetWindow();
 		Input* input = window->GetInput();
 		if (input->GetKeyDown(Key::F11)) window->SetFullScreen(!window->IsFullScreen());
 		if (input->GetMouseDown(MouseButton::Left)) window->SetCursorLock(true);
 		if (input->GetKeyPressed(Key::ControlLeft) && input->GetKeyPressed(Key::F5)) this->Restart();
 		if (input->GetKeyDown(Key::Escape)) (window->IsCursorLocked()) ? window->SetCursorLock(false) : this->Exit();
-
-		double currentTime = this->GetTime();
-		frames++;
-		if (currentTime - lastTime >= 1.0)
-		{
-			window->SetName("Crescendo Sandbox | " + std::to_string(frames) + " fps");
-			frames = 0;
-			lastTime += 1.0;
-		}
 	}
 };
 

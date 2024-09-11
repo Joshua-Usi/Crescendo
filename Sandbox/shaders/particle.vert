@@ -21,7 +21,7 @@ RegisterBuffer(std430, readonly, ParticleBuffer, { vec4 particleData[]; }); // x
 
 void main() {
 	uint vertexIndex = gl_VertexIndex % 6;
-	uint particleID = gl_VertexIndex / 6;
+	uint particleID = particleStartingIndex + gl_VertexIndex / 6;
 
 	mat4 view = GetResource(TransformBuffer, transformBufferIdx).transformData[cameraIdx];
 	mat4 projection = GetResource(TransformBuffer, transformBufferIdx).transformData[cameraIdx + 1];
@@ -31,7 +31,7 @@ void main() {
 	vec3 cameraRight_ws = vec3(modelView[0][0], modelView[1][0], modelView[2][0]);
     vec3 cameraUp_ws = vec3(modelView[0][1], modelView[1][1], modelView[2][1]);
 	
-	vec4 particle = GetResource(ParticleBuffer, particleBufferIdx).particleData[particleStartingIndex + particleID];
+	vec4 particle = GetResource(ParticleBuffer, particleBufferIdx).particleData[particleID];
 	
 	oParticleDeathTime = particle.w;
 	oTexCoord = vec2(vertexIndex & 1, mod((vertexIndex + 1) / 3, 2));
