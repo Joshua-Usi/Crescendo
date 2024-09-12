@@ -11,14 +11,44 @@
 
 #include "Assets/ImageLoader/ImageLoaders.hpp"
 
+#include "stb_truetype.h"
+#include "msdf_c/msdf.h"
+
 #define CS_STARTING_OBJECT_COUNT 1024
 #define CS_STARTING_DIRECTIONAL_LIGHT_COUNT 8
 #define CS_STARTING_POINT_LIGHT_COUNT 8
 #define CS_STARTING_SPOT_LIGHT_COUNT 8
 #define CS_STARTING_PARTICLE_COUNT 1024
-// HDR
+#define CS_STARTING_TEXT_CHARACTER_COUNT 1024
+// HDR	
 #define CS_FRAMEBUFFER_COLOR_FORMAT VK_FORMAT_B10G11R11_UFLOAT_PACK32
 #define CS_FRAMEBUFFER_DEPTH_FORMAT VK_FORMAT_D32_SFLOAT
+#define CS_MSDF_TEXTURE_FORMAT VK_FORMAT_R8G8B8A8_UNORM
+
+std::vector<std::string> GetFonts(const std::string& fontDir)
+{
+	if (!std::filesystem::exists(fontDir))
+	{
+		cs_std::console::warn("Could not find font directory: ", fontDir, ". No fonts were found");
+		return {};
+	}
+
+	if (!std::filesystem::is_directory(fontDir))
+	{
+		cs_std::console::warn("Provided font directory is not a directory: ", fontDir, ". No fonts were found");
+		return {};
+	}
+	std::vector<std::string> fontPaths;
+	for (const auto& entry : std::filesystem::directory_iterator(fontDir))
+	{
+		if (!entry.is_regular_file()) continue;
+		// We only care about true type fonts
+		if (entry.path().extension() != ".ttf") continue;
+		fontPaths.push_back(entry.path().string());
+	}
+	return fontPaths;
+}
+	
 
 CS_NAMESPACE_BEGIN
 {
@@ -33,9 +63,24 @@ CS_NAMESPACE_BEGIN
 
 	struct ParticleEmitterRenderData
 	{
+		// start index of the particle data for this emitter and the number of particles 
 		uint32_t startIdx, count;
 		Vulkan::TextureHandle texture;
 		uint32_t modelID;
+	};
+
+	struct TextRenderData
+	{
+		// reference to the handle that stores character data
+		Vulkan::BufferHandle fontCharacterData;
+		// start index for the text data, in characters
+		uint32_t startIdx, count;
+		uint32_t modelID;
+		float alignmentOffset;
+		float lineOffset;
+		Color color;
+		uint32_t cameraID;
+		float fontSize;
 	};
 
 	template<typename T>
@@ -58,7 +103,6 @@ CS_NAMESPACE_BEGIN
 	}
 
 	static bool isFirstWindow = true;
-	// Assign self and null as no instance exists yet
 	Application* Application::self = nullptr;
 	Application::Application(const ApplicationCommandLineArgs& args) : isRunning(true), shouldRestart(false), taskQueue(cs_std::task_queue()), timestamp(), layerManager(LayerStack())
 	{
@@ -138,6 +182,7 @@ CS_NAMESPACE_BEGIN
 			const std::string mainShader = CVar::Get<std::string>("ircs_main");
 			const std::string skyboxShader = CVar::Get<std::string>("ircs_skybox");
 			const std::string particleShader = CVar::Get<std::string>("ircs_particle");
+			const std::string textShader = CVar::Get<std::string>("ircs_text");
 
 			postProcessingPipeline = Vulkan::Vk::Pipeline(device, {
 				cs_std::binary_file(postProcessingShader + ".vert.spv").open().read_if_exists(),
@@ -169,6 +214,12 @@ CS_NAMESPACE_BEGIN
 				Vulkan::Vk::PipelineVariants::GetParticleVariant(),
 				resourceManager.GetDescriptorSetLayout(), mainRenderPass
 			});
+			textPipeline = Vulkan::Vk::Pipeline(device, {
+				cs_std::binary_file(textShader + ".vert.spv").open().read_if_exists(),
+				cs_std::binary_file(textShader + ".frag.spv").open().read_if_exists(),
+				Vulkan::Vk::PipelineVariants::GetTextVariant(),
+				resourceManager.GetDescriptorSetLayout(), mainRenderPass
+			});
 
 			// Skybox
 			Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
@@ -192,6 +243,102 @@ CS_NAMESPACE_BEGIN
 
 				// Create particle buffer
 				particleBufferHandle.push_back(resourceManager.CreateBuffer(sizeof(ParticleEmitter::ParticleShaderRepresentation) * CS_STARTING_PARTICLE_COUNT, VK_SHADER_STAGE_ALL));
+
+				// Create text advance data buffer
+				textAdvanceDataHandle.push_back(resourceManager.CreateBuffer(sizeof(float) * CS_STARTING_TEXT_CHARACTER_COUNT, VK_SHADER_STAGE_ALL));
+
+				// Create text character data buffer (stores the text we want to render)
+				// Note this is actually a uint32_t, because it's the smallest type we can use in glsl
+				// this means that there is 4 characters in one element
+				textCharacterDataHandle.push_back(resourceManager.CreateBuffer(sizeof(char) * CS_STARTING_TEXT_CHARACTER_COUNT, VK_SHADER_STAGE_ALL));
+			}
+
+			std::vector<std::string> fontPaths = GetFonts((CVar::Exists("pc_fontpath") ? CVar::Get<std::string>("pc_fontpath") : ""));
+
+			if (fontPaths.size() == 0)
+			{
+				cs_std::console::warn("Could not find any fonts");
+			}
+			else
+			{
+				cs_std::console::info("Found ", fontPaths.size(), " fonts on the system");
+
+				for (const auto& fontPath : fontPaths)
+				{
+					std::vector<cs_std::byte> fontBuffer = cs_std::binary_file(fontPath).open().read();
+
+					stbtt_fontinfo fontInfo;
+					if (!stbtt_InitFont(&fontInfo, fontBuffer.data(), 0)) cs_std::console::error("Failed to initialise font");
+
+					uint32_t borderWidth = 4;
+
+					uint32_t fontScale = 40;
+					float scale = stbtt_ScaleForPixelHeight(&fontInfo, fontScale);
+					float scaleDivisor = 1.0f / fontScale;
+
+					Font font;
+					int32_t ascent, descent, lineGap;
+					stbtt_GetFontVMetrics(&fontInfo, &ascent, &descent, &lineGap);
+					font.ascent = ascent * scale * scaleDivisor;
+					font.descent = descent * scale * scaleDivisor;
+					font.lineGap = lineGap * scale * scaleDivisor;
+					font.lineHeight = (font.ascent - font.descent + font.lineGap);
+
+					// Loop over each ascii character
+					for (int32_t codepoint = 32; codepoint < 126; codepoint++)
+					{
+						int32_t glyphIndex = stbtt_FindGlyphIndex(&fontInfo, codepoint);
+						if (glyphIndex == 0) continue;
+
+						Font::Character character;
+
+						int advanceWidth, leftSideBearing;
+						stbtt_GetGlyphHMetrics(&fontInfo, glyphIndex, &advanceWidth, &leftSideBearing);
+						character.advance = advanceWidth * scale * scaleDivisor;
+						character.bearingX = leftSideBearing * scale * scaleDivisor;
+
+						int32_t c_x1, c_y1, c_x2, c_y2;
+						stbtt_GetGlyphBitmapBox(&fontInfo, glyphIndex, scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
+						c_x1 -= borderWidth; c_y1 -= borderWidth; c_x2 += borderWidth; c_y2 += borderWidth;
+
+						uint32_t width = c_x2 - c_x1;
+						uint32_t height = c_y2 - c_y1;
+
+						character.width = width * scaleDivisor;
+						character.height = height * scaleDivisor;
+						character.bearingY = c_y1 * scaleDivisor;
+						if (width - 2 * borderWidth != 0 && height - 2 * borderWidth != 0)
+						{
+							msdf_Result msdfResult;
+							uint32_t result = msdf_genGlyph(&msdfResult, &fontInfo, glyphIndex, borderWidth, scale, 40.0f, nullptr);
+							if (result == 0)
+								cs_std::console::error("Failed to generate msdf for glyph ", codepoint);
+
+							cs_std::image glyph(msdfResult.width, msdfResult.height, 4);
+
+							if (result != 0)
+							{
+								for (uint32_t i = 0, j = 0; i < msdfResult.width * msdfResult.height * 3; i += 3, j += 4)
+								{
+									glyph.data[j] = (*(msdfResult.rgb + i)) * 255;
+									glyph.data[j + 1] = (*(msdfResult.rgb + i + 1)) * 255;
+									glyph.data[j + 2] = (*(msdfResult.rgb + i + 2)) * 255;
+									glyph.data[j + 3] = 255;
+								}
+							}
+							character.texture = resourceManager.UploadTexture(glyph);
+						}
+						font.characters[codepoint - 32] = character;
+					}
+
+					std::vector<Font::Character::ShaderRepresentation> characterData = font.GetShaderRepresentation();
+					font.characterDataBufferHandle = resourceManager.CreateBuffer(sizeof(Font::Character::ShaderRepresentation) * characterData.size(), VK_SHADER_STAGE_ALL);
+					resourceManager.GetBuffer(font.characterDataBufferHandle).buffer.memcpy(characterData.data(), sizeof(Font::Character::ShaderRepresentation) * characterData.size());
+
+					std::string fontName = std::filesystem::path(fontPath).stem().string();
+					fonts[fontName] = font;
+					cs_std::console::log("Added font ", fontName);
+				}
 			}
 		}
 	}
@@ -232,14 +379,27 @@ CS_NAMESPACE_BEGIN
 		std::vector<ParticleEmitter::ParticleShaderRepresentation> particles;
 		std::vector<ParticleEmitterRenderData> particleEmitters;
 
+		std::vector<float> textAdvanceData;
+		std::vector<char> textCharacterData;
+		std::vector<TextRenderData> textRenderData;
+
 		// Add active camera matrices to the buffer
 		meshTransforms.push_back(cameraView); // Used for billboarding
 		meshTransforms.push_back(cameraProjection);  // Used for billboarding
 		meshTransforms.push_back(cameraViewProjection);
+		meshTransforms.push_back(cs_std::math::ortho( // Used screenspace rendering
+			0.0f, -static_cast<float>(swapchain.GetExtent().width),
+			-static_cast<float>(swapchain.GetExtent().height), 0.0f,
+			-1.0f, 1.0f
+		));
 
 		// Update entity behaviours
 		currentScene.entityManager.ForEach<Behaviours>([&](Behaviours& b) {
 			b.OnUpdate(dt);
+		});
+		// Update particle emitters
+		currentScene.entityManager.ForEach<ParticleEmitter>([&](ParticleEmitter& emitter) {
+			emitter.Update(GetTime<float>(), dt);
 		});
 
 		// Add lights to the buffer
@@ -251,18 +411,6 @@ CS_NAMESPACE_BEGIN
 		});
 		currentScene.entityManager.ForEach<Transform, SpotLight>([&](Transform& transform, SpotLight& light) {
 			spotLights.push_back(light.CreateShaderRepresentation(transform));
-		});
-
-		// Update particle emitters and gather render data
-		currentScene.entityManager.ForEach<Transform, ParticleEmitter>([&](Transform& transform, ParticleEmitter& emitter) {
-			emitter.Update(GetTime<float>(), dt);
-
-			meshTransforms.push_back(transform.GetModelMatrix());
-			particleEmitters.emplace_back(particles.size(), emitter.liveParticleCount, emitter.texture, meshTransforms.size() - 1);
-			for (const ParticleEmitter::Particle& particle : emitter.particles)
-			{
-				particles.push_back(particle.CreateShaderRepresentation());
-			}
 		});
 
 		currentScene.entityManager.ForEach<Transform, MeshData, Material>([&](Transform& transform, MeshData& mesh, Material& material) {
@@ -292,6 +440,104 @@ CS_NAMESPACE_BEGIN
 			return depthA > depthB;
 		});
 
+		// Update particle emitters and gather render data
+		currentScene.entityManager.ForEach<Transform, ParticleEmitter, ParticleRenderer>([&](Transform& transform, ParticleEmitter& emitter, ParticleRenderer& renderer) {
+			meshTransforms.push_back(transform.GetModelMatrix());
+			particleEmitters.emplace_back(particles.size(), emitter.liveParticleCount, renderer.texture, meshTransforms.size() - 1);
+			for (const ParticleEmitter::Particle& particle : emitter.particles)
+			{
+				particles.push_back(particle.CreateShaderRepresentation());
+			}
+		});
+
+		// Gather text to render
+		currentScene.entityManager.ForEach<Transform, Text, TextRenderer>([&](Transform& transform, Text& text, TextRenderer& renderer) {
+			if (text.text.size() == 0) return;
+
+			// I wish I could handle this edge case better but this works
+			bool isRenderable = false;
+			for (char c : text.text)
+			{
+				if (c >= 32 && c <= 126)
+				{
+					isRenderable = true;
+					break;
+				}
+			}
+			if (!isRenderable) return;
+
+			if (fonts.find(text.font) == fonts.end()) return;
+			const Font& font = fonts[text.font];
+
+			uint32_t cameraID = (renderer.renderMode == TextRenderer::RenderMode::ScreenSpace) ? 3 : 2;
+
+			// Each line will share the same model matrix
+			meshTransforms.push_back(transform.GetModelMatrix());
+			uint32_t modelID = meshTransforms.size() - 1;
+
+			uint32_t currentLine = 0;
+			uint32_t successiveNewLines = 0;
+			uint32_t currentOffset = textCharacterData.size();
+			uint32_t count = 0;
+			float cumulativeAdvance = 0.0f;
+			textAdvanceData.push_back(0.0f);
+			bool wasNewLine = false;
+			char lastPrintableChar = 0;
+
+			auto calculateAlignmentOffset = [&](char lastChar) -> float
+			{
+				switch (text.alignment)
+				{
+					case Text::Alignment::Center: return -(cumulativeAdvance + font.characters[lastChar - 32].advance) / 2.0f;
+					case Text::Alignment::Right: return -cumulativeAdvance - font.characters[lastChar - 32].advance;
+					default: return 0.0f;
+				}
+			};
+
+			for (uint32_t i = 0, size = text.text.size(); i < size; i++)
+			{
+				const char ch = text.text[i];
+				if (ch == '\n')
+				{
+					wasNewLine = true;
+					successiveNewLines++;
+					continue;
+				}
+				if (ch == ' ')
+				{
+					cumulativeAdvance += font.characters[0].advance;
+					textAdvanceData.back() = cumulativeAdvance;
+					continue;
+				}
+				if (wasNewLine && count != 0)
+				{
+					wasNewLine = false;
+					textRenderData.emplace_back(
+						font.characterDataBufferHandle, currentOffset, count, modelID,
+						calculateAlignmentOffset(lastPrintableChar), currentLine * font.lineHeight * text.lineSpacing, text.color, cameraID, text.fontSize
+					);
+					currentOffset = textCharacterData.size();
+					count = 0;
+					cumulativeAdvance = 0.0f;
+					textAdvanceData.back() = 0.0f;
+					currentLine += successiveNewLines;
+					successiveNewLines = 0;
+				}
+				// skip other non-printable characters
+				if (ch < 32 || ch > 126) continue;
+				cumulativeAdvance += font.characters[ch - 32].advance;
+				if (i < size - 1)
+					textAdvanceData.push_back(cumulativeAdvance);
+				textCharacterData.push_back(ch);
+				count++;
+				lastPrintableChar = ch;
+			}
+			textRenderData.emplace_back(
+				font.characterDataBufferHandle, currentOffset, count, modelID,
+				calculateAlignmentOffset(text.text.back()), currentLine * font.lineHeight * text.lineSpacing, text.color, cameraID, text.fontSize
+			);
+		});
+
 		cmd.WaitCompletion();
 
 		// Resize buffers if required
@@ -300,6 +546,8 @@ CS_NAMESPACE_BEGIN
 		pointLightsHandle[currentFrameIndex] = ResizeBufferIfNecessary<PointLight::ShaderRepresentation>(resourceManager, pointLightsHandle[currentFrameIndex], pointLights.size());
 		spotLightsHandle[currentFrameIndex] = ResizeBufferIfNecessary<SpotLight::ShaderRepresentation>(resourceManager, spotLightsHandle[currentFrameIndex], spotLights.size());
 		particleBufferHandle[currentFrameIndex] = ResizeBufferIfNecessary<ParticleEmitter::ParticleShaderRepresentation>(resourceManager, particleBufferHandle[currentFrameIndex], particles.size());
+		textAdvanceDataHandle[currentFrameIndex] = ResizeBufferIfNecessary<float>(resourceManager, textAdvanceDataHandle[currentFrameIndex], textAdvanceData.size());
+		textCharacterDataHandle[currentFrameIndex] = ResizeBufferIfNecessary<char>(resourceManager, textCharacterDataHandle[currentFrameIndex], textCharacterData.size());
 
 		// Write data to buffers
 		resourceManager.GetBuffer(transformsHandle[currentFrameIndex]).buffer.memcpy(meshTransforms.data(), sizeof(cs_std::math::mat4) * meshTransforms.size());
@@ -307,6 +555,8 @@ CS_NAMESPACE_BEGIN
 		resourceManager.GetBuffer(pointLightsHandle[currentFrameIndex]).buffer.memcpy(pointLights.data(), sizeof(PointLight::ShaderRepresentation) * pointLights.size());
 		resourceManager.GetBuffer(spotLightsHandle[currentFrameIndex]).buffer.memcpy(spotLights.data(), sizeof(SpotLight::ShaderRepresentation) * spotLights.size());
 		resourceManager.GetBuffer(particleBufferHandle[currentFrameIndex]).buffer.memcpy(particles.data(), sizeof(ParticleEmitter::ParticleShaderRepresentation) * particles.size());
+		resourceManager.GetBuffer(textAdvanceDataHandle[currentFrameIndex]).buffer.memcpy(textAdvanceData.data(), sizeof(float) * textAdvanceData.size());
+		resourceManager.GetBuffer(textCharacterDataHandle[currentFrameIndex]).buffer.memcpy(textCharacterData.data(), sizeof(char) * textCharacterData.size());
 
 		cmd.Reset();
 
@@ -355,7 +605,7 @@ CS_NAMESPACE_BEGIN
 			} skyboxParams{ 2, transformsHandle[currentFrameIndex].GetIndex() };
 			const uint32_t skyboxTexture = activeScene->skybox.GetIndex();
 			cmd.PushConstants(skyboxPipeline, skyboxParams, VK_SHADER_STAGE_VERTEX_BIT);
-			cmd.PushConstants(skyboxPipeline, skyboxTexture, VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
+			cmd.PushConstants(skyboxPipeline, skyboxTexture, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(SkyboxParams));
 			cmd.BindIndexBuffer(resourceManager.GetMesh(skyboxMeshHandle).indexBuffer);
 			cmd.BindVertexBuffers({
 				*resourceManager.GetMesh(skyboxMeshHandle).GetAttributeBuffer(cs_std::graphics::Attribute::POSITION),
@@ -396,7 +646,7 @@ CS_NAMESPACE_BEGIN
 				0, 0,
 				cs_std::math::vec4(cameraPosition, 1.0f)
 			};
-			cmd.PushConstants(mainPipeline, texturesParams, VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
+			cmd.PushConstants(mainPipeline, texturesParams, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(MainPassVertexParams));
 			cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, data.modelID);
 		}
 
@@ -421,12 +671,43 @@ CS_NAMESPACE_BEGIN
 				data.texture.GetIndex()
 			};
 			cmd.PushConstants(particlePipeline, particleParams, VK_SHADER_STAGE_VERTEX_BIT);
-			cmd.PushConstants(particlePipeline, particleParamsFrag, VK_SHADER_STAGE_FRAGMENT_BIT, 5 * sizeof(uint32_t));
+			cmd.PushConstants(particlePipeline, particleParamsFrag, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(ParticleVertexParams));
 			// One quad for each particle, hence 6 vertices
 			cmd.Draw(data.count * 6, 1, 0, data.modelID);
 		}
-		cmd.EndRenderPass();
 
+		// Text pass
+		cmd.BindDescriptorSet(textPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+		for (uint32_t i = 0; i < textRenderData.size(); i++)
+		{
+			TextRenderData& data = textRenderData[i];
+
+			Vulkan::Vk::PipelineVariants variant1 = textPipeline.GetVariants().GetVariant(0);
+			Vulkan::Vk::PipelineVariants variant2 = textPipeline.GetVariants().GetVariant(1);
+
+			cmd.BindPipeline(textPipeline[(data.cameraID == 2) ? 0 : 1]);
+
+			const struct TextVertexParams {
+				uint32_t cameraIdx, transformBufferIdx, glyphBufferIdx,
+						 characterBufferIdx, cumulativeBufferIdx, startingIdx;
+				float horizontalOffset, verticalOffset, fontSize;
+			} textParamsVertex{
+				data.cameraID, transformsHandle[currentFrameIndex].GetIndex(), data.fontCharacterData.GetIndex(),
+				textCharacterDataHandle[currentFrameIndex].GetIndex(), textAdvanceDataHandle[currentFrameIndex].GetIndex(), data.startIdx,
+				data.alignmentOffset, data.lineOffset, data.fontSize
+			};
+			const struct TextFragmentParams {
+				uint32_t color;
+			} textParamsFrag {
+				data.color.GetPacked()
+			};
+			cmd.PushConstants(textPipeline, textParamsVertex, VK_SHADER_STAGE_VERTEX_BIT);
+			cmd.PushConstants(textPipeline, textParamsFrag, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(TextVertexParams));
+			// One quad for each character, hence 6 vertices
+			cmd.Draw(data.count * 6, 1, 0, data.modelID);
+		}
+
+		cmd.EndRenderPass();
 
 		// Final post processing pass
 		cmd.DynamicStateSetViewport(swapchain.GetViewport(true));

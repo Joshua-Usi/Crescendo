@@ -57,6 +57,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		static PipelineVariants GetUIVariant(Multisamples samples = Multisamples::One);
 		static PipelineVariants GetPostProcessingVariant(Multisamples samples = Multisamples::One);
 		static PipelineVariants GetParticleVariant(Multisamples samples = Multisamples::One);
+		static PipelineVariants GetTextVariant(Multisamples samples = Multisamples::One);
 	public:
 		PipelineVariants operator[](uint32_t index) const;
 	public:

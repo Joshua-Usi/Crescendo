@@ -18,8 +18,7 @@ engine_dirs = {
 	"C:/VulkanSDK/" .. vulkan_ver .. "/Include",
 	"%{wks.location}/Crescendo",
 	"%{wks.location}/Crescendo/Libraries/ThirdParty",
-	"%{wks.location}/Crescendo/Libraries/ThirdParty/ImGui",
-	"%{wks.location}/Crescendo/Libraries/ThirdParty/ImGui/backends",
+	"%{wks.location}/Crescendo/Libraries/ThirdParty/stb",
 	"%{wks.location}/Crescendo/cs_std",
 }
 flags_debug = {
@@ -59,7 +58,9 @@ project "Crescendo"
 	removefiles(exclude_files)
 	includedirs(engine_dirs)
 	libdirs(library_dirs)
-	links {}
+	links {
+		"glfw3_mt.lib",
+	}
 	filter "system:windows"
 		systemversion "latest"
 		defines(universal_defines)
@@ -86,9 +87,7 @@ project(project_name)
 	libdirs(library_dirs)
 	links {
 		"Crescendo",
-		--
-		"glfw3_mt.lib",
-		--
+
 		"user32.lib",
 		"gdi32.lib",
 		"shell32.lib",
