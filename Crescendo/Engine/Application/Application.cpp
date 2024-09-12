@@ -270,11 +270,11 @@ CS_NAMESPACE_BEGIN
 					stbtt_fontinfo fontInfo;
 					if (!stbtt_InitFont(&fontInfo, fontBuffer.data(), 0)) cs_std::console::error("Failed to initialise font");
 
-					uint32_t fontScale = 256;
+					uint32_t borderWidth = 4;
+
+					uint32_t fontScale = 40;
 					float scale = stbtt_ScaleForPixelHeight(&fontInfo, fontScale);
 					float scaleDivisor = 1.0f / fontScale;
-
-					uint32_t borderWidth = 4;
 
 					Font font;
 					int32_t ascent, descent, lineGap;
@@ -310,18 +310,21 @@ CS_NAMESPACE_BEGIN
 						if (width - 2 * borderWidth != 0 && height - 2 * borderWidth != 0)
 						{
 							msdf_Result msdfResult;
-							uint32_t result = msdf_genGlyph(&msdfResult, &fontInfo, glyphIndex, borderWidth, scale, 32.0f, nullptr);
+							uint32_t result = msdf_genGlyph(&msdfResult, &fontInfo, glyphIndex, borderWidth, scale, 40.0f, nullptr);
 							if (result == 0)
 								cs_std::console::error("Failed to generate msdf for glyph ", codepoint);
 
 							cs_std::image glyph(msdfResult.width, msdfResult.height, 4);
 
-							for (uint32_t i = 0, j = 0; i < msdfResult.width * msdfResult.height * 3; i += 3, j += 4)
+							if (result != 0)
 							{
-								glyph.data[j    ] = (*(msdfResult.rgb + i    )) * 255;
-								glyph.data[j + 1] = (*(msdfResult.rgb + i + 1)) * 255;
-								glyph.data[j + 2] = (*(msdfResult.rgb + i + 2)) * 255;
-								glyph.data[j + 3] = 255;
+								for (uint32_t i = 0, j = 0; i < msdfResult.width * msdfResult.height * 3; i += 3, j += 4)
+								{
+									glyph.data[j] = (*(msdfResult.rgb + i)) * 255;
+									glyph.data[j + 1] = (*(msdfResult.rgb + i + 1)) * 255;
+									glyph.data[j + 2] = (*(msdfResult.rgb + i + 2)) * 255;
+									glyph.data[j + 3] = 255;
+								}
 							}
 							character.texture = resourceManager.UploadTexture(glyph);
 						}
