@@ -204,30 +204,39 @@ layout(set = 8, binding = 0) uniform sampler2D normalTex;
 void main()	
 {
 	vec4 texelColor = texture(diffuseTex, iTexCoord);
-	vec3 normal_ws = normalize((texture(normalTex, iTexCoord).rgb) * 2.0f - 1.0f);
-	vec3 viewDir_ws = normalize(viewPos.xyz - iPosition_ws);
-	vec3 outputColor = vec3(0.0f);
+	vec3 normal_ts = normalize(iTBN * (normalColor.rgb * 2.0f - 1.0f));
+	vec3 viewDir_ws = normalize(cameraViewPos.xyz - iPosition_ws);
+
+	vec3 lightIntensity = vec3(0.0f);
+
 	// Directional lights
 	for (uint i = 0; i < directionalLightCount; i++)
 	{
-		outputColor += CalcDirectionalLight(directionalLights[i], normal_ws, viewDir_ws);
+		const DirectionalLight directionalLight = GetResource(DirectionalLightBuffer, directionalLightBufferIdx).directionalLightData[i];
+		lightIntensity += CalcDirectionalLight(directionalLight, normal_ts, viewDir_ws);
 	}
+	
 	// Point lights
 	for (uint i = 0; i < pointLightCount; i++)
 	{
-		outputColor += CalcPointLight(pointLights[i], normal_ws, viewDir_ws, iPosition_ws);
+		const PointLight pointLight = GetResource(PointLightBuffer, pointLightBufferIdx).pointLightData[i];
+		lightIntensity += CalcPointLight(pointLight, normal_ts, viewDir_ws, iPosition_ws);
 	}
+	
 	// Spot lights
 	for (uint i = 0; i < spotLightCount; i++)
 	{
-		outputColor += CalcSpotLight(spotLights[i], normal_ws, viewDir_ws, iPosition_ws);
+		const SpotLight spotlight = GetResource(SpotLightBuffer, spotLightBufferIdx).spotLightData[i];
+		lightIntensity += CalcSpotLight(spotlight, normal_ts, viewDir_ws, iPosition_ws);
 	}
 	// Output
-	oColor = vec4(outputColor * texelColor.rgb, texelColor.a);
+	oColor = vec4(lightIntensity * texelColor.rgb, texelColor.a);
 }
 ```
 
 Here in the shader, we just loop over each of the lights and add their light values together, before we finally output the color multiplied by the texel color. While I have not shown it here, the frame buffer being rendered to is a HDR format, there is a postprocessing tone mapper being applied to prevent the colors from clipping and showing pure white in bright lights.
+
+I've also packed the shader structs as much as possible, to minimize memory consumption as much as possible. There is even a few components left over that can be used for future functionality.
 
 One thing, you may have also noticed is the 2 letter names appended to some variables after an underscore. This is used to record the coordinate space the variable is in. This caused many infuriating issues with point lights not rendering correctly but it helps immensely. For further reading, read [[Know your space]].
 ### Helper functions 
@@ -248,15 +257,16 @@ These helper functions just reduce code complexity and improve performance (imag
 ### Light calculations
 One difference you may notice is that I did not calculate for ambient lights. While I may consider it in the future, for now everything without a light is in darkness
 #### Directional light calculation
+Directional lights are super simple. Get the light's direction and the view direction, the more the angle of the light's direction aligns with the view direction, the more light is reflected, hence making a face brighter, that's the diffuse component. The specular component is similar, but we apply this function based on the reflected direction of the light and normals.
 ```C
-vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal_ws, vec3 viewDir_ws)
+vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal_ts, vec3 viewDir_ws)
 {
 	const float intensity = light.direction.w;
 
 	vec3 lightDir_ws = light.direction.xyz;
-	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ws);
+	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ts);
 
-	float diff = max(dot(normal_ws, lightDir_ws), 0.0f);
+	float diff = max(dot(normal_ts, lightDir_ws), 0.0f);
 	float spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 128.0f);
 
 	vec3 diffuse = vec3(diff);
@@ -265,42 +275,45 @@ vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal_ws, vec3 viewDir_w
 }
 ```
 #### Point light calculation
+Point lights are similar to directional lights but instead of using a light's direction, it uses a lights position.
 ```C++
-vec3 CalcPointLight(PointLight light, vec3 normal_ws, vec3 viewDir_ws, vec3 fragmentPosition_ws)
+vec3 CalcPointLight(PointLight light, vec3 normal_ts, vec3 viewDir_ws, vec3 fragmentPosition_ws)
 {
 	const float intensity = light.position.w;
 
-	vec3 lightDir_ws = normalize(iTBN * light.position.xyz - iTBN * fragmentPosition_ws);
-		vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ws);
+	vec3 lightDir_ws = normalize(light.position.xyz - fragmentPosition_ws);
+	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ts);
 	float attenuation = lightAttenuation(intensity, distSqrd(light.position.xyz, fragmentPosition_ws));
-
-	float diff = max(dot(normal_ws, lightDir_ws), 0.0f);
-	float spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 128.0f);
-
-	return (diff + spec) * light.color.rgb * attenuation;
+	
+	vec3 diff = max(dot(normal_ts, lightDir_ws), 0.0f) * light.color.rgb;
+	vec3 spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 32.0f) * light.color.rgb;
+	
+	return (diff + spec) * attenuation;
 }
 ```
 #### Spot light calculation
-The calculations for spot lights are largely the same as point lights. Just an extra statement to determine if the fragment is inside the spot light cone
+The calculations for spot lights are largely the same as point lights. Just some extra code to determine if the fragment is inside the spot light cone
 ```C
-vec3 CalcSpotLight(SpotLight light, vec3 normal_ws, vec3 viewDir_ws, vec3 fragmentPosition_ws)
+vec3 CalcSpotLight(SpotLight light, vec3 normal_ts, vec3 viewDir_ws, vec3 fragmentPosition_ws)
 {
 	const float spotAngle_cos = light.direction.w;
 	const float fadeAngle_cos = light.color.a;
 	const float intensity = light.position.w;
-
-	vec3 lightDir_ws = normalize(iTBN * light.position.xyz - iTBN * fragmentPosition_ws);
-	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ws);
+	
+	vec3 lightDir_ws = normalize(light.position.xyz - fragmentPosition_ws);
+	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ts);
 	float attenuation = lightAttenuation(intensity, distSqrd(light.position.xyz, fragmentPosition_ws));
-
-	float theta = dot(normalize(light.position.xyz - fragmentPosition_ws), normalize(-light.direction.rgb)); 
-    float epsilon = spotAngle_cos - fadeAngle_cos;
-    float intensityFactor = clamp((theta - fadeAngle_cos) / epsilon, 0.0, 1.0);
-
-	float diff = max(dot(normal_ws, lightDir_ws), 0.0f);
-	float spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 128.0f);
-
-	return (diff + spec) * light.color.rgb * attenuation * intensityFactor;
+	
+	float theta = dot(lightDir_ws, normalize(-light.direction.rgb)); 
+	float epsilon = spotAngle_cos - fadeAngle_cos;
+	float intensityFactor = clamp((theta - fadeAngle_cos) / epsilon, 0.0, 1.0);
+	
+	vec3 diff = max(dot(normal_ts, lightDir_ws), 0.0f) * light.color.rgb;
+	vec3 spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 32.0f) * light.color.rgb;
+	
+	return (diff + spec) * attenuation * intensityFactor;
 }
 ```
-![[Lights pt.1 - 3.png]]
+
+And voila! Lights!
+	![[Lights pt.1 - 3.png]]*A scene filled with randomly generated lights*

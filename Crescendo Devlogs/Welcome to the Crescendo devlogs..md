@@ -8,10 +8,10 @@ Crescendo is an ever-evolving project, it'd be a shame if I didn't document ever
 [[Lights pt.1]]
 [[Know your space]]
 [[Bindless]]
-[[A better CVar system]]
+[[Particles pt.1]]
 ### Alpha
-[[Making an actual game]]
-### Beta
+TBA
+### Beta 
 TBA
 ### Release
 TBA
