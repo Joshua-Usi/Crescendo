@@ -7,8 +7,8 @@
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
-	Pipeline::Pipeline() : device(nullptr), layout(nullptr), variants(), descriptorSetLayout(nullptr), renderPass(), pipelines(), vertexAttributes() {}
-	Pipeline::Pipeline(VkDevice device, const PipelineCreateInfo& createInfo) : device(device), descriptorSetLayout(descriptorSetLayout), variants(createInfo.variants), renderPass(createInfo.renderPass), pipelines(), vertexAttributes()
+	Pipeline::Pipeline() : device(nullptr), layout(nullptr), variants(), descriptorSetLayout(nullptr), renderPass(), pipelines() {}
+	Pipeline::Pipeline(VkDevice device, const PipelineCreateInfo& createInfo) : device(device), descriptorSetLayout(descriptorSetLayout), variants(createInfo.variants), renderPass(createInfo.renderPass), pipelines()
 	{
 		/* ---------------------------------------------------------------- 0. Constant Data ---------------------------------------------------------------- */
 
@@ -28,29 +28,13 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		};
 		// We we always use dynamic states, there is really no performance penalty for just viewports and scissors and it means we don't need to recreate pipelines when resizing
 		constexpr std::array<VkDynamicState, 2> dynamicStates { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-		this->descriptorSetLayout = createInfo.descriptorSetLayout;
 
 		/* ---------------------------------------------------------------- 1. Shader Module and Reflection ---------------------------------------------------------------- */
 
 		const ShaderModule	vertexModule(device, createInfo.vertexCode), fragmentModule(device, createInfo.fragmentCode);
 		const ShaderReflection vertexReflection(createInfo.vertexCode), fragmentReflection(createInfo.fragmentCode);
 
-		/* ---------------------------------------------------------------- 2 - Determine input flags ---------------------------------------------------------------- */
-
-		// O(n^2) algo, not the fastest, but not the end of the world, since n is small
-		for (const auto& inputVariable : vertexReflection.inputVariables)
-		{
-			for (const auto& attribute : ATTRIBUTE_MAP)
-			{
-				if (inputVariable.name == attribute.first)
-				{
-					vertexAttributes.push_back(attribute.second);
-					break;
-				}
-			}
-		}
-
-		/* ---------------------------------------------------------------- 3 - Variant building ---------------------------------------------------------------- */
+		/* ---------------------------------------------------------------- 2 - Variant building ---------------------------------------------------------------- */
 
 		// Get binding and attribute descriptions
 		const std::vector<VkVertexInputBindingDescription> bindingDescriptions = vertexReflection.GenerateVertexBindings();
@@ -102,7 +86,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Pipeline::Pipeline(Pipeline&& other) noexcept
 		: device(other.device), layout(other.layout), variants(other.variants), descriptorSetLayout(other.descriptorSetLayout),
-		renderPass(other.renderPass), pipelines(std::move(other.pipelines)), vertexAttributes(std::move(other.vertexAttributes))
+		renderPass(other.renderPass), pipelines(std::move(other.pipelines))
 	{
 		other.device = nullptr;
 	}
@@ -116,7 +100,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			variants = other.variants;
 			descriptorSetLayout = other.descriptorSetLayout;
 			pipelines = std::move(other.pipelines);
-			vertexAttributes = std::move(other.vertexAttributes);
 		}
 		return *this;
 	}

@@ -24,7 +24,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		VkDescriptorSetLayout descriptorSetLayout; // Does not own the layout, hence doesn't destroy it
 		VkRenderPass renderPass; // Does not own the render pass, hence doesn't destroy it
 		std::vector<VkPipeline> pipelines; // List of pipelines that are created, each one based on the index from PipelineVariants
-		std::vector<cs_std::graphics::Attribute> vertexAttributes; // Attributes that are required for the pipeline
 	public:
 		Pipeline();
 		Pipeline(VkDevice device, const PipelineCreateInfo& createInfo);
