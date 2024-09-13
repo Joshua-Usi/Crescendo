@@ -19,8 +19,9 @@ void main()
 {
 	vec4 color = unpackUnorm4x8(color);
 	vec3 msdf = texture(uTextures2D[iTextureID], iTexCoord * 0.95 + 0.025).rgb;
-	float dist = median(msdf.r, msdf.g, msdf.b);
-	float opacity = step(0.21, dist);
+
+	float dist = median(msdf.r, msdf.g, msdf.b) - 0.5;
+	float opacity = clamp(dist/fwidth(dist) + 0.5, 0.0, 1.0);
 	oColor = vec4(color.rgb, opacity * color.a);
 	
 	// For debugging
