@@ -21,8 +21,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		VkDevice device;
 		VkPipelineLayout layout;
 		PipelineVariants variants;
-		VkDescriptorSetLayout descriptorSetLayout; // Does not own the layout, hence doesn't destroy it
-		VkRenderPass renderPass; // Does not own the render pass, hence doesn't destroy it
 		std::vector<VkPipeline> pipelines; // List of pipelines that are created, each one based on the index from PipelineVariants
 	public:
 		Pipeline();
@@ -38,6 +36,5 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		// If used in this way, returns the first pipeline in the list, useful for pipelines with single variants
 		operator VkPipeline() const;
 		VkPipeline operator [](uint32_t index) const;
-		VkDescriptorSetLayout GetDescriptorSetLayout() const;
 	};
 }

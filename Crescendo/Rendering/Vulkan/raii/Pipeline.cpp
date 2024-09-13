@@ -7,8 +7,8 @@
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
-	Pipeline::Pipeline() : device(nullptr), layout(nullptr), variants(), descriptorSetLayout(nullptr), renderPass(), pipelines() {}
-	Pipeline::Pipeline(VkDevice device, const PipelineCreateInfo& createInfo) : device(device), descriptorSetLayout(descriptorSetLayout), variants(createInfo.variants), renderPass(createInfo.renderPass), pipelines()
+	Pipeline::Pipeline() : device(nullptr), layout(nullptr), variants(), pipelines() {}
+	Pipeline::Pipeline(VkDevice device, const PipelineCreateInfo& createInfo) : device(device), variants(createInfo.variants), pipelines()
 	{
 		/* ---------------------------------------------------------------- 0. Constant Data ---------------------------------------------------------------- */
 
@@ -47,7 +47,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		);
 
 		// Create the pipeline layout
-		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(&descriptorSetLayout, pushConstantRanges);
+		VkPipelineLayoutCreateInfo pipelineLayoutInfo = Create::PipelineLayoutCreateInfo(&createInfo.descriptorSetLayout, pushConstantRanges);
 		CS_ASSERT(vkCreatePipelineLayout(this->device, &pipelineLayoutInfo, nullptr, &layout) == VK_SUCCESS, "Failed to create pipeline layout!");
 
 		// Cache stages
@@ -85,8 +85,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		vkDestroyPipelineLayout(device, layout, nullptr);
 	}
 	Pipeline::Pipeline(Pipeline&& other) noexcept
-		: device(other.device), layout(other.layout), variants(other.variants), descriptorSetLayout(other.descriptorSetLayout),
-		renderPass(other.renderPass), pipelines(std::move(other.pipelines))
+		: device(other.device), layout(other.layout), variants(other.variants), pipelines(std::move(other.pipelines))
 	{
 		other.device = nullptr;
 	}
@@ -96,9 +95,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		{
 			device = other.device; other.device = nullptr;
 			layout = other.layout;
-			renderPass = other.renderPass;
 			variants = other.variants;
-			descriptorSetLayout = other.descriptorSetLayout;
 			pipelines = std::move(other.pipelines);
 		}
 		return *this;
@@ -107,5 +104,4 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	Pipeline::operator VkPipelineLayout() const { return layout; }
 	Pipeline::operator VkPipeline() const { return pipelines[0]; }
 	VkPipeline Pipeline::operator [](uint32_t index) const { return pipelines[index]; }
-	VkDescriptorSetLayout Pipeline::GetDescriptorSetLayout() const { return descriptorSetLayout; }
 }
