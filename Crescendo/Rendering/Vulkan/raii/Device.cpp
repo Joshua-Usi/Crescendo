@@ -1,4 +1,5 @@
 #include "Device.hpp"
+#include "VkBootstrap/VkBootstrap.h"
 #include "Volk/volk.h"
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
@@ -10,7 +11,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			.add_pNext(const_cast<VkPhysicalDeviceShaderDrawParametersFeatures*>(&createInfo.shaderDrawParametersFeatures))
 			.add_pNext(const_cast<VkPhysicalDeviceDescriptorIndexingFeatures*>(&createInfo.descriptorIndexingFeatures))
 			.build();
-		if (!deviceResult) cs_std::console::error("Failed to build device: ", deviceResult.error().message());
+		if (!deviceResult)
+			cs_std::console::error("Failed to build device: ", deviceResult.error().message());
 
 		cs_std::console::info("Using bindless codepath");
 
@@ -25,9 +27,12 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		const bool hasDedicatedTransfer = transfer.has_value() && universal.value() == transfer.value();
 		const bool hasDedicatedCompute = compute.has_value() && universal.value() == compute.value();
 
-		if (!universal.has_value()) cs_std::console::fatal("Failed to get universal queue: ", universal.error().message());
-		if (!hasDedicatedTransfer) cs_std::console::warn("Device does not have a dedicated transfer queue. Falling back to universal"); // Fallback to universal
-		if (!hasDedicatedCompute) cs_std::console::warn("Device does not have a dedicated compute queue. Falling back to universal"); // Fallback to universal
+		if (!universal.has_value())
+			cs_std::console::fatal("Failed to get universal queue: ", universal.error().message());
+		if (!hasDedicatedTransfer)
+			cs_std::console::warn("Device does not have a dedicated transfer queue. Falling back to universal"); // Fallback to universal
+		if (!hasDedicatedCompute)
+			cs_std::console::warn("Device does not have a dedicated compute queue. Falling back to universal"); // Fallback to universal
 
 		this->universal.queue = universal.value();
 		this->transfer.queue = (hasDedicatedTransfer) ? transfer.value() : this->universal.queue; // Fallback to universal
@@ -70,17 +75,21 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Device::~Device()
 	{
+		if (this->device == nullptr)
+			return;
 		vmaDestroyAllocator(this->allocator);
 		vkDestroyDevice(this->device, nullptr);
 	}
-	Device::Device(Device&& other) noexcept : device(other.device), universal(other.universal), transfer(other.transfer), compute(other.compute), allocator(other.allocator)
+	Device::Device(Device&& other) noexcept
+		: device(other.device), allocator(other.allocator), universal(other.universal), transfer(other.transfer), compute(other.compute)
 	{
 		other.device = nullptr;
 		other.allocator = nullptr;
 	}
 	Device& Device::operator=(Device&& other) noexcept
 	{
-		if (this == &other) return *this;
+		if (this == &other)
+			return *this;
 		this->device = other.device; other.device = nullptr;
 		this->allocator = other.allocator; other.allocator = nullptr;
 		this->universal = other.universal;

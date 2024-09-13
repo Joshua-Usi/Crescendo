@@ -102,7 +102,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	ResourceManager::ResourceManager() : device(nullptr), transferQueue() {}
 	ResourceManager::ResourceManager(Vk::Device& device, const ResourceManagerSpecification& resourceManagerSpec)
-		: device(&device), transferQueue(device, device.GetTransferQueue(), false)
+		: device(&device), transferQueue(device, device.GetTransferQueue().queue, device.GetTransferQueue().family, false)
 	{
 		constexpr std::array<VkDescriptorType, 3> types{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
 		// For simplicity, we treat buffers and uniforms as the same thing, so the true maximum is 2x the maxBuffers

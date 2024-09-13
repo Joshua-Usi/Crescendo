@@ -8,7 +8,6 @@
 #include "raii/Fence.hpp"
 #include "raii/Framebuffer.hpp"
 #include "raii/Image.hpp"
-#include "raii/ImageView.hpp"
 #include "raii/Instance.hpp"
 #include "raii/PhysicalDevice.hpp"
 #include "raii/Pipeline.hpp"

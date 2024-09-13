@@ -10,7 +10,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		if (code.size() == 0)
 		{
 			this->shaderModule = nullptr;
-			CS_ASSERT_WARNING(code.size() == 0, "Shader code is empty!");
+			cs_std::console::warn("Shader code is empty!");
 			return;
 		}
 		const VkShaderModuleCreateInfo createInfo = Create::ShaderModuleCreateInfo(code);
@@ -18,7 +18,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	ShaderModule::~ShaderModule()
 	{
-		if (this->device != nullptr && this->shaderModule != nullptr) vkDestroyShaderModule(this->device, this->shaderModule, nullptr);	
+		if (this->device != nullptr && this->shaderModule != nullptr)
+			vkDestroyShaderModule(this->device, this->shaderModule, nullptr);	
 	}
 	ShaderModule::ShaderModule(ShaderModule&& other) : device(other.device), shaderModule(other.shaderModule)
 	{
@@ -27,7 +28,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	ShaderModule& ShaderModule::operator=(ShaderModule&& other)
 	{
-		if (this->device != nullptr && this->shaderModule != nullptr) vkDestroyShaderModule(this->device, this->shaderModule, nullptr);
+		if (this->device != nullptr && this->shaderModule != nullptr)
+			vkDestroyShaderModule(this->device, this->shaderModule, nullptr);
 		this->device = other.device;
 		this->shaderModule = other.shaderModule;
 		other.device = nullptr;

@@ -5,7 +5,8 @@
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
 	Image::Image() : device(nullptr), allocator(nullptr), allocation(nullptr), image(nullptr), imageView(nullptr) {}
-	Image::Image(VkDevice device, VmaAllocator allocator, const VkImageCreateInfo& createInfo, const VmaAllocationCreateInfo& allocationInfo) : device(device), allocator(allocator)
+	Image::Image(VkDevice device, VmaAllocator allocator, const VkImageCreateInfo& createInfo, const VmaAllocationCreateInfo& allocationInfo)
+		: device(device), allocator(allocator)
 	{
 		// Maps VmaMemoryUsage to VkMemoryPropertyFlags
 		constexpr VkMemoryPropertyFlags FLAG_MAP[3] {
@@ -25,9 +26,13 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		switch (createInfo.format)
 		{
 		case VK_FORMAT_D16_UNORM:
+			[[fallthrough]];
 		case VK_FORMAT_D32_SFLOAT:
+			[[fallthrough]];
 		case VK_FORMAT_D16_UNORM_S8_UINT:
+			[[fallthrough]];
 		case VK_FORMAT_D24_UNORM_S8_UINT:
+			[[fallthrough]];
 		case VK_FORMAT_D32_SFLOAT_S8_UINT:
 			imageFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
 			break;
@@ -47,7 +52,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Image::~Image()
 	{
-		if (this->device == nullptr) return;
+		if (this->device == nullptr)
+			return;
 		vkDestroyImageView(this->device, this->imageView, nullptr);
 		vmaDestroyImage(this->allocator, this->image, this->allocation);
 	}
@@ -61,7 +67,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Image& Image::operator=(Image&& other) noexcept
 	{
-		if (this == &other) return *this;
+		if (this == &other)
+			return *this;
 		this->device = other.device; other.device = nullptr;
 		this->allocator = other.allocator; other.allocator = nullptr;
 		this->allocation = other.allocation; other.allocation = nullptr;

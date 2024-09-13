@@ -4,6 +4,7 @@
 #include "ShaderModule.hpp"
 #include "ShaderReflection.hpp"
 #include "cs_std/algorithms.hpp"
+#include "cs_std/graphics/algorithms.hpp"
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
@@ -52,8 +53,10 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 
 		// Cache stages
 		std::vector<VkPipelineShaderStageCreateInfo> stages;
-		if (createInfo.vertexCode.size() > 0) stages.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertexModule));
-		if (createInfo.fragmentCode.size() > 0) stages.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentModule));
+		if (createInfo.vertexCode.size() > 0)
+			stages.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertexModule));
+		if (createInfo.fragmentCode.size() > 0)
+			stages.push_back(Create::PipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragmentModule));
 
 		for (const auto& variant : createInfo.variants)
 		{
@@ -80,8 +83,10 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Pipeline::~Pipeline()
 	{
-		if (device == nullptr) return;
-		for (auto pipeline : pipelines) vkDestroyPipeline(device, pipeline, nullptr);
+		if (device == nullptr)
+			return;
+		for (auto pipeline : pipelines)
+			vkDestroyPipeline(device, pipeline, nullptr);
 		vkDestroyPipelineLayout(device, layout, nullptr);
 	}
 	Pipeline::Pipeline(Pipeline&& other) noexcept
@@ -91,14 +96,12 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Pipeline& Pipeline::operator=(Pipeline&& other) noexcept
 	{
-		if (this != &other)
-		{
-			device = other.device; other.device = nullptr;
-			layout = other.layout;
-			variants = other.variants;
-			pipelines = std::move(other.pipelines);
-		}
-		return *this;
+		if (this == &other)
+			return *this;
+		device = other.device; other.device = nullptr;
+		layout = other.layout;
+		variants = other.variants;
+		pipelines = std::move(other.pipelines);
 	}
 	const PipelineVariants& Pipeline::GetVariants() const { return variants; }
 	Pipeline::operator VkPipelineLayout() const { return layout; }

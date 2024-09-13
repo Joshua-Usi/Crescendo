@@ -1,7 +1,5 @@
 #pragma once
-
 #include "common.hpp"
-#include "VkBootstrap/VkBootstrap.h"
 #include "Instance.hpp"
 #include "PhysicalDevice.hpp"
 #include "vma/vk_mem_alloc.h"

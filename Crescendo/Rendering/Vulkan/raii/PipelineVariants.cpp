@@ -11,7 +11,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		{
 			if (number & (1 << i))
 			{
-				if (count == n) return (1 << i);
+				if (count == n)
+					return (1 << i);
 				count++;
 			}
 		}
@@ -78,10 +79,11 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			while (flagIndex > 0)
 			{
 				flagValue <<= 1;
-				if (flagValue & static_cast<uint8_t>(allFlags)) flagIndex--;
+				if (flagValue & static_cast<uint8_t>(allFlags))
+					flagIndex--;
 			}
 			index /= totalFlags;
-			return static_cast<uint8_t>(flagValue) - 1;
+			return flagValue - 1;
 		};
 
 		// Assign the bit index
@@ -106,9 +108,12 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		switch (fillMode)
 		{
-		case FillMode::Solid: return VK_POLYGON_MODE_FILL;
-		case FillMode::Wireframe: return VK_POLYGON_MODE_LINE;
-		case FillMode::Point: return VK_POLYGON_MODE_POINT;
+		case FillMode::Solid:
+			return VK_POLYGON_MODE_FILL;
+		case FillMode::Wireframe:
+			return VK_POLYGON_MODE_LINE;
+		case FillMode::Point:
+			return VK_POLYGON_MODE_POINT;
 		}
 		// TODO assert or quietly assert
 		return VK_POLYGON_MODE_MAX_ENUM;
@@ -117,9 +122,12 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		switch (cullMode)
 		{
-		case CullMode::Back: return VK_CULL_MODE_BACK_BIT;
-		case CullMode::Front: return VK_CULL_MODE_FRONT_BIT;
-		case CullMode::None: return VK_CULL_MODE_NONE;
+		case CullMode::Back:
+			return VK_CULL_MODE_BACK_BIT;
+		case CullMode::Front:
+			return VK_CULL_MODE_FRONT_BIT;
+		case CullMode::None:
+			return VK_CULL_MODE_NONE;
 		}
 		// TODO assert or quietly assert
 		return VK_CULL_MODE_FLAG_BITS_MAX_ENUM;
@@ -128,13 +136,20 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		switch (samples)
 		{
-		case Multisamples::One: return VK_SAMPLE_COUNT_1_BIT;
-		case Multisamples::Two: return VK_SAMPLE_COUNT_2_BIT;
-		case Multisamples::Four: return VK_SAMPLE_COUNT_4_BIT;
-		case Multisamples::Eight: return VK_SAMPLE_COUNT_8_BIT;
-		case Multisamples::Sixteen: return VK_SAMPLE_COUNT_16_BIT;
-		case Multisamples::ThirtyTwo: return VK_SAMPLE_COUNT_32_BIT;
-		case Multisamples::SixtyFour: return VK_SAMPLE_COUNT_64_BIT;
+		case Multisamples::One:
+			return VK_SAMPLE_COUNT_1_BIT;
+		case Multisamples::Two:
+			return VK_SAMPLE_COUNT_2_BIT;
+		case Multisamples::Four:
+			return VK_SAMPLE_COUNT_4_BIT;
+		case Multisamples::Eight:
+			return VK_SAMPLE_COUNT_8_BIT;
+		case Multisamples::Sixteen:
+			return VK_SAMPLE_COUNT_16_BIT;
+		case Multisamples::ThirtyTwo:
+			return VK_SAMPLE_COUNT_32_BIT;
+		case Multisamples::SixtyFour:
+			return VK_SAMPLE_COUNT_64_BIT;
 		}
 		// TODO assert or quietly assert
 		return VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM;
@@ -143,13 +158,20 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		switch (depthFunc)
 		{
-		case DepthFunc::Never: return VK_COMPARE_OP_NEVER;
-		case DepthFunc::Less: return VK_COMPARE_OP_LESS;
-		case DepthFunc::Equal: return VK_COMPARE_OP_EQUAL;
-		case DepthFunc::LessEqual: return VK_COMPARE_OP_LESS_OR_EQUAL;
-		case DepthFunc::Greater: return VK_COMPARE_OP_GREATER;
-		case DepthFunc::GreaterEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
-		case DepthFunc::Always: return VK_COMPARE_OP_ALWAYS;
+		case DepthFunc::Never:
+			return VK_COMPARE_OP_NEVER;
+		case DepthFunc::Less:
+			return VK_COMPARE_OP_LESS;
+		case DepthFunc::Equal:
+			return VK_COMPARE_OP_EQUAL;
+		case DepthFunc::LessEqual:
+			return VK_COMPARE_OP_LESS_OR_EQUAL;
+		case DepthFunc::Greater:
+			return VK_COMPARE_OP_GREATER;
+		case DepthFunc::GreaterEqual:
+			return VK_COMPARE_OP_GREATER_OR_EQUAL;
+		case DepthFunc::Always:
+			return VK_COMPARE_OP_ALWAYS;
 		}
 		// TODO assert or quietly assert
 		return VK_COMPARE_OP_MAX_ENUM;
@@ -158,8 +180,10 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		switch (depthTest)
 		{
-		case DepthTest::Enabled: return VK_TRUE;
-		case DepthTest::Disabled: return VK_FALSE;
+		case DepthTest::Enabled:
+			return VK_TRUE;
+		case DepthTest::Disabled:
+			return VK_FALSE;
 		}
 		// TODO assert or quietly assert
 		return VK_FALSE;
@@ -168,8 +192,10 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		switch (depthWrite)
 		{
-		case DepthWrite::Enabled: return VK_TRUE;
-		case DepthWrite::Disabled: return VK_FALSE;
+		case DepthWrite::Enabled:
+			return VK_TRUE;
+		case DepthWrite::Disabled:
+			return VK_FALSE;
 		}
 		// TODO assert or quietly assert
 		return VK_FALSE;

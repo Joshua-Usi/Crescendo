@@ -4,9 +4,9 @@
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
 	BaseCommandQueue::BaseCommandQueue() : device(nullptr), commandPool(nullptr), commandBuffer(nullptr), completionFence(nullptr), queue(nullptr), queueFamily(0) {}
-	BaseCommandQueue::BaseCommandQueue(const Device& device, const Device::Queue& queue, bool startSignalled) : device(device), queue(queue.queue), queueFamily(queue.family)
+	BaseCommandQueue::BaseCommandQueue(VkDevice device, VkQueue queue, uint32_t family, bool startSignalled) : device(device), queue(queue), queueFamily(family)
 	{
-		const VkCommandPoolCreateInfo poolCreateInfo = Create::CommandPoolCreateInfo(queue.family);
+		const VkCommandPoolCreateInfo poolCreateInfo = Create::CommandPoolCreateInfo(family);
 		CS_ASSERT(vkCreateCommandPool(device, &poolCreateInfo, nullptr, &this->commandPool) == VK_SUCCESS, "Failed to create command pool!");
 		const VkCommandBufferAllocateInfo bufferAllocateInfo = Create::CommandBufferAllocateInfo(this->commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
 		CS_ASSERT(vkAllocateCommandBuffers(device, &bufferAllocateInfo, &this->commandBuffer) == VK_SUCCESS, "Failed to allocate command buffer!");
@@ -15,7 +15,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	BaseCommandQueue::~BaseCommandQueue()
 	{
-		if (!this->device) return;
+		if (this->device == nullptr)
+			return;
 		vkDestroyCommandPool(this->device, this->commandPool, nullptr);
 		vkDestroyFence(this->device, this->completionFence, nullptr);
 	}

@@ -86,10 +86,7 @@ CS_NAMESPACE_BEGIN
 		Vulkan::Buffer& buffer = resourceManager.GetBuffer(bufferHandle);
 		uint32_t bufferElementCount = buffer.buffer.GetElementCount<T>();
 		// 1.5x increase
-		while (bufferElementCount < requiredElementCount)
-		{
-			bufferElementCount += bufferElementCount / 2;
-		}
+		while (bufferElementCount < requiredElementCount) bufferElementCount += bufferElementCount / 2;
 		if (bufferElementCount > buffer.buffer.GetElementCount<T>())
 		{
 			resourceManager.DestroyBuffer(bufferHandle);

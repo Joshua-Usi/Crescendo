@@ -12,7 +12,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	RenderPass::RenderPass(VkDevice device, VkRenderPass renderPass) : device(device), renderPass(renderPass) {}
 	RenderPass::~RenderPass()
 	{
-		if (this->device != nullptr) vkDestroyRenderPass(this->device, this->renderPass, nullptr);
+		if (this->device != nullptr)
+			vkDestroyRenderPass(this->device, this->renderPass, nullptr);
 	}
 	RenderPass::RenderPass(RenderPass&& other) noexcept : device(other.device), renderPass(other.renderPass)
 	{
@@ -21,7 +22,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	RenderPass& RenderPass::operator=(RenderPass&& other) noexcept
 	{
-		if (this == &other) return *this;
+		if (this == &other)
+			return *this;
 		this->device = other.device; other.device = nullptr;
 		this->renderPass = other.renderPass; other.renderPass = nullptr;
 		return *this;

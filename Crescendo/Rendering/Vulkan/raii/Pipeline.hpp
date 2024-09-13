@@ -1,8 +1,6 @@
 #pragma once
-
 #include "common.hpp"
 #include "vulkan/vulkan.h"
-#include "cs_std/graphics/algorithms.hpp"
 #include "PipelineVariants.hpp"
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk

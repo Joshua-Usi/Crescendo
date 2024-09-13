@@ -1,5 +1,4 @@
 #pragma once
-
 #include "common.hpp"
 #include "vulkan/vulkan.h"
 
@@ -18,8 +17,10 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	public:
 		// Actual size is 6 bytes so we can have 2 more flags
 		// Pad to 8 bytes for nicer alignment
-		union {
-			struct {
+		union
+		{
+			struct
+			{
 				FillMode fillModeFlags;
 				CullMode cullModeFlags;
 				Multisamples multisampleFlags;

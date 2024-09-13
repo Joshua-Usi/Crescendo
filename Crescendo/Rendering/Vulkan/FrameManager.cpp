@@ -8,7 +8,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		for (uint32_t i = 0; i < frameCount; i++)
 		{
 			this->frames.emplace_back(
-				Vk::GraphicsCommandQueue(device, device.GetUniversalQueue(), true),
+				Vk::GraphicsCommandQueue(device, device.GetUniversalQueue().queue, device.GetUniversalQueue().family, true),
 				Vk::Semaphore(device), Vk::Semaphore(device),
 				Vk::Fence(device, VK_FENCE_CREATE_SIGNALED_BIT)
 			);

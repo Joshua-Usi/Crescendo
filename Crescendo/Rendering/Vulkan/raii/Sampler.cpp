@@ -11,7 +11,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	Sampler::Sampler(VkDevice device, VkSampler sampler) : device(device), sampler(sampler) {}
 	Sampler::~Sampler()
 	{
-		if (this->device == nullptr) return;
+		if (this->device == nullptr)
+			return;
 		vkDestroySampler(this->device, this->sampler, nullptr);
 	}
 	Sampler::Sampler(Sampler&& other) noexcept : device(other.device), sampler(other.sampler)
@@ -21,7 +22,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Sampler& Sampler::operator=(Sampler&& other) noexcept
 	{
-		if (this == &other) return *this;
+		if (this == &other)
+			return *this;
 		this->device = other.device;
 		this->sampler = other.sampler;
 		other.device = nullptr;

@@ -3,30 +3,29 @@
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
-	Framebuffer::Framebuffer() : device(nullptr), renderPass(nullptr), extent({ 0, 0 }) {}
-	Framebuffer::Framebuffer(VkDevice device, const VkFramebufferCreateInfo& createInfo) : device(device), renderPass(createInfo.renderPass), extent({ createInfo.width, createInfo.height })
+	Framebuffer::Framebuffer() : device(nullptr), extent({ 0, 0 }) {}
+	Framebuffer::Framebuffer(VkDevice device, const VkFramebufferCreateInfo& createInfo) : device(device), extent({ createInfo.width, createInfo.height })
 	{
 		CS_ASSERT(vkCreateFramebuffer(device, &createInfo, nullptr, &framebuffer) == VK_SUCCESS, "Failed to create framebuffer");
 	}
 	Framebuffer::~Framebuffer()
 	{
-		if (this->device != nullptr) vkDestroyFramebuffer(this->device, this->framebuffer, nullptr);
+		if (this->device != nullptr)
+			vkDestroyFramebuffer(this->device, this->framebuffer, nullptr);
 	}
-	Framebuffer::Framebuffer(Framebuffer&& other) noexcept : device(other.device), renderPass(other.renderPass), extent(other.extent), framebuffer(other.framebuffer)
+	Framebuffer::Framebuffer(Framebuffer&& other) noexcept : device(other.device), extent(other.extent), framebuffer(other.framebuffer)
 	{
 		other.device = nullptr;
-		other.renderPass = nullptr;
 		other.framebuffer = nullptr;
 	}
 	Framebuffer& Framebuffer::Framebuffer::operator=(Framebuffer&& other) noexcept
 	{
-		if (this->device != nullptr) vkDestroyFramebuffer(this->device, this->framebuffer, nullptr);
+		if (this->device != nullptr)
+			vkDestroyFramebuffer(this->device, this->framebuffer, nullptr);
 		this->device = other.device;
-		this->renderPass = other.renderPass;
 		this->extent = other.extent;
 		this->framebuffer = other.framebuffer;
 		other.device = nullptr;
-		other.renderPass = nullptr;
 		other.framebuffer = nullptr;
 		return *this;	
 	}

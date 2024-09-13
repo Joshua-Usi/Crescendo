@@ -1,5 +1,4 @@
 #pragma once
-
 #include "common.hpp"
 #include "vulkan/vulkan.h"
 
@@ -9,7 +8,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 	private:
 		VkDevice device;
-		VkRenderPass renderPass;
 		VkFramebuffer framebuffer;
 		VkExtent2D extent;
 	public:

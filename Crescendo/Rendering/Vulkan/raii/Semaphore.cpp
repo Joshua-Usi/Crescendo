@@ -11,7 +11,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	Semaphore::Semaphore(VkDevice device, VkSemaphore semaphore) : device(device), semaphore(semaphore) {}
 	Semaphore::~Semaphore()
 	{
-		if (this->device != nullptr) vkDestroySemaphore(this->device, this->semaphore, nullptr);
+		if (this->device != nullptr)
+			vkDestroySemaphore(this->device, this->semaphore, nullptr);
 	}
 	Semaphore::Semaphore(Semaphore&& other) noexcept : device(other.device), semaphore(other.semaphore)
 	{
@@ -20,7 +21,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Semaphore& Semaphore::operator=(Semaphore&& other) noexcept
 	{
-		if (this == &other) return *this;
+		if (this == &other)
+			return *this;
 		this->device = other.device; other.device = nullptr;
 		this->semaphore = other.semaphore; other.semaphore = nullptr;
 		return *this;

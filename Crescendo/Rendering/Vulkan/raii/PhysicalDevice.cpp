@@ -12,7 +12,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			.set_minimum_version(selectionCriteria.major, selectionCriteria.minor)
 			.prefer_gpu_device_type(selectionCriteria.preferredDeviceType == PhysicalDeviceSelectionCriteria::PreferredDeviceType::Discrete ? vkb::PreferredDeviceType::discrete : vkb::PreferredDeviceType::integrated)
 			.set_surface(surface).set_required_features(selectionCriteria.requiredDeviceFeatures).select_devices();
-		if (!physicalDeviceResult) cs_std::console::fatal("Failed to select Vulkan physical device!", physicalDeviceResult.error().message());
+		if (!physicalDeviceResult)
+			cs_std::console::fatal("Failed to select Vulkan physical device!", physicalDeviceResult.error().message());
 
 		// Try to find discrete GPU
 		bool foundPreferred = false;
@@ -35,16 +36,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		}
 
 		// Check for GPU features
-		VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures = {};
-		descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-		descriptorIndexingFeatures.pNext = nullptr;
-
-		VkPhysicalDeviceFeatures2 features2 = {};
-		features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-		features2.pNext = &descriptorIndexingFeatures;
-
-		vkGetPhysicalDeviceFeatures2(this->vkbPhysicalDevice, &features2);
-
+		VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures = GetDescriptorIndexingFeatures();
 		CS_ASSERT(
 			descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing && descriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind &&
 			descriptorIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing && descriptorIndexingFeatures.descriptorBindingUniformBufferUpdateAfterBind &&

@@ -1,8 +1,6 @@
 #pragma once
-
 #include "common.hpp"
-#include "Volk/volk.h"
-#include "Device.hpp"
+#include "vulkan/vulkan.h"
 #include <functional>
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
@@ -18,7 +16,7 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		uint32_t queueFamily;
 	public:
 		BaseCommandQueue();
-		BaseCommandQueue(const Device& device, const Device::Queue& queue, bool startSignalled);
+		BaseCommandQueue(VkDevice device, VkQueue queue, uint32_t family, bool startSignalled);
 		~BaseCommandQueue();
 		BaseCommandQueue(const BaseCommandQueue&) = delete;
 		BaseCommandQueue& operator=(const BaseCommandQueue&) = delete;

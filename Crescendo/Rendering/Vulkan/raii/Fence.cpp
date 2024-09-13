@@ -1,6 +1,5 @@
 #include "Fence.hpp"
 #include "Volk/volk.h"
-#include "../Create.hpp"
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
@@ -14,7 +13,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Fence::~Fence()
 	{
-		if (this->device != nullptr) vkDestroyFence(device, fence, nullptr);
+		if (this->device != nullptr)
+			vkDestroyFence(device, fence, nullptr);
 	}
 	Fence::Fence(Fence&& other) noexcept : device(other.device), fence(other.fence)
 	{
@@ -23,7 +23,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Fence& Fence::operator=(Fence&& other) noexcept
 	{
-		if (this->device != nullptr) vkDestroyFence(device, fence, nullptr);
+		if (this == &other)
+			return *this;
 		this->device = other.device;
 		this->fence = other.fence;
 		other.device = nullptr;

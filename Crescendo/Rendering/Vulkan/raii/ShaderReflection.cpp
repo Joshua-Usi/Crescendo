@@ -9,35 +9,43 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		switch (size)
 		{
-			case 16: return VK_FORMAT_R32G32B32A32_SFLOAT;
-			case 12: return VK_FORMAT_R32G32B32_SFLOAT;
-			case 8: return VK_FORMAT_R32G32_SFLOAT;
-			case 4: return VK_FORMAT_R32_SFLOAT;
+			case 16:
+				return VK_FORMAT_R32G32B32A32_SFLOAT;
+			case 12:
+				return VK_FORMAT_R32G32B32_SFLOAT;
+			case 8:
+				return VK_FORMAT_R32G32_SFLOAT;
+			case 4:
+				return VK_FORMAT_R32_SFLOAT;
 		}
-		CS_ASSERT(false, "Unknown vertex attribute format");
 		return VK_FORMAT_UNDEFINED;
 	}
 	uint32_t GetTypeSize(const SpvReflectNumericTraits& traits)
 	{
-		if (traits.matrix.column_count == 0 && traits.matrix.row_count == 0) return sizeof(float) * traits.vector.component_count;
+		if (traits.matrix.column_count == 0 && traits.matrix.row_count == 0)
+			return sizeof(float) * traits.vector.component_count;
 		return sizeof(float) * traits.matrix.column_count * traits.matrix.row_count;
 	}
 	ShaderReflection::DescriptorType GetType(SpvReflectDescriptorType type)
 	{
 		switch (type)
 		{
-		case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return ShaderReflection::DescriptorType::Sampler;
-		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER: return ShaderReflection::DescriptorType::Block;
-		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: return ShaderReflection::DescriptorType::Block;
-		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER: return ShaderReflection::DescriptorType::Storage;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			return ShaderReflection::DescriptorType::Sampler;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			return ShaderReflection::DescriptorType::Block;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+			return ShaderReflection::DescriptorType::Block;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+			return ShaderReflection::DescriptorType::Storage;
 		}
-		CS_ASSERT(false, "Unsupported / Unknown descriptor type");
 		return ShaderReflection::DescriptorType::Unknown;
 	}
 	ShaderReflection::ShaderReflection() {}
 	ShaderReflection::ShaderReflection(const std::vector<uint8_t>& code)
 	{
-		if (code.size() == 0) return;
+		if (code.size() == 0)
+			return;
 
 		SpvReflectShaderModule reflectionModule;
 		CS_ASSERT(spvReflectCreateShaderModule(code.size(), code.data(), &reflectionModule) == SPV_REFLECT_RESULT_SUCCESS, "Failed to create shader reflection module!");
@@ -49,7 +57,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			CS_ASSERT(spvReflectEnumerateInputVariables(&reflectionModule, &inputCount, inputVariables.data()) == SPV_REFLECT_RESULT_SUCCESS, "Failed to enumerate input variables!");
 			for (uint32_t i = 0; i < inputCount; i++)
 			{
-				if (inputVariables[i]->location == std::numeric_limits<uint32_t>::max()) continue;
+				if (inputVariables[i]->location == std::numeric_limits<uint32_t>::max())
+					continue;
 				this->inputVariables.emplace_back(inputVariables[i]->name, inputVariables[i]->location, GetTypeSize(inputVariables[i]->numeric));
 			}
 			// Sort in location ascending
@@ -63,7 +72,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			CS_ASSERT(spvReflectEnumerateOutputVariables(&reflectionModule, &outputCount, outputVariables.data()) == SPV_REFLECT_RESULT_SUCCESS, "Failed to enumerate output variables!");
 			for (uint32_t i = 0; i < outputCount; i++)
 			{
-				if (outputVariables[i]->location == std::numeric_limits<uint32_t>::max()) continue;
+				if (outputVariables[i]->location == std::numeric_limits<uint32_t>::max())
+					continue;
 				this->outputVariables.emplace_back(outputVariables[i]->name, outputVariables[i]->location, GetTypeSize(outputVariables[i]->numeric));
 			}
 			// Sort in location ascending
@@ -136,7 +146,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	const uint32_t ShaderReflection::GetPushConstantSize() const
 	{
 		uint32_t size = 0;
-		for (const auto& pushConstant : this->pushConstants) size += pushConstant.GetSize();
+		for (const auto& pushConstant : this->pushConstants)
+			size += pushConstant.GetSize();
 		return size;
 	
 	}
@@ -168,36 +179,28 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		std::vector<VkVertexInputBindingDescription> bindings(this->GetInputVariableCount());
 		for (uint32_t i = 0; i < this->inputVariables.size(); i++)
-		{
 			bindings[i] = this->GenerateVertexBindingDescription(i);
-		}
 		return bindings;
 	}
 	std::vector<VkVertexInputAttributeDescription> ShaderReflection::GenerateVertexAttributes() const
 	{
 		std::vector<VkVertexInputAttributeDescription> attributes(this->GetInputVariableCount());
 		for (uint32_t i = 0; i < this->inputVariables.size(); i++)
-		{
 			attributes[i] = this->GenerateVertexAttributeDescription(i);
-		}
 		return attributes;
 	}
 	std::vector<std::vector<VkDescriptorSetLayoutBinding>> ShaderReflection::GenerateDescriptorSetLayoutBindings(ShaderStage stage) const
 	{
 		std::vector<std::vector<VkDescriptorSetLayoutBinding>> bindings(this->GetDescriptorSetLayoutCount());
 		for (uint32_t i = 0; i < this->descriptorSetLayouts.size(); i++)
-		{
 			bindings[i] = this->GenerateDescriptorSetLayoutBinding(i, stage);
-		}
 		return bindings;
 	}
 	std::vector<VkPushConstantRange> ShaderReflection::GeneratePushConstantRanges(ShaderStage stage, uint32_t offset) const
 	{
 		std::vector<VkPushConstantRange> ranges(this->GetPushConstantLayoutCount());
 		for (uint32_t i = 0; i < this->pushConstants.size(); i++)
-		{
 			ranges[i] = this->GeneratePushConstantRange(i, stage, offset);
-		}
 		return ranges;
 	}
 }

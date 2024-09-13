@@ -1,5 +1,4 @@
 #pragma once
-
 #include "common.hpp"
 #include "VkBootstrap/VkBootstrap.h"
 #include "Instance.hpp"

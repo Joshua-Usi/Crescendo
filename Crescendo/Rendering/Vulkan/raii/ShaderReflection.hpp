@@ -21,8 +21,15 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			Fragment = VK_SHADER_STAGE_FRAGMENT_BIT,
 			Compute = VK_SHADER_STAGE_COMPUTE_BIT
 		};
-		struct InterfaceVariable { std::string name; uint32_t location, size; };
-		struct BlockMember { uint32_t offset, size; };
+		struct InterfaceVariable
+		{
+			std::string name;
+			uint32_t location, size;
+		};
+		struct BlockMember
+		{
+			uint32_t offset, size;
+		};
 		struct DescriptorSetBinding
 		{
 			std::vector<BlockMember> members;
@@ -31,7 +38,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			uint32_t GetSize() const
 			{
 				uint32_t size = 0;
-				for (const auto& member : members) size += member.size;
+				for (const auto& member : members)
+					size += member.size;
 				return size;
 			}
 		};
@@ -46,7 +54,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			uint32_t GetSize() const
 			{
 				uint32_t size = 0;
-				for (const auto& member : members) size += member.size;
+				for (const auto& member : members)
+					size += member.size;
 				return size;
 			}
 		};
