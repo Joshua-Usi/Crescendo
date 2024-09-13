@@ -7,7 +7,6 @@ Crescendo is an ever-evolving project, it'd be a shame if I didn't document ever
 [[Reverse-Z]]
 [[Lights pt.1]]
 [[Know your space]]
-[[Bindless]]
 [[Particles pt.1]]
 ### Alpha
 TBA
