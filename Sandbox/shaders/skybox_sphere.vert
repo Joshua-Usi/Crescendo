@@ -19,5 +19,5 @@ void main() {
 	mat4 vp = GetResource(TransformBuffer, transformBufferIdx).transformBuffer[cameraIdx];
 	// Remove translation	
 	vp[3][0] = 0.0; vp[3][1] = 0.0; vp[3][3] = 0.0;
-	gl_Position = vp * vec4(iPosition, 1.0f);
+	gl_Position = (vp * vec4(iPosition, 1.0f)).xyww;
 }
