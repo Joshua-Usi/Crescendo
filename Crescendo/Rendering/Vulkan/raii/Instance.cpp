@@ -3,16 +3,16 @@
 
 CS_NAMESPACE_BEGIN::Vulkan::Vk
 {
-	bool Instance::isVolkInitialised = false;
+	bool isVolkInitialised = false;
 
 	Instance::Instance() : vkbInstance() { vkbInstance.instance = nullptr; }
 	Instance::Instance(const InstanceSpecification& spec)
 	{
-		if (!IsVolkInitialised())
+		if (!isVolkInitialised)
 		{
 			const VkResult result = volkInitialize();
 			isVolkInitialised = result == VK_SUCCESS;
-			if (!IsVolkInitialised()) cs_std::console::fatal("Failed to initialise volk!");
+			if (!isVolkInitialised) cs_std::console::fatal("Failed to initialise volk!");
 		}
 		const vkb::Result<vkb::Instance> instanceResult = vkb::InstanceBuilder(vkGetInstanceProcAddr)
 			.set_app_name(spec.appName.c_str()).set_engine_name(spec.engineName.c_str())
@@ -40,5 +40,4 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	Instance::operator VkInstance() const { return vkbInstance; }
 	Instance::operator const vkb::Instance& () const { return vkbInstance; }
 	VkInstance Instance::GetInstance() const { return vkbInstance; }
-	bool Instance::IsVolkInitialised() { return isVolkInitialised; }
 }

@@ -46,7 +46,8 @@ CS_NAMESPACE_BEGIN
 	{
 		for (auto& layer : this->layers)
 		{
-			if (layer->ShouldRun(time)) this->layersToUpdate.push_back(layer.get());
+			if (layer->ShouldRun(time))
+				this->layersToUpdate.push_back(layer.get());
 		}
 	}
 	void LayerStack::Update(double time)

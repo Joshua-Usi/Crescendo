@@ -8,7 +8,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	class Instance
 	{
 	private:
-		static bool isVolkInitialised;
 		vkb::Instance vkbInstance;
 	public:
 		struct InstanceSpecification
@@ -30,7 +29,5 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		operator VkInstance() const;
 		operator const vkb::Instance& () const;
 		VkInstance GetInstance() const;
-	public:
-		static bool IsVolkInitialised();
 	};
 }

@@ -741,7 +741,7 @@ CS_NAMESPACE_BEGIN
 			// Check if all windows are closed, then terminate app
 			bool allWindowsClosed = true;
 			for (auto& window : this->windows) allWindowsClosed &= !window->IsOpen();
-			if (allWindowsClosed) this->Exit();
+			if (allWindowsClosed && !ShouldRestart()) this->Exit();
 
 		}
 		this->OnExit();
@@ -757,6 +757,7 @@ CS_NAMESPACE_BEGIN
 		for (auto& window : this->windows) window->Close();
 		this->isRunning = false;
 		this->shouldRestart = true;
+		isFirstWindow = true;
 		self = nullptr;
 	}
 	bool Application::IsRunning() const { return this->isRunning; };
