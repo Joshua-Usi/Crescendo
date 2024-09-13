@@ -41,8 +41,8 @@ void main() {
 	oTexCoord = vec2(vertexIndex & 1, mod((vertexIndex + 1) / 3, 2));
 	
 	vec2 scaledPosition = oTexCoord - 0.5;
-	vec3 positiom_ws = (cameraRight_ws * scaledPosition.x) + (cameraUp_ws * scaledPosition.y);
+	vec3 position_ws = (cameraRight_ws * scaledPosition.x) + (cameraUp_ws * scaledPosition.y);
 	float scale = map(oParticleLifetime, 0.0, 1.0, 0.0, 1.0);
 
-	gl_Position = p * mv * vec4(particle.xyz + positiom_ws * scale, 1.0);
+	gl_Position = p * mv * vec4(particle.xyz + position_ws * scale, 1.0);
 }
