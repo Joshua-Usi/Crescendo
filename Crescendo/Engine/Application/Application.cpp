@@ -11,9 +11,6 @@
 
 #include "Assets/ImageLoader/ImageLoaders.hpp"
 
-#include "stb_truetype.h"
-#include "msdf_c/msdf.h"
-
 #define CS_STARTING_OBJECT_COUNT 1024
 #define CS_STARTING_DIRECTIONAL_LIGHT_COUNT 8
 #define CS_STARTING_POINT_LIGHT_COUNT 8
@@ -221,7 +218,7 @@ CS_NAMESPACE_BEGIN
 				resourceManager.GetDescriptorSetLayout(), mainRenderPass
 			});
 
-			// Skybox
+			// Skybox mesh
 			Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
 			cs_std::graphics::mesh skyboxMesh;
 			skyboxMesh.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices);
@@ -253,91 +250,19 @@ CS_NAMESPACE_BEGIN
 				textCharacterDataHandle.push_back(resourceManager.CreateBuffer(sizeof(char) * CS_STARTING_TEXT_CHARACTER_COUNT, VK_SHADER_STAGE_ALL));
 			}
 
+			// Load fonts
 			std::vector<std::string> fontPaths = GetFonts((CVar::Exists("pc_fontpath") ? CVar::Get<std::string>("pc_fontpath") : ""));
-
 			if (fontPaths.size() == 0)
-			{
 				cs_std::console::warn("Could not find any fonts");
-			}
 			else
 			{
 				cs_std::console::info("Found ", fontPaths.size(), " fonts on the system");
 
 				for (const auto& fontPath : fontPaths)
 				{
-					std::vector<cs_std::byte> fontBuffer = cs_std::binary_file(fontPath).open().read();
-
-					stbtt_fontinfo fontInfo;
-					if (!stbtt_InitFont(&fontInfo, fontBuffer.data(), 0)) cs_std::console::error("Failed to initialise font");
-
-					uint32_t borderWidth = 4;
-
-					uint32_t fontScale = 40;
-					float scale = stbtt_ScaleForPixelHeight(&fontInfo, fontScale);
-					float scaleDivisor = 1.0f / fontScale;
-
-					Font font;
-					int32_t ascent, descent, lineGap;
-					stbtt_GetFontVMetrics(&fontInfo, &ascent, &descent, &lineGap);
-					font.ascent = ascent * scale * scaleDivisor;
-					font.descent = descent * scale * scaleDivisor;
-					font.lineGap = lineGap * scale * scaleDivisor;
-					font.lineHeight = (font.ascent - font.descent + font.lineGap);
-
-					// Loop over each ascii character
-					for (int32_t codepoint = 32; codepoint < 126; codepoint++)
-					{
-						int32_t glyphIndex = stbtt_FindGlyphIndex(&fontInfo, codepoint);
-						if (glyphIndex == 0) continue;
-
-						Font::Character character;
-
-						int advanceWidth, leftSideBearing;
-						stbtt_GetGlyphHMetrics(&fontInfo, glyphIndex, &advanceWidth, &leftSideBearing);
-						character.advance = advanceWidth * scale * scaleDivisor;
-						character.bearingX = leftSideBearing * scale * scaleDivisor;
-
-						int32_t c_x1, c_y1, c_x2, c_y2;
-						stbtt_GetGlyphBitmapBox(&fontInfo, glyphIndex, scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
-						c_x1 -= borderWidth; c_y1 -= borderWidth; c_x2 += borderWidth; c_y2 += borderWidth;
-
-						uint32_t width = c_x2 - c_x1;
-						uint32_t height = c_y2 - c_y1;
-
-						character.width = width * scaleDivisor;
-						character.height = height * scaleDivisor;
-						character.bearingY = c_y1 * scaleDivisor;
-						if (width - 2 * borderWidth != 0 && height - 2 * borderWidth != 0)
-						{
-							msdf_Result msdfResult;
-							uint32_t result = msdf_genGlyph(&msdfResult, &fontInfo, glyphIndex, borderWidth, scale, 40.0f, nullptr);
-							if (result == 0)
-								cs_std::console::error("Failed to generate msdf for glyph ", codepoint);
-
-							cs_std::image glyph(msdfResult.width, msdfResult.height, 4);
-
-							if (result != 0)
-							{
-								for (uint32_t i = 0, j = 0; i < msdfResult.width * msdfResult.height * 3; i += 3, j += 4)
-								{
-									glyph.data[j] = (*(msdfResult.rgb + i)) * 255;
-									glyph.data[j + 1] = (*(msdfResult.rgb + i + 1)) * 255;
-									glyph.data[j + 2] = (*(msdfResult.rgb + i + 2)) * 255;
-									glyph.data[j + 3] = 255;
-								}
-							}
-							character.texture = resourceManager.UploadTexture(glyph);
-						}
-						font.characters[codepoint - 32] = character;
-					}
-
-					std::vector<Font::Character::ShaderRepresentation> characterData = font.GetShaderRepresentation();
-					font.characterDataBufferHandle = resourceManager.CreateBuffer(sizeof(Font::Character::ShaderRepresentation) * characterData.size(), VK_SHADER_STAGE_ALL);
-					resourceManager.GetBuffer(font.characterDataBufferHandle).buffer.memcpy(characterData.data(), sizeof(Font::Character::ShaderRepresentation) * characterData.size());
-
 					std::string fontName = std::filesystem::path(fontPath).stem().string();
-					fonts[fontName] = font;
-					cs_std::console::log("Added font ", fontName);
+					fonts[fontName] = Font(cs_std::binary_file(fontPath).open().read(), resourceManager);
+					cs_std::console::info("Added font ", fontName);
 				}
 			}
 		}

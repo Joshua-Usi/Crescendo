@@ -50,7 +50,6 @@ CS_NAMESPACE_BEGIN
 					}
 
 					Entity entity = entityManager.CreateEntity();
-					entity.EmplaceComponent<Name>("Mesh");
 					entity.EmplaceComponent<Transform>(attributes.transform);
 					entity.EmplaceComponent<MeshData>(cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data), meshHandle);
 					entity.EmplaceComponent<Material>(0, Vulkan::TextureHandle(), Vulkan::TextureHandle(), attributes.isTransparent, attributes.isDoubleSided, !attributes.isTransparent);
