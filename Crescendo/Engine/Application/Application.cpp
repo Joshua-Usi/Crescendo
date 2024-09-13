@@ -153,7 +153,7 @@ CS_NAMESPACE_BEGIN
 					mainRenderPass, attachments2, Vulkan::Create::Extent2D(swapchain.GetExtent(), renderScale), 1
 				));
 			},
-			.presentMode = (CVar::Get<bool>("ec_vsync")) ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR
+			.presentMode = (CVar::Get<int32_t>("ec_refreshrate") == 0) ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR
 		});
 		this->frameManager = Vulkan::FrameManager(this->instance.GetSurface(0).GetDevice(), CVar::Get<uint32_t>("rc_framesinflight"));
 		this->resourceManager = Vulkan::ResourceManager(this->instance.GetSurface(0).GetDevice(), {
@@ -771,8 +771,19 @@ CS_NAMESPACE_BEGIN
 		// If this is the first window, attach the update layer
 		if (isFirstWindow)
 		{
-			const uint32_t refreshRate = this->windows[0]->GetRefreshRate();
-			const double secondsPerFrame = (refreshRate == 0 || !CVar::Get<bool>("ec_vsync")) ? 0.0 : 1.0 / double(refreshRate);
+			uint32_t refreshRate = 0;
+
+			// -1 for unlimited, 0 for vsync, >0 for fixed refresh rate
+			int32_t expectedRefreshRate = CVar::Get<int32_t>("ec_refreshrate");
+
+			if (expectedRefreshRate < 0)
+				refreshRate = 0;
+			else if (expectedRefreshRate == 0)
+				refreshRate = this->windows[0]->GetRefreshRate();
+			else
+				refreshRate = expectedRefreshRate;
+
+			const double secondsPerFrame = (refreshRate == 0) ? 0.0 : 1.0 / double(refreshRate);
 			this->layerManager.Attach(new LayerUpdate(secondsPerFrame));
 			this->layerManager.Init(this->timestamp.elapsed<double>());
 			isFirstWindow = false;

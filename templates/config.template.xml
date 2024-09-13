@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <config>
 	<!-- internal render config (do not modify unless you know what you are doing) -->
-	<irc_validationlayers type="bool">	</irc_validationlayers>
+	<irc_validationlayers type="bool">true</irc_validationlayers>
 	<irc_maxbufferdescriptors_bindless type="int">1024</irc_maxbufferdescriptors_bindless>
 	<irc_maxtexturedescriptors_bindless type="int">8192</irc_maxtexturedescriptors_bindless>
 	<!-- internal render config shaders -->
@@ -20,7 +20,7 @@
 	<ec_appname type="string"><project_name></ec_appname>
 	<ec_windowwidth type="int">1280</ec_windowwidth>
 	<ec_windowheight type="int">720</ec_windowheight>
-	<ec_vsync type="bool">true</ec_vsync>
+	<ec_refreshrate type="int" comment="-1 for unlimited, 0 for vsync, >0 for fixed">0</ec_refreshrate>
 	<!-- path configs -->
 	<pc_assetpath type="string">./assets/</pc_assetpath>
 	<pc_fontpath type="string">./assets/fonts</pc_fontpath>

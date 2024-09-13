@@ -20,7 +20,7 @@
 	<ec_appname type="string">Sandbox</ec_appname>
 	<ec_windowwidth type="int">1280</ec_windowwidth>
 	<ec_windowheight type="int">720</ec_windowheight>
-	<ec_vsync type="bool">true</ec_vsync>
+	<ec_refreshrate type="int" comment="-1 for unlimited, 0 for vsync, >0 for fixed">0</ec_refreshrate>
 	<!-- path configs -->
 	<pc_assetpath type="string">./assets/</pc_assetpath>
 	<pc_fontpath type="string">./assets/fonts</pc_fontpath>
