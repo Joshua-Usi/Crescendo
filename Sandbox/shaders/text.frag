@@ -1,4 +1,4 @@
-	#version 460
+#version 460
 #include "bindless.glsl"
 
 layout (location = 0) in vec2 iTexCoord;
@@ -22,5 +22,7 @@ void main()
 	float dist = median(msdf.r, msdf.g, msdf.b);
 	float opacity = step(0.21, dist);
 	oColor = vec4(color.rgb, opacity * color.a);
+	
+	// For debugging
 	// oColor = vec4(msdf, 1.0);
 }

@@ -16,21 +16,20 @@ layout (push_constant) uniform PushConstants {
 };
 
 RegisterBuffer(std430, readonly, TransformBuffer, { mat4 transformData[]; });
-
 void main()
 {
 	const mat4 vp = GetResource(TransformBuffer, transformBufferIdx).transformData[cameraIdx];
-	const mat4 model = GetResource(TransformBuffer, transformBufferIdx).transformData[gl_InstanceIndex];
+	const mat4 m = GetResource(TransformBuffer, transformBufferIdx).transformData[gl_InstanceIndex];
 
-	mat3 normalMatrix = transpose(inverse(mat3(model)));
-	vec3 T = normalize(normalMatrix * iTangent.xyz);
-	vec3 N = normalize(normalMatrix * iNormal);
+	mat3 normal = transpose(inverse(mat3(m)));
+	vec3 T = normalize(normal * iTangent.xyz);
+	vec3 N = normalize(normal * iNormal);
 	T = normalize(T - dot(T, N) * N);
 	vec3 B = cross(N, T) * -iTangent.w;
 
-	oPosition_ws = (model * vec4(iPosition, 1.0f)).xyz;
+	oPosition_ws = (m * vec4(iPosition, 1.0f)).xyz;
 	oTexCoord = iTexCoord;
 	oTBN = mat3(T, B, N);
 	
-	gl_Position = vp * model * vec4(iPosition, 1.0f);
+	gl_Position = vp * m * vec4(iPosition, 1.0f);
 }

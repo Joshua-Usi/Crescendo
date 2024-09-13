@@ -16,9 +16,12 @@ layout (push_constant) uniform PushConstants {
 	uint transformBufferIdx;
 	uint glyphBufferIdx;
 	uint characterBufferIdx;
-	uint cumulativeBufferIdx;
+	// cumulativeAdvanceBuffer
+	uint advanceBufferIdx;
 	uint startingIdx;
+	// Offset for alignment
 	float horizontalOffset;
+	// Offset for line gaps
 	float verticalOffset;
 	float fontSize;
 };
@@ -32,10 +35,14 @@ void main()
 {
 	uint vertexIndex = gl_VertexIndex % 6;
 	uint characterID = startingIdx + gl_VertexIndex / 6;
+
 	uint textBufferUintIdx = characterID / 4;
 	uint textBufferUintOffset = characterID % 4;
+
 	uint packed = GetResource(CharacterBuffer, characterBufferIdx).characters[textBufferUintIdx];
+	// Unpack character from uint
 	uint character = ((packed >> (textBufferUintOffset * 8)) & 0xFF) - 32;
+
 	const Glyph glyph = GetResource(GlyphBuffer, glyphBufferIdx).glyphs[character];
 	oTextureID = glyph.textureID;
 
@@ -43,10 +50,7 @@ void main()
 	const mat4 model = GetResource(TransformBuffer, transformBufferIdx).transforms[gl_InstanceIndex];
 
 	oTexCoord = vec2(vertexIndex & 1, mod((vertexIndex + 1) / 3, 2));
-	vec2 glyphSize = vec2(glyph.width, glyph.height) * fontSize;
-	vec4 vertexPosition = vec4(oTexCoord * glyphSize, 0.0, 1.0);
-	vertexPosition.x += (glyph.bearingX + GetResource(CumulativeAdvanceBuffer, cumulativeBufferIdx).cumulativeAdvance[characterID] + horizontalOffset) * fontSize;
-	vertexPosition.y += (glyph.bearingY + verticalOffset) * fontSize;
 
-	gl_Position = vp * model * vertexPosition;
+	vec2 vertexPosition = oTexCoord * vec2(glyph.width, glyph.height) + vec2(glyph.bearingX + GetResource(CumulativeAdvanceBuffer, advanceBufferIdx).cumulativeAdvance[characterID] + horizontalOffset, glyph.bearingY + verticalOffset);
+	gl_Position = vp * model * vec4(vertexPosition * fontSize, 0.0, 1.0);
 }

@@ -664,10 +664,8 @@ CS_NAMESPACE_BEGIN
 				GetTime<float>()
 			};
 			const struct ParticleFragmentParams {
-				float currentTime;
 				uint32_t diffuseTexIdx;
 			} particleParamsFrag {
-				GetTime<float>(),
 				data.texture.GetIndex()
 			};
 			cmd.PushConstants(particlePipeline, particleParams, VK_SHADER_STAGE_VERTEX_BIT);

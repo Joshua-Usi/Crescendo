@@ -9,7 +9,6 @@ layout(push_constant) uniform PushConstants {
 	layout(offset = 8) uint skyboxTexIdx;
 };
 
-void main()
-{
+void main() {
 	oColor = texture(uTextures2D[skyboxTexIdx], iTexCoord);
 }

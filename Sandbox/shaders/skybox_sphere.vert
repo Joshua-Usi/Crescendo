@@ -13,15 +13,11 @@ layout (push_constant) uniform PushConstants {
 
 RegisterBuffer(std430, readonly, TransformBuffer, { mat4 transformBuffer[]; });
 
-void main()
-{
+void main() {
+	oTexCoord = iTexCoord;
+
 	mat4 vp = GetResource(TransformBuffer, transformBufferIdx).transformBuffer[cameraIdx];
 	// Remove translation	
-	vp[3][0] = 0.0;
-	vp[3][1] = 0.0;
-	vp[3][3] = 0.0;
-	vec4 position = vp * vec4(iPosition, 1.0f);
-	gl_Position = position.xyww;
-
-	oTexCoord = iTexCoord;
+	vp[3][0] = 0.0; vp[3][1] = 0.0; vp[3][3] = 0.0;
+	gl_Position = vp * vec4(iPosition, 1.0f);
 }

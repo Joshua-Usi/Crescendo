@@ -35,6 +35,7 @@ layout(push_constant) uniform PushConstants {
 	uint pointLightCount;
 	uint spotLightCount;
 
+	// To align the cameraViewPos vector
 	uint dummy0;
 	uint dummy1;
 

@@ -29,14 +29,6 @@ void main()
 
 	// Unmodified
 	// oColor = vec4(texture(image, iTexCoord).rgb, 1.0f);
-	
-	// Inverted
-	// oColor = vec4(1.0f - pow(texture(image, iTexCoord).rgb, vec3(1.0f / 2.2f)), 1.0f);
-
-	// Half unmodified, half inverted
-	// vec3 color = hdrColor;
-	// if (iTexCoord.x < 0.5f) oColor = vec4(color, 1.0f);
-	// else oColor = vec4(1.0f - pow(color, vec3(1.0f / 2.2f)), 1.0f);
 
 	// Grayscale
 	// vec4 col = texture(image, iTexCoord);
