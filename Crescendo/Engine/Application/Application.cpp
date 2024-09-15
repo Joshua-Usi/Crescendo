@@ -20,7 +20,6 @@
 // HDR	
 #define CS_FRAMEBUFFER_COLOR_FORMAT VK_FORMAT_B10G11R11_UFLOAT_PACK32
 #define CS_FRAMEBUFFER_DEPTH_FORMAT VK_FORMAT_D32_SFLOAT
-#define CS_MSDF_TEXTURE_FORMAT VK_FORMAT_R8G8B8A8_UNORM
 
 std::vector<std::string> GetFonts(const std::string& fontDir)
 {
@@ -630,11 +629,13 @@ CS_NAMESPACE_BEGIN
 		cmd.EndRenderPass();
 
 		// Final post processing pass
-		cmd.DynamicStateSetViewport(swapchain.GetViewport(true));
+		VkViewport viewport = swapchain.GetViewport(true);
+
+		cmd.DynamicStateSetViewport(viewport);
 		cmd.DynamicStateSetScissor(swapchain.GetScissor());
 		cmd.BeginRenderPass(
 			swapchain.GetRenderPass(), swapchain.GetFramebuffer(swapchain.GetAcquiredImageIndex()).framebuffer, swapchain.GetScissor(),
-			{ Vulkan::Create::ClearValue(1.0f, 0.0f, 0.0f, 1.0f), Vulkan::Create::DefaultDepthClear() }
+			{ Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 0.0f), Vulkan::Create::DefaultDepthClear() }
 		);
 		cmd.BindPipeline(postProcessingPipeline);
 		cmd.BindDescriptorSet(postProcessingPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
@@ -721,10 +722,14 @@ CS_NAMESPACE_BEGIN
 			cs_std::console::warn("Attempted to create a default window when one already exists");
 			return;
 		}
+
+		// Override if it's going to be fullscreen
+		bool isNotFullscreen = !CVar::Get<bool>("ec_fullscreen");
+
 		this->CreateWindow(Window::Specification(
 			CVar::Get<std::string>("ec_appname"),
-			CVar::Get<uint32_t>("ec_windowwidth"),
-			CVar::Get<uint32_t>("ec_windowheight")
+			CVar::Get<uint32_t>("ec_windowwidth") * isNotFullscreen,
+			CVar::Get<uint32_t>("ec_windowheight") * isNotFullscreen
 		));
 	}
 	void Application::CloseWindow(size_t index)

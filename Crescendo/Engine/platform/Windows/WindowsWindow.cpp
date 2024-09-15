@@ -16,16 +16,20 @@ CS_NAMESPACE_BEGIN
 			IsGLFWInitialised = true;
 		}
 
+		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+		this->data.isFullScreen = spec.width == 0 || spec.height == 0;
 		this->data.title = spec.title;
-		this->data.width = spec.width;
-		this->data.height = spec.height;
+		this->data.width = (data.isFullScreen) ? mode->width : spec.width;
+		this->data.height = (data.isFullScreen) ? mode->height : spec.height;
 		this->data.isOpen = true;
 		this->data.windowPointer = this;
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-		this->window = glfwCreateWindow(this->data.width, this->data.height, this->data.title.c_str(), NULL, NULL);
+		this->window = glfwCreateWindow(data.width, data.height, data.title.c_str(), (data.isFullScreen) ? monitor : nullptr, nullptr);
 		if (this->window == nullptr) cs_std::console::fatal("Failed to create GLFW window!");
 		glfwSetWindowPos(this->window, spec.positionX, spec.positionY);
 

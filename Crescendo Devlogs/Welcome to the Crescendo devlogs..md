@@ -8,6 +8,8 @@ Crescendo is an ever-evolving project, it'd be a shame if I didn't document ever
 [[Lights pt.1]]
 [[Know your space]]
 [[Particles pt.1]]
+[[Text Rendering with MSDFs - TODO]]
+[[Vertex optimisations - TODO]]
 ### Alpha
 TBA
 ### Beta 
