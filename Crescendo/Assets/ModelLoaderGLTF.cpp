@@ -161,17 +161,24 @@ CS_NAMESPACE_BEGIN
 						.set_transparent(gltfMaterial.alphaMode == "BLEND");
 					for (const auto& texture : gltfMaterial.values)
 					{
-						const int& baseColorTextureIndex = gltfMaterial.pbrMetallicRoughness.baseColorTexture.index,
+						const int	& baseColorTextureIndex = gltfMaterial.pbrMetallicRoughness.baseColorTexture.index,
 									& metallicRoughnessTextureIndex = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index,
 									& normalTextureIndex = gltfMaterial.normalTexture.index,
 									& occlusionTextureIndex = gltfMaterial.occlusionTexture.index,
 									& emissiveTextureIndex = gltfMaterial.emissiveTexture.index;
 
-						if (baseColorTextureIndex != -1) attributes.set_diffuse(texturePathPrepend / gltfModel.images[baseColorTextureIndex].uri);
-						if (metallicRoughnessTextureIndex != -1) attributes.set_metallic_roughness(texturePathPrepend / gltfModel.images[metallicRoughnessTextureIndex].uri);
-						if (normalTextureIndex != -1) attributes.set_normal(texturePathPrepend / gltfModel.images[normalTextureIndex].uri);
-						if (occlusionTextureIndex != -1) attributes.set_occlusion(texturePathPrepend / gltfModel.images[occlusionTextureIndex].uri);
-						if (emissiveTextureIndex != -1) attributes.set_emissive(texturePathPrepend / gltfModel.images[emissiveTextureIndex].uri);
+						if (baseColorTextureIndex != -1)
+							attributes.set_diffuse(texturePathPrepend / gltfModel.images[baseColorTextureIndex].uri);
+						if (metallicRoughnessTextureIndex != -1)
+							attributes.set_metallic_roughness(texturePathPrepend / gltfModel.images[metallicRoughnessTextureIndex].uri);
+						if (normalTextureIndex != -1)
+							attributes.set_normal(texturePathPrepend / gltfModel.images[normalTextureIndex].uri);
+						if (occlusionTextureIndex != -1)
+							attributes.set_occlusion(texturePathPrepend / gltfModel.images[occlusionTextureIndex].uri);
+						if (emissiveTextureIndex != -1)
+						{
+							attributes.set_emissive(texturePathPrepend / gltfModel.images[emissiveTextureIndex].uri);
+						}
 					}
 				}
 				model.add_mesh(mesh, attributes);

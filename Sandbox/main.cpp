@@ -26,9 +26,16 @@ public:
 		cs_std::image skybox = LoadImage("./assets/skybox-night.png");
 		currentScene.skybox = resourceManager.UploadTexture(skybox);
 
+		Entity sun = currentScene.entityManager.CreateEntity();
+		sun.EmplaceComponent<Transform>(math::vec3(2.0f, 10.0f, 0.0f));
+		sun.GetComponent<Transform>().LookAt(math::vec3(0.0f));
+		sun.EmplaceComponent<DirectionalLight>(math::vec3(1.0f, 1.0f, 1.0f), 0.5f, false);
+		currentScene.entities.insert(sun);
+
 		Entity cameraEntity = currentScene.entityManager.CreateEntity();
 		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
 		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, 0.1f, 1000.0f);
+		cameraEntity.EmplaceComponent<SpotLight>(math::vec3(1.0f, 1.0f, 1.0f), 10.0f, math::radians(1.0f), math::radians(25.0f), false);
 		cameraEntity.AddBehaviour("CameraController");
 		currentScene.activeCamera = cameraEntity;
 		currentScene.entities.insert(cameraEntity);
@@ -40,6 +47,16 @@ public:
 			"Inter", Color(255), 32.0f, 1.0f, Text::Alignment::Left);
 		updatingText.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::ScreenSpace);
 		updatingText.AddBehaviour("FPSCounter");
+		currentScene.entities.insert(updatingText);
+
+		Entity infoText = currentScene.entityManager.CreateEntity();
+		infoText.EmplaceComponent<Transform>(math::vec3(0.0f, -32.0f - 24.0f, 0.0));
+		infoText.EmplaceComponent<Text>(
+			"'W', 'A', 'S', 'D' to move\n'Space' to fly up\n'Shift' to fly down\n'R' to move faster\n'F11' to toggle fullscreen\n'Esc' twice to exit\n'Ctrl' + 'F5' to restart\nClick on the window to lock cursor",
+			"Inter", Color(255), 24.0f, 1.0f, Text::Alignment::Left);
+		infoText.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::ScreenSpace);
+		currentScene.entities.insert(infoText);
+
 
 		Entity particleEmitter = currentScene.entityManager.CreateEntity();
 		particleEmitter.EmplaceComponent<Transform>(math::vec3(0.0f, 45.0f, 0.0f));
@@ -75,6 +92,7 @@ public:
 		// Create point light for fire
 		particleEmitter.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.55f, 0.0f), 10.0f, true);
 		particleEmitter.AddBehaviour("Campfire");
+		currentScene.entities.insert(particleEmitter);
 
 		// Each of the different lights in the default sponza scene
 		std::vector<math::vec3> pointLights =
