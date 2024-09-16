@@ -368,7 +368,7 @@ CS_NAMESPACE_BEGIN
 			meshTransforms.push_back(transform.GetModelMatrix());
 			uint32_t modelID = meshTransforms.size() - 1;
 
-			uint32_t currentLine = 0;
+			uint32_t currentLine = (renderer.renderMode == TextRenderer::RenderMode::ScreenSpace) ? 1 : 0;
 			uint32_t successiveNewLines = 0;
 			uint32_t currentOffset = textCharacterData.size();
 			uint32_t count = 0;

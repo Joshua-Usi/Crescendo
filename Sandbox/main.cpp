@@ -29,7 +29,7 @@ public:
 		Entity sun = currentScene.entityManager.CreateEntity();
 		sun.EmplaceComponent<Transform>(math::vec3(2.0f, 10.0f, 0.0f));
 		sun.GetComponent<Transform>().LookAt(math::vec3(0.0f));
-		sun.EmplaceComponent<DirectionalLight>(math::vec3(1.0f, 1.0f, 1.0f), 0.5f, false);
+		// sun.EmplaceComponent<DirectionalLight>(math::vec3(1.0f, 1.0f, 1.0f), 0.1f, false);
 		currentScene.entities.insert(sun);
 
 		Entity cameraEntity = currentScene.entityManager.CreateEntity();
@@ -41,7 +41,7 @@ public:
 		currentScene.entities.insert(cameraEntity);
 
 		Entity updatingText = currentScene.entityManager.CreateEntity();
-		updatingText.EmplaceComponent<Transform>(math::vec3(0.0f, -32.0f, 0.0));
+		updatingText.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0));
 		updatingText.EmplaceComponent<Text>(
 			"0fps",
 			"Inter", Color(255), 32.0f, 1.0f, Text::Alignment::Left);
@@ -50,13 +50,12 @@ public:
 		currentScene.entities.insert(updatingText);
 
 		Entity infoText = currentScene.entityManager.CreateEntity();
-		infoText.EmplaceComponent<Transform>(math::vec3(0.0f, -32.0f - 24.0f, 0.0));
+		infoText.EmplaceComponent<Transform>(math::vec3(0.0f, -32.0f, 0.0));
 		infoText.EmplaceComponent<Text>(
-			"'W', 'A', 'S', 'D' to move\n'Space' to fly up\n'Shift' to fly down\n'R' to move faster\n'F11' to toggle fullscreen\n'Esc' twice to exit\n'Ctrl' + 'F5' to restart\nClick on the window to lock cursor",
+			"'W', 'A', 'S', 'D' to move\n'Space' to fly up\n'Shift' to fly down\n'R' to move faster\n'F11' to toggle fullscreen\n'Esc' to unlock cursor\n'Esc' again to exit\n'Ctrl' + 'F5' to restart\nClick on the window to lock cursor",
 			"Inter", Color(255), 24.0f, 1.0f, Text::Alignment::Left);
 		infoText.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::ScreenSpace);
 		currentScene.entities.insert(infoText);
-
 
 		Entity particleEmitter = currentScene.entityManager.CreateEntity();
 		particleEmitter.EmplaceComponent<Transform>(math::vec3(0.0f, 45.0f, 0.0f));
@@ -117,7 +116,7 @@ public:
 		{
 			Entity pointLight = currentScene.entityManager.CreateEntity();
 			pointLight.EmplaceComponent<Transform>(pointLights[i]);
-			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 5.0f, true);
+			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 1.0f, true);
 			currentScene.entities.insert(pointLight);
 		}
 
