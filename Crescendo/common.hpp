@@ -8,6 +8,8 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <unordered_map>
+#include <functional>
 
 #define CS_NAMESPACE_BEGIN namespace CrescendoEngine
 

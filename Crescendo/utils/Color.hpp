@@ -12,6 +12,7 @@ CS_NAMESPACE_BEGIN
 
 		Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) : r(r), g(g), b(b), a(a) {}
 		Color(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b), a(255) {}
+		Color (uint8_t gray, uint8_t a) : r(gray), g(gray), b(gray), a(a) {}	
 		Color (uint8_t gray) : r(gray), g(gray), b(gray), a(255) {}
 
 		uint32_t GetPacked() const { return (a << 24) | (b << 16) | (g << 8) | r; }
@@ -19,7 +20,7 @@ CS_NAMESPACE_BEGIN
 		inline static Color FromHSV(float h, float s, float v)
 		{
 			float c = v * s;
-			float x = c * (1 - std::abs(fmod(h / 60.0f, 2) - 1));
+			float x = c * (1 - std::fabsf(fmodf(h / 60.0f, 2) - 1));
 			float m = v - c;
 			float r, g, b;
 			if (h < 60) { r = c; g = x; b = 0; }
@@ -28,9 +29,13 @@ CS_NAMESPACE_BEGIN
 			else if (h < 240) { r = 0; g = x; b = c; }
 			else if (h < 300) { r = x; g = 0; b = c; }
 			else { r = c; g = 0; b = x; }
-			return Color((r + m) * 255, (g + m) * 255, (b + m) * 255);
+			return Color(
+				static_cast<uint8_t>((r + m) * 255.0f),
+				static_cast<uint8_t>((g + m) * 255.0f),
+				static_cast<uint8_t>((b + m) * 255.0f)
+			);
 		}
 		// from packed uint32_t
-		inline static Color FromPack(uint32_t packed) { return Color((packed & 0xFF), (packed >> 8) & 0xFF, (packed >> 16) & 0xFF, (packed >> 24) & 0xFF); }
+		inline static Color FromPacked(uint32_t packed) { return Color((packed & 0xFF), (packed >> 8) & 0xFF, (packed >> 16) & 0xFF, (packed >> 24) & 0xFF); }
 	};
 }

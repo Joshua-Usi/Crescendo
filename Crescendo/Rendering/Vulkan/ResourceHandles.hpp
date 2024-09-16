@@ -4,6 +4,7 @@
 #include "raii/Buffer.hpp"
 #include "raii/Image.hpp"
 #include "raii/Sampler.hpp"
+#include "cs_std/graphics/model.hpp"
 
 #define CS_RESOURCE_MANAGER_CREATE_HANDLE(type, name)\
 class name\

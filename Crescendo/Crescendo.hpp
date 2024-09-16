@@ -12,9 +12,11 @@
 
 #include "entrypoint.hpp"
 
-#include "Engine/Engine.hpp"
+#include "Core/Core.hpp"
+#include "ECS/ECS.hpp"
 #include "Assets/Assets.hpp"
 #include "Libraries/Libraries.hpp"
+#include "Static/Static.hpp"
 
 #include "cs_std/file.hpp"
 

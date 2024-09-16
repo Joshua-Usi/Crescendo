@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Engine/Application/ApplicationCommandLineArgs.hpp"
-#include "Engine/Application/Application.hpp"
+#include "Core/ApplicationCommandLineArgs.hpp"
+#include "Core/Application.hpp"
 
 #ifdef CS_PLATFORM_WINDOWS
 	int main(int argc, char** argv)

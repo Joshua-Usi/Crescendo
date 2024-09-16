@@ -96,12 +96,14 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	}
 	Pipeline& Pipeline::operator=(Pipeline&& other) noexcept
 	{
-		if (this == &other)
-			return *this;
-		device = other.device; other.device = nullptr;
-		layout = other.layout;
-		variants = other.variants;
-		pipelines = std::move(other.pipelines);
+		if (this != &other)
+		{
+			device = other.device; other.device = nullptr;
+			layout = other.layout;
+			variants = other.variants;
+			pipelines = std::move(other.pipelines);
+		}
+		return *this;
 	}
 	const PipelineVariants& Pipeline::GetVariants() const { return variants; }
 	Pipeline::operator VkPipelineLayout() const { return layout; }
