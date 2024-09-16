@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <config>
-	<gltf>tristan/TRISTANSEXY.gltf</gltf>
-	<!-- <gltf>modern-sponza/modern-sponza.gltf</gltf> -->
+	<!-- <gltf>tristan/TRISTANSEXY.gltf</gltf> -->
+	<gltf>modern-sponza/modern-sponza.gltf</gltf>
 	<!-- <gltf>sponza-curtains/sponza-curtains.gltf</gltf> -->
 	<!-- <gltf>sponza-ivy/sponza-ivy.gltf</gltf> -->
 	<!-- <gltf>sponza-candles/sponza-candles.gltf</gltf> -->
@@ -9,5 +9,5 @@
 	<!-- <gltf>companion-cube/scene.gltf</gltf> -->
 	<!-- <gltf>tree/tree.gltf</gltf> -->
 	<!-- <gltf>chair/chair.gltf</gltf> -->
-	<gltf>stone-fire-pit/stone_fire_pit.gltf</gltf>
+	<!-- <gltf>stone-fire-pit/stone_fire_pit.gltf</gltf> -->
 </config>

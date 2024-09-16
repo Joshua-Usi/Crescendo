@@ -18,7 +18,7 @@
 	<rc_renderscale type="double">1.0</rc_renderscale>
 	<!-- engine config-->
 	<ec_appname type="string">Sandbox</ec_appname>
-	<ec_fullscreen type="bool" comment="Overrides ec_windowwidth and ec_windowheight if true">true</ec_fullscreen>
+	<ec_fullscreen type="bool" comment="Overrides ec_windowwidth and ec_windowheight if true">false</ec_fullscreen>
 	<ec_windowwidth type="int">1280</ec_windowwidth>
 	<ec_windowheight type="int">720</ec_windowheight>
 	<ec_refreshrate type="int" comment="-1 for unlimited, 0 for vsync, >0 for fixed">0</ec_refreshrate>

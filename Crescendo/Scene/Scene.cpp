@@ -63,8 +63,8 @@ CS_NAMESPACE_BEGIN
 				}
 			}
 
-			std::vector<std::filesystem::path> textureStrings(textureMap.size());
-			for (const auto& [path, info] : textureMap) textureStrings[info.textureIdx] = path;
+			std::vector<std::string> textureStrings(textureMap.size());
+			for (const auto& [path, info] : textureMap) textureStrings[info.textureIdx] = path.string();
 
 			struct TaggedImage { cs_std::image image; Vulkan::ResourceManager::Colorspace colorspace; };
 

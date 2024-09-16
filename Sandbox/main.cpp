@@ -14,6 +14,8 @@ public:
 	using Application::Application;
 	void OnStartup()
 	{
+		ScriptStorage::RegisterScript("CameraController", []() { return new CameraController(); });
+
 		Scene& currentScene = GetActiveScene();
 
 		cs_std::image fireParticle = LoadImage("./assets/fire-particle.png");
@@ -23,64 +25,27 @@ public:
 		currentScene.skybox = resourceManager.UploadTexture(skybox);
 
 		Entity cameraEntity = currentScene.entityManager.CreateEntity();
-		cameraEntity.EmplaceComponent<Name>("Main Camera");
 		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
 		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, 0.1f, 1000.0f);
-		cameraEntity.EmplaceComponent<Behaviours>(std::make_shared<CameraController>());
+		cameraEntity.EmplaceComponent<Behaviours>(std::make_unique<CameraController>());
+		//cameraEntity.AddScript("CameraController");
 		currentScene.activeCamera = cameraEntity;
 		currentScene.entities.insert(cameraEntity);
-
-		std::vector<std::string> fonts {
-			"Roboto",
-			"Roboto Mono",
-			"OpenSans",
-			"Lato",
-			"SourceCodePro"
-		};
-
-		float offset = -1.0f;
-		for (const std::string& font : fonts)
-		{
-			Entity textEntity = currentScene.entityManager.CreateEntity();
-			textEntity.EmplaceComponent<Transform>(math::vec3(0.0f, offset, 0.0));
-			textEntity.EmplaceComponent<Text>(
-				font + ": the quick brown fox jumps over the lazy dog. THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG",
-				font, Color(255), 1.0f, 1.0f, Text::Alignment::Left
-			);
-			textEntity.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::WorldSpace);
-			offset -= 1.0f;
-		}
-
-		Entity textCapsEntity = currentScene.entityManager.CreateEntity();
-		textCapsEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 3.0f, 0.0));
-		textCapsEntity.EmplaceComponent<Text>(
-			"THE QUICK BROWN\nFOX JUMPS OVER THE\nLAZY DOG",
-			"Roboto", Color(255, 128, 0), 1.0f, 1.0f, Text::Alignment::Right
-		);
-		textCapsEntity.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::WorldSpace);
-
-		Entity textPunctuationEntity = currentScene.entityManager.CreateEntity();
-		textPunctuationEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 4.0f, 0.0));
-		textPunctuationEntity.EmplaceComponent<Text>(
-			"\"Wait, what?!\" exclaimed John-surprised, confused, and somewhat amused-\"I can't believe it... can you?\"",
-			"Roboto", Color(255, 255, 255, 50), 1.0f, 1.0f, Text::Alignment::Center
-		);
-		textPunctuationEntity.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::WorldSpace);
 
 		Entity updatingText = currentScene.entityManager.CreateEntity();
 		updatingText.EmplaceComponent<Transform>(math::vec3(0.0f, -32.0f, 0.0));
 		updatingText.EmplaceComponent<Text>(
 			"0fps",
-			"Roboto", Color(255), 32.0f, 1.0f, Text::Alignment::Left);
+			"Inter", Color(255), 32.0f, 1.0f, Text::Alignment::Left);
 		updatingText.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::ScreenSpace);
-		updatingText.EmplaceComponent<Behaviours>(std::make_shared<FPS>());
+		updatingText.EmplaceComponent<Behaviours>(std::make_unique<FPS>());
 
 		Entity particleEmitter = currentScene.entityManager.CreateEntity();
-		particleEmitter.EmplaceComponent<Name>("Particle Emitter");
 		particleEmitter.EmplaceComponent<Transform>(math::vec3(0.0f, 45.0f, 0.0f));
 		particleEmitter.EmplaceComponent<ParticleEmitter>(12000, 0.05f, 100,
 			[](float currentTime, float dt, ParticleEmitter::Particle& p) {
-				p.velocity *= 0.95f;
+				// air friction
+				p.velocity *= math::pow(0.1f, dt);
 				p.velocity.y += 5.0f * dt;
 				p.position += p.velocity * dt;
 			},
@@ -108,7 +73,7 @@ public:
 		particleEmitter.EmplaceComponent<ParticleRenderer>(fireParticleHandle);
 		// Create point light for fire
 		particleEmitter.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.55f, 0.0f), 10.0f, true);
-		particleEmitter.EmplaceComponent<Behaviours>(std::make_shared<Campfire>());
+		particleEmitter.EmplaceComponent<Behaviours>(std::make_unique<Campfire>());
 
 		// Each of the different lights in the default sponza scene
 		std::vector<math::vec3> pointLights =
@@ -132,9 +97,8 @@ public:
 		for (uint32_t i = 0; i < pointLights.size(); i++)
 		{
 			Entity pointLight = currentScene.entityManager.CreateEntity();
-			pointLight.EmplaceComponent<Name>("Default Pointlight " + std::to_string(i));
 			pointLight.EmplaceComponent<Transform>(pointLights[i]);
-			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 0.5f, true);
+			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 5.0f, true);
 			currentScene.entities.insert(pointLight);
 		}
 

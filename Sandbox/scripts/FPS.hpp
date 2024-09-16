@@ -20,6 +20,6 @@ public:
 			frameTimes.pop_front();
 
 		uint32_t fps = static_cast<uint32_t>(frameTimes.size() / 2);
-		text->text = std::to_string(fps) + "fps (" + std::to_string(1.0 / fps * 1000.0) + "ms)";
+		text->text = std::to_string(fps) + "fps";
 	}
 };
