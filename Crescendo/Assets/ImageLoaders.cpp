@@ -5,7 +5,7 @@
 
 CS_NAMESPACE_BEGIN
 {
-	cs_std::image LoadImage(const std::filesystem::path& path)
+	cs_std::image LoadImage(const std::string& path)
 	{
 		int width, height, channels, tmp;
 
@@ -13,7 +13,7 @@ CS_NAMESPACE_BEGIN
 
 		if (!file.exists())
 		{
-			cs_std::console::error("Failed to load image: " + path.string(), ". Reason: File does not exist");
+			cs_std::console::error("Failed to load image: ", path, ". File does not exist");
 			return cs_std::image();
 		}
 
@@ -25,7 +25,7 @@ CS_NAMESPACE_BEGIN
 
 		if (pixels == nullptr)
 		{
-			cs_std::console::error("Failed to load image: " + path.string(), ". Reason: ", stbi_failure_reason());
+			cs_std::console::error("Failed to load image: ", path, ". ", stbi_failure_reason());
 			return cs_std::image();
 		}
 
