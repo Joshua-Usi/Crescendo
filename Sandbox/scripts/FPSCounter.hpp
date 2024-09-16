@@ -3,7 +3,7 @@
 #include "Crescendo.hpp"
 using namespace CrescendoEngine;
 
-class FPS : public Behaviour
+class FPSCounter : public Behaviour
 {
 public:
 	Text* text;

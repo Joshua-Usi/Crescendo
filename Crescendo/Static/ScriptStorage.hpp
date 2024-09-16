@@ -1,10 +1,10 @@
 #pragma once
 #include "common.hpp"
-#include "ECS/Components/Behaviours.hpp"
-
 
 CS_NAMESPACE_BEGIN
 {
+	struct Behaviour;
+
 	class ScriptStorage
 	{
 	public:

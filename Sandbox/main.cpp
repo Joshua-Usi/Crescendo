@@ -6,7 +6,7 @@ using namespace CrescendoEngine;
 // Scripts
 #include "scripts/CameraController.hpp"
 #include "scripts/Campfire.hpp"
-#include "scripts/FPS.hpp"
+#include "scripts/FPSCounter.hpp"
 
 class Sandbox : public Application
 {
@@ -15,6 +15,8 @@ public:
 	void OnStartup()
 	{
 		ScriptStorage::RegisterScript("CameraController", []() { return new CameraController(); });
+		ScriptStorage::RegisterScript("Campfire", []() { return new Campfire(); });
+		ScriptStorage::RegisterScript("FPSCounter", []() { return new FPSCounter(); });
 
 		Scene& currentScene = GetActiveScene();
 
@@ -27,8 +29,7 @@ public:
 		Entity cameraEntity = currentScene.entityManager.CreateEntity();
 		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
 		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, 0.1f, 1000.0f);
-		cameraEntity.EmplaceComponent<Behaviours>(std::make_unique<CameraController>());
-		//cameraEntity.AddScript("CameraController");
+		cameraEntity.AddBehaviour("CameraController");
 		currentScene.activeCamera = cameraEntity;
 		currentScene.entities.insert(cameraEntity);
 
@@ -38,7 +39,7 @@ public:
 			"0fps",
 			"Inter", Color(255), 32.0f, 1.0f, Text::Alignment::Left);
 		updatingText.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::ScreenSpace);
-		updatingText.EmplaceComponent<Behaviours>(std::make_unique<FPS>());
+		updatingText.AddBehaviour("FPSCounter");
 
 		Entity particleEmitter = currentScene.entityManager.CreateEntity();
 		particleEmitter.EmplaceComponent<Transform>(math::vec3(0.0f, 45.0f, 0.0f));
@@ -73,7 +74,7 @@ public:
 		particleEmitter.EmplaceComponent<ParticleRenderer>(fireParticleHandle);
 		// Create point light for fire
 		particleEmitter.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.55f, 0.0f), 10.0f, true);
-		particleEmitter.EmplaceComponent<Behaviours>(std::make_unique<Campfire>());
+		particleEmitter.AddBehaviour("Campfire");
 
 		// Each of the different lights in the default sponza scene
 		std::vector<math::vec3> pointLights =

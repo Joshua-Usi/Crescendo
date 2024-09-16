@@ -5,10 +5,12 @@
 #include "Components/Component.hpp"
 #include <utility>
 #include <functional>
+#include "Static/ScriptStorage.hpp"
 
 CS_NAMESPACE_BEGIN
 {
 	struct Behaviours;
+	struct Behaviour;
 
 	struct Entity
 	{
@@ -39,11 +41,11 @@ CS_NAMESPACE_BEGIN
 		template<ValidComponent T, typename... Args> T& EmplaceComponent(Args&&... args)
 		{
 			T& component = registry->emplace<T>(this->entity, std::forward<Args>(args)...);
-			if constexpr (std::is_same_v<T, Behaviours>)
-				component.OnAttach(*this);
 			return component;
 		};
 		template<ValidComponent T> void RemoveComponent() { registry->remove<T>(this->entity); }
+
+		void AddBehaviour(const std::string& name);
 	};
 
 	class EntityManager
