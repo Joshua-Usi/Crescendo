@@ -343,8 +343,9 @@ CS_NAMESPACE_BEGIN
 		currentScene.entityManager.ForEach<Transform, ParticleEmitter, ParticleRenderer>([&](Transform& transform, ParticleEmitter& emitter, ParticleRenderer& renderer) {
 			meshTransforms.push_back(transform.GetModelMatrix());
 			particleEmitters.emplace_back(particles.size(), emitter.liveParticleCount, renderer.texture, meshTransforms.size() - 1);
-			for (const ParticleEmitter::Particle& particle : emitter.particles)
+			for (uint32_t i = 0; i < emitter.liveParticleCount; i++)
 			{
+				const ParticleEmitter::Particle& particle = emitter.particles[i];
 				particles.push_back(particle.CreateShaderRepresentation());
 			}
 		});
