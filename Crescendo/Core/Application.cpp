@@ -297,12 +297,18 @@ CS_NAMESPACE_BEGIN
 
 		// Add lights to the buffer
 		currentScene.entityManager.ForEach<Transform, DirectionalLight>([&](Transform& transform, DirectionalLight& light) {
+			if (light.intensity == 0.0f)
+				return;
 			directionalLights.push_back(light.CreateShaderRepresentation(transform));
 		});
 		currentScene.entityManager.ForEach<Transform, PointLight>([&](Transform& transform, PointLight& light) {
+			if (light.intensity == 0.0f)
+				return;
 			pointLights.push_back(light.CreateShaderRepresentation(transform));
 		});
 		currentScene.entityManager.ForEach<Transform, SpotLight>([&](Transform& transform, SpotLight& light) {
+			if (light.intensity == 0.0f)
+				return;
 			spotLights.push_back(light.CreateShaderRepresentation(transform));
 		});
 

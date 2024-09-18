@@ -7,6 +7,7 @@ using namespace CrescendoEngine;
 #include "scripts/CameraController.hpp"
 #include "scripts/Campfire.hpp"
 #include "scripts/FPSCounter.hpp"
+#include "scripts/Flashlight.hpp"
 
 class Sandbox : public Application
 {
@@ -17,6 +18,7 @@ public:
 		ScriptStorage::RegisterScript("CameraController", []() { return new CameraController(); });
 		ScriptStorage::RegisterScript("Campfire", []() { return new Campfire(); });
 		ScriptStorage::RegisterScript("FPSCounter", []() { return new FPSCounter(); });
+		ScriptStorage::RegisterScript("Flashlight", []() { return new Flashlight(); });
 
 		Scene& currentScene = GetActiveScene();
 
@@ -29,7 +31,7 @@ public:
 		Entity sun = currentScene.entityManager.CreateEntity();
 		sun.EmplaceComponent<Transform>(math::vec3(2.0f, 10.0f, 0.0f));
 		sun.GetComponent<Transform>().LookAt(math::vec3(0.0f));
-		// sun.EmplaceComponent<DirectionalLight>(math::vec3(1.0f, 1.0f, 1.0f), 0.1f, false);
+		sun.EmplaceComponent<DirectionalLight>(math::vec3(1.0f, 1.0f, 1.0f), 0.1f, false);
 		currentScene.entities.insert(sun);
 
 		Entity cameraEntity = currentScene.entityManager.CreateEntity();
@@ -37,6 +39,7 @@ public:
 		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, 0.1f, 1000.0f);
 		cameraEntity.EmplaceComponent<SpotLight>(math::vec3(1.0f, 1.0f, 1.0f), 10.0f, math::radians(1.0f), math::radians(25.0f), false);
 		cameraEntity.AddBehaviour("CameraController");
+		cameraEntity.AddBehaviour("Flashlight");
 		currentScene.activeCamera = cameraEntity;
 		currentScene.entities.insert(cameraEntity);
 
@@ -52,7 +55,7 @@ public:
 		Entity infoText = currentScene.entityManager.CreateEntity();
 		infoText.EmplaceComponent<Transform>(math::vec3(0.0f, -32.0f, 0.0));
 		infoText.EmplaceComponent<Text>(
-			"'W', 'A', 'S', 'D' to move\n'Space' to fly up\n'Shift' to fly down\n'R' to move faster\n'F11' to toggle fullscreen\n'Esc' to unlock cursor\n'Esc' again to exit\n'Ctrl' + 'F5' to restart\nClick on the window to lock cursor",
+			"'W', 'A', 'S', 'D' to move\n'Space' to fly up\n'Shift' to fly down\n'R' to move faster\n'F11' to toggle fullscreen\n'Esc' to unlock cursor\n'Esc' again to exit\n'Ctrl' + 'F5' to restart\nClick on the window to lock cursor\n'F' to toggle flashlight",
 			"Inter", Color(255), 24.0f, 1.0f, Text::Alignment::Left);
 		infoText.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::ScreenSpace);
 		currentScene.entities.insert(infoText);

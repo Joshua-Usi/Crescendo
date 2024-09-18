@@ -1,5 +1,4 @@
 #pragma once
-
 #include "Crescendo.hpp"
 using namespace CrescendoEngine;
 
