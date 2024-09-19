@@ -51,7 +51,12 @@ CS_NAMESPACE_BEGIN
 			{
 				cs_std::image glyph = GenerateMSDF(fontInfo, glyphIndex, borderWidth, scale);
 				character.texture = resourceManager.UploadTexture(glyph, {
-					Vulkan::ResourceManager::Colorspace::Linear, 1.0f, false
+						Vulkan::ResourceManager::Colorspace::Linear,
+						Vulkan::ResourceManager::Filter::Linear,
+						Vulkan::ResourceManager::Filter::Linear,
+						Vulkan::ResourceManager::WrapMode::ClampToEdge,
+						1.0f,
+						false
 				});
 			}
 			characters[codepoint - 32] = character;

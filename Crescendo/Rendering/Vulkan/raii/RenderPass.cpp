@@ -92,4 +92,23 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 
 		return Vulkan::Vk::RenderPass(device, Vulkan::Create::RenderPassCreateInfo(attachments, &subpass, dependencies));
 	}
+	RenderPass RenderPass::CreateBloomRenderPass(VkDevice device, VkFormat colorFormat)
+	{
+		VkAttachmentDescription colorAttachment = Vulkan::Create::AttachmentDescription(
+			colorFormat, VK_SAMPLE_COUNT_1_BIT,
+			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		);
+		VkAttachmentReference colorAttachmentRef = Vulkan::Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		const VkSubpassDescription subpass = Vulkan::Create::SubpassDescription(
+			VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, &colorAttachmentRef, nullptr, nullptr, nullptr
+		);
+		VkSubpassDependency dependency = Vulkan::Create::SubpassDependency(
+			VK_SUBPASS_EXTERNAL, 0,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_DEPENDENCY_BY_REGION_BIT
+		);
+		return Vulkan::Vk::RenderPass(device, Vulkan::Create::RenderPassCreateInfo(&colorAttachment, &subpass, &dependency));
+	}
 }

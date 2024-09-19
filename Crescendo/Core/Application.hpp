@@ -73,6 +73,12 @@ CS_NAMESPACE_BEGIN
 		// Each individual character
 		std::vector<Vulkan::BufferHandle> textCharacterDataHandle;
 
+		Vulkan::Vk::Pipeline bloomDownsamplePipeline, bloomUpsamplePipeline;
+		Vulkan::Vk::RenderPass bloomRenderPass;
+		// first framebuffer is the composite image, the rest are the downsampled images
+		std::vector<Vulkan::Vk::Framebuffer> bloomFramebuffers;
+		std::vector<Vulkan::TextureHandle> bloomImages;
+
 		uint32_t frameIdx = 0;
 	protected:
 		cs_std::task_queue taskQueue;

@@ -119,6 +119,7 @@ void main()
 {
 	vec4 texelColor = texture(uTextures2D[diffuseTexIdx], iTexCoord);
 	vec4 normalColor = texture(uTextures2D[normalTexIdx], iTexCoord);
+
 	/* ---------------- Lighting ---------------- */
 
 	vec3 normal_ts = normalize(iTBN * (normalColor.rgb * 2.0f - 1.0f));

@@ -37,12 +37,17 @@ CS_NAMESPACE_BEGIN::Vulkan
 		VkDescriptorSet set;
 	public:
 		enum class Colorspace : uint8_t { SRGB, Linear };
+		enum class Filter : uint8_t { Nearest = VK_FILTER_NEAREST, Linear = VK_FILTER_LINEAR};
+		enum class WrapMode : uint8_t { Repeat = VK_SAMPLER_ADDRESS_MODE_REPEAT, MirroredRepeat = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT, ClampToEdge = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE };
 		struct TextureSpecification
 		{
-			Colorspace colorspace;
 			float anisotropy;
+			Colorspace colorspace;
+			Filter minFilter, magFilter;
+			WrapMode wrapMode;
 			bool generateMipmaps;
-			TextureSpecification(Colorspace colorspace = Colorspace::SRGB, float anisotropy = 1.0f, bool generateMipmaps = false) : colorspace(colorspace), anisotropy(anisotropy), generateMipmaps(generateMipmaps) {}
+			TextureSpecification(Colorspace colorspace = Colorspace::SRGB, Filter minFilter = Filter::Linear, Filter magFilter = Filter::Linear, WrapMode wrapMode = WrapMode::Repeat, float anisotropy = 1.0f, bool generateMipmaps = true)
+				: colorspace(colorspace), minFilter(minFilter), magFilter(magFilter), wrapMode(wrapMode), anisotropy(anisotropy), generateMipmaps(generateMipmaps) {}
 		};
 	public:
 		ResourceManager();
@@ -56,7 +61,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		// These methods will block the thread until task is complete
 		// TODO add an async method
 		[[nodiscard]] BufferHandle CreateBuffer(VkDeviceSize size, VkShaderStageFlags shaderStage);
-		[[nodiscard]] TextureHandle CreateTexture(const VkImageCreateInfo& createInfo, const VmaAllocationCreateInfo& allocationCreateInfo);
+		[[nodiscard]] TextureHandle CreateTexture(const VkImageCreateInfo& createInfo, const VmaAllocationCreateInfo& allocationCreateInfo, const TextureSpecification& textureSpec = {});
 		[[nodiscard]] TextureHandle UploadTexture(const cs_std::image& image, const TextureSpecification& textureSpec = {}); 
 		template<cs_std::graphics::valid_index_type indice_type>
 		[[nodiscard]] MeshHandle UploadMesh(const cs_std::graphics::mesh<indice_type>& mesh);
@@ -80,5 +85,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 		size_t GetMeshCount() const;
 		VkDescriptorSetLayout GetDescriptorSetLayout() const;
 		VkDescriptorSet GetDescriptorSet() const;
+	private:
+		VkFormat GetFormatFromColorSpace(ResourceManager::Colorspace colorSpace, uint16_t channels);
+		VkSampler GetSamplerFromSpecification(const TextureSpecification& textureSpec);
 	};
 }

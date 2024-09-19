@@ -37,7 +37,6 @@ public:
 		Entity cameraEntity = currentScene.entityManager.CreateEntity();
 		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
 		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, 0.1f, 1000.0f);
-		cameraEntity.EmplaceComponent<SpotLight>(math::vec3(1.0f, 1.0f, 1.0f), 10.0f, math::radians(1.0f), math::radians(25.0f), false);
 		cameraEntity.AddBehaviour("CameraController");
 		cameraEntity.AddBehaviour("Flashlight");
 		currentScene.activeCamera = cameraEntity;
@@ -92,7 +91,7 @@ public:
 		);
 		particleEmitter.EmplaceComponent<ParticleRenderer>(fireParticleHandle);
 		// Create point light for fire
-		particleEmitter.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.55f, 0.0f), 10.0f, true);
+		particleEmitter.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.55f, 0.0f), 100.0f, true);
 		particleEmitter.AddBehaviour("Campfire");
 		currentScene.entities.insert(particleEmitter);
 
@@ -119,7 +118,7 @@ public:
 		{
 			Entity pointLight = currentScene.entityManager.CreateEntity();
 			pointLight.EmplaceComponent<Transform>(pointLights[i]);
-			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 1.0f, true);
+			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 10.0f, true);
 			currentScene.entities.insert(pointLight);
 		}
 

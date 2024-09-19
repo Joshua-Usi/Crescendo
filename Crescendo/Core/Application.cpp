@@ -92,31 +92,73 @@ CS_NAMESPACE_BEGIN
 				const VkSampleCountFlagBits multisamples = static_cast<VkSampleCountFlagBits>(CVar::Get<uint64_t>("rc_multisamples"));
 				const double renderScale = CVar::Get<double>("rc_renderscale");
 
+				// Depth prepass image
 				resourceManager.DestroyTexture(depthImageHandle);
 				depthImageHandle = resourceManager.CreateTexture(
 					Vulkan::Create::ImageCreateInfo(
 						VK_IMAGE_TYPE_2D, CS_FRAMEBUFFER_DEPTH_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), renderScale),
 						1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
 					),
-					Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
+					Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY),
+					Vulkan::ResourceManager::TextureSpecification(
+						Vulkan::ResourceManager::Colorspace::Linear, Vulkan::ResourceManager::Filter::Nearest, Vulkan::ResourceManager::Filter::Nearest,
+						Vulkan::ResourceManager::WrapMode::ClampToEdge, 1.0f, false
+					)
 				);
 				const VkImageView depthImageView = resourceManager.GetTexture(depthImageHandle).image.GetImageView();
 				depthFramebuffer = Vulkan::Vk::Framebuffer(surface.GetDevice(), Vulkan::Create::FramebufferCreateInfo(
 					depthRenderPass, &depthImageView, Vulkan::Create::Extent2D(swapchain.GetExtent(), renderScale), 1
 				));
 
+				// Main offscreen image to render to
 				resourceManager.DestroyTexture(mainImageHandle);
 				mainImageHandle = resourceManager.CreateTexture(
 					Vulkan::Create::ImageCreateInfo(
 						VK_IMAGE_TYPE_2D, CS_FRAMEBUFFER_COLOR_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), renderScale),
 						1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
 					),
-					Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY)
+					Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY),
+					Vulkan::ResourceManager::TextureSpecification(
+						Vulkan::ResourceManager::Colorspace::Linear, Vulkan::ResourceManager::Filter::Linear, Vulkan::ResourceManager::Filter::Linear,
+						Vulkan::ResourceManager::WrapMode::ClampToEdge, 1.0f, false
+					)
 				);
 				const std::array<VkImageView, 2> attachments2 = { resourceManager.GetTexture(mainImageHandle).image, depthImageView };
 				mainFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
 					mainRenderPass, attachments2, Vulkan::Create::Extent2D(swapchain.GetExtent(), renderScale), 1
 				));
+
+				// Destroy any old bloom buffers
+				for (uint32_t i = 0, size = bloomFramebuffers.size(); i < size; i++)
+					resourceManager.DestroyTexture(bloomImages[i]);
+				bloomFramebuffers.clear();
+				bloomImages.clear();
+
+				// Create new bloom buffers
+				// Bloom levels are calculated based on the width of the window. All the way down to 8x8
+				uint32_t bloomLevels = static_cast<uint32_t>(std::max(std::log2(static_cast<float>(width) / 8.0f), 0.0f));
+				float currentScale = 0.5f;
+				for (uint32_t i = 0; i < bloomLevels; i++, currentScale *= (i == 0) ? 1.0f : 0.5f)
+				{
+					float bloomImageScale = renderScale * currentScale;
+
+					Vulkan::TextureHandle bloomImageHandle = resourceManager.CreateTexture(
+						Vulkan::Create::ImageCreateInfo(
+							VK_IMAGE_TYPE_2D, CS_FRAMEBUFFER_COLOR_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), bloomImageScale),
+							1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+						),
+						Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY),
+						Vulkan::ResourceManager::TextureSpecification(
+							Vulkan::ResourceManager::Colorspace::Linear, Vulkan::ResourceManager::Filter::Linear, Vulkan::ResourceManager::Filter::Linear,
+							Vulkan::ResourceManager::WrapMode::ClampToEdge, 1.0f, false
+						)
+					);
+					const std::array<VkImageView, 1> attachments = { resourceManager.GetTexture(bloomImageHandle).image };
+					bloomFramebuffers.push_back(Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
+						bloomRenderPass, attachments, Vulkan::Create::Extent2D(swapchain.GetExtent(), bloomImageScale), 1
+					)));
+					bloomImages.push_back(bloomImageHandle);
+				}
 			},
 			.presentMode = (CVar::Get<int32_t>("ec_refreshrate") == 0) ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR
 		});
@@ -139,6 +181,7 @@ CS_NAMESPACE_BEGIN
 
 			depthRenderPass = Vulkan::Vk::RenderPass::CreateReversedZDepthRenderPass(device, CS_FRAMEBUFFER_DEPTH_FORMAT, multisamples);
 			mainRenderPass = Vulkan::Vk::RenderPass::CreateMainRenderPass(device, CS_FRAMEBUFFER_COLOR_FORMAT, CS_FRAMEBUFFER_DEPTH_FORMAT, multisamples);
+			bloomRenderPass = Vulkan::Vk::RenderPass::CreateBloomRenderPass(device, CS_FRAMEBUFFER_COLOR_FORMAT);
 
 			surface.CallRecreationCallback();
 
@@ -150,7 +193,7 @@ CS_NAMESPACE_BEGIN
 			const std::string textShader = CVar::Get<std::string>("ircs_text");
 
 			postProcessingPipeline = Vulkan::Vk::Pipeline(device, {
-				cs_std::binary_file(postProcessingShader + ".vert.spv").open().read_if_exists(),
+				cs_std::binary_file("./shaders/compiled/fullscreen_quad.vert.spv").open().read_if_exists(),
 				cs_std::binary_file(postProcessingShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetPostProcessingVariant(),
 				resourceManager.GetDescriptorSetLayout(),
@@ -184,6 +227,18 @@ CS_NAMESPACE_BEGIN
 				cs_std::binary_file(textShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetTextVariant(),
 				resourceManager.GetDescriptorSetLayout(), mainRenderPass
+			});
+			bloomDownsamplePipeline = Vulkan::Vk::Pipeline(device, {
+				cs_std::binary_file("./shaders/compiled/fullscreen_quad.vert.spv").open().read_if_exists(),
+				cs_std::binary_file("./shaders/compiled/bloom_downsample.frag.spv").open().read_if_exists(),
+				Vulkan::Vk::PipelineVariants::GetPostProcessingVariant(),
+				resourceManager.GetDescriptorSetLayout(), bloomRenderPass
+			});
+			bloomUpsamplePipeline = Vulkan::Vk::Pipeline(device, {
+				cs_std::binary_file("./shaders/compiled/fullscreen_quad.vert.spv").open().read_if_exists(),
+				cs_std::binary_file("./shaders/compiled/bloom_upsample.frag.spv").open().read_if_exists(),
+				Vulkan::Vk::PipelineVariants::GetPostProcessingVariant(),
+				resourceManager.GetDescriptorSetLayout(), bloomRenderPass
 			});
 
 			// Skybox mesh
@@ -352,7 +407,8 @@ CS_NAMESPACE_BEGIN
 
 		// Gather text to render
 		currentScene.entityManager.ForEach<Transform, Text, TextRenderer>([&](Transform& transform, Text& text, TextRenderer& renderer) {
-			if (text.text.size() == 0) return;
+			if (text.text.size() == 0)
+				return;
 
 			// I wish I could handle this edge case better but this works
 			bool isRenderable = false;
@@ -364,9 +420,11 @@ CS_NAMESPACE_BEGIN
 					break;
 				}
 			}
-			if (!isRenderable) return;
+			if (!isRenderable)
+				return;
 
-			if (fonts.find(text.font) == fonts.end()) return;
+			if (fonts.find(text.font) == fonts.end())
+				return;
 			const Font& font = fonts[text.font];
 
 			uint32_t cameraID = (renderer.renderMode == TextRenderer::RenderMode::ScreenSpace) ? 3 : 2;
@@ -388,8 +446,10 @@ CS_NAMESPACE_BEGIN
 			{
 				switch (text.alignment)
 				{
-					case Text::Alignment::Center: return -(cumulativeAdvance + font.characters[lastChar - 32].advance) / 2.0f;
-					case Text::Alignment::Right: return -cumulativeAdvance - font.characters[lastChar - 32].advance;
+					case Text::Alignment::Center:
+						return -(cumulativeAdvance + font.characters[lastChar - 32].advance) / 2.0f;
+					case Text::Alignment::Right:
+						return -cumulativeAdvance - font.characters[lastChar - 32].advance;
 					default: return 0.0f;
 				}
 			};
@@ -424,7 +484,8 @@ CS_NAMESPACE_BEGIN
 					successiveNewLines = 0;
 				}
 				// skip other non-printable characters
-				if (ch < 32 || ch > 126) continue;
+				if (ch < 32 || ch > 126)
+					continue;
 				cumulativeAdvance += font.characters[ch - 32].advance;
 				if (i < size - 1)
 					textAdvanceData.push_back(cumulativeAdvance);
@@ -607,6 +668,40 @@ CS_NAMESPACE_BEGIN
 
 		cmd.EndRenderPass();
 
+		// Bloom downsample
+		for (uint32_t i = 1; i < bloomFramebuffers.size(); i++)
+		{
+			cmd.DynamicStateSetViewport(bloomFramebuffers[i].GetViewport());
+			cmd.DynamicStateSetScissor(bloomFramebuffers[i].GetScissor());
+			cmd.BeginRenderPass(bloomRenderPass, bloomFramebuffers[i], bloomFramebuffers[i].GetScissor(), { Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 1.0f) });
+			cmd.BindPipeline(bloomDownsamplePipeline);
+			cmd.BindDescriptorSet(bloomDownsamplePipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+			// Sample the previous bloom buffer
+			const struct BloomParams {
+				uint32_t bloomTexIdx;
+				float threshold;
+			} bloomParams{ (i == 1) ? mainImageHandle.GetIndex() : bloomImages[i - 1].GetIndex(), 1.0f };
+			cmd.PushConstants(bloomDownsamplePipeline, bloomParams, VK_SHADER_STAGE_FRAGMENT_BIT);
+			cmd.Draw(6);
+			cmd.EndRenderPass();
+		}
+
+		// Bloom upsample
+		for (int32_t i = static_cast<int32_t>(bloomFramebuffers.size()) - 1; i > 0; i--)
+		{
+			cmd.DynamicStateSetViewport(bloomFramebuffers[i - 1].GetViewport());
+			cmd.DynamicStateSetScissor(bloomFramebuffers[i - 1].GetScissor());
+			cmd.BeginRenderPass(bloomRenderPass, bloomFramebuffers[i - 1], bloomFramebuffers[i - 1].GetScissor(), { Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 1.0f) });
+			cmd.BindPipeline(bloomUpsamplePipeline);
+			cmd.BindDescriptorSet(bloomUpsamplePipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+			const struct BloomParams {
+				uint32_t bloomTexIdx;
+			} bloomParams{ bloomImages[i].GetIndex() };
+			cmd.PushConstants(bloomUpsamplePipeline, bloomParams, VK_SHADER_STAGE_FRAGMENT_BIT);
+			cmd.Draw(6);
+			cmd.EndRenderPass();
+		}
+
 		// Final post processing pass
 		VkViewport viewport = swapchain.GetViewport(true);
 
@@ -619,8 +714,10 @@ CS_NAMESPACE_BEGIN
 		cmd.BindPipeline(postProcessingPipeline);
 		cmd.BindDescriptorSet(postProcessingPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
 
-		uint32_t offscreenTexIdx = mainImageHandle.GetIndex();
-		cmd.PushConstants(postProcessingPipeline, offscreenTexIdx, VK_SHADER_STAGE_FRAGMENT_BIT);
+		const struct PostProcessingParams {
+			uint32_t offscreenTexIdx, bloomTexIdx;
+		} postProcessingParams { mainImageHandle.GetIndex(), bloomImages[0].GetIndex() };
+		cmd.PushConstants(postProcessingPipeline, postProcessingParams, VK_SHADER_STAGE_FRAGMENT_BIT);
 		cmd.Draw(6);
 		cmd.EndRenderPass();
 

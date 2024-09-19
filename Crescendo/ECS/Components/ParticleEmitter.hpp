@@ -95,7 +95,8 @@ CS_NAMESPACE_BEGIN
 		{
 			accumulator += dt;
 			RemoveDeadParticles(currentTime);
-			if (isActive) AttemptParticleSpawn(currentTime);
+			if (isActive)
+				AttemptParticleSpawn(currentTime);
 			UpdateParticles(currentTime, dt);
 		}
 	};

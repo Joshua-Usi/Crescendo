@@ -1,5 +1,4 @@
 #include "Scene.hpp"
-
 #include "Core/Application.hpp"
 #include "Assets/ImageLoaders.hpp"
 
@@ -87,7 +86,14 @@ CS_NAMESPACE_BEGIN
 			for (uint32_t i = 0; i < images.size(); i++)
 			{
 				auto& image = images[i];
-				Vulkan::TextureHandle handle = resourceManager.UploadTexture(image, { textureMap[textureStrings[i]].colorspace, 1.0f, true });
+				Vulkan::TextureHandle handle = resourceManager.UploadTexture(image, {
+						textureMap[textureStrings[i]].colorspace,
+						Vulkan::ResourceManager::Filter::Linear,
+						Vulkan::ResourceManager::Filter::Linear,
+						Vulkan::ResourceManager::WrapMode::Repeat,
+						1.0f,
+						true
+					});
 				textures.push_back(handle);
 				Vulkan::Texture& texture = resourceManager.GetTexture(handle);
 			}

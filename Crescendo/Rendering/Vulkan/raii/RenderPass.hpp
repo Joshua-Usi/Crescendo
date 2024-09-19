@@ -25,5 +25,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 
 		static RenderPass CreateReversedZDepthRenderPass(VkDevice device, VkFormat depthFormat, VkSampleCountFlagBits samples);
 		static RenderPass CreateMainRenderPass(VkDevice device, VkFormat colorFormat, VkFormat depthFormat, VkSampleCountFlagBits samples);
+		static RenderPass CreateBloomRenderPass(VkDevice device, VkFormat colorFormat);
 	};
 }

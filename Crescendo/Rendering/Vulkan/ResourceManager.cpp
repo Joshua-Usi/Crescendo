@@ -1,6 +1,8 @@
 #include "ResourceManager.hpp"
 #include "Create.hpp"
 
+#include "Core/Application.hpp"
+
 CS_NAMESPACE_BEGIN::Vulkan
 {
 	constexpr uint32_t UNIFORM_BINDING = 0, BUFFER_BINDING = 1, IMAGE_BINDING = 2;
@@ -76,30 +78,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 		/* ---------------------------------------------------------------- 4. - Handle Creation ---------------------------------------------------------------- */
 		return MeshHandle(meshes.emplace(std::move(gpuMesh)));
 	}
-	VkFormat GetImageFormat(ResourceManager::Colorspace colorSpace, uint16_t channels)
-	{
-		switch (colorSpace)
-		{
-			case ResourceManager::Colorspace::SRGB:
-				switch (channels)
-				{
-					case 1: return VK_FORMAT_R8_SRGB;
-					case 2: return VK_FORMAT_R8G8_SRGB;
-					case 3: return VK_FORMAT_R8G8B8_SRGB;
-					case 4: return VK_FORMAT_R8G8B8A8_SRGB;
-				}
-				[[fallthrough]];
-			case ResourceManager::Colorspace::Linear:
-				switch (channels)
-				{
-					case 1: return VK_FORMAT_R8_UNORM;
-					case 2: return VK_FORMAT_R8G8_UNORM;
-					case 3: return VK_FORMAT_R8G8B8_UNORM;
-					case 4: return VK_FORMAT_R8G8B8A8_UNORM;
-				}
-		}
-		return VK_FORMAT_UNDEFINED;
-	}
 	ResourceManager::ResourceManager() : device(nullptr), transferQueue() {}
 	ResourceManager::ResourceManager(Vk::Device& device, const ResourceManagerSpecification& resourceManagerSpec)
 		: device(&device), transferQueue(device, device.GetTransferQueue().queue, device.GetTransferQueue().family, false)
@@ -125,6 +103,41 @@ CS_NAMESPACE_BEGIN::Vulkan
 		// Create the global set
 		const VkDescriptorSetAllocateInfo allocateInfo = Create::DescriptorSetAllocateInfo(pool, &layout);
 		vkAllocateDescriptorSets(device, &allocateInfo, &set);
+
+		VkSamplerCreateInfo samplerInfo = Create::SamplerCreateInfo(
+			VK_FILTER_MAX_ENUM, VK_FILTER_MAX_ENUM, VK_SAMPLER_MIPMAP_MODE_MAX_ENUM, VK_SAMPLER_ADDRESS_MODE_MAX_ENUM,
+			1.0f, VK_LOD_CLAMP_NONE
+		);
+
+		// Create the 120 unique samplers, I reckon it's alright to create all of these as they are not too expensive
+		constexpr std::array<VkFilter, 2> filters { VK_FILTER_NEAREST, VK_FILTER_LINEAR };
+		constexpr std::array<VkSamplerAddressMode, 3> addressModes { VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE };
+
+		samplers.reserve(2 * 2 * 3 * 5);
+		// Ugliest code I've ever written, but it'll do
+		for (const auto& magFilter : filters)
+		{
+			for (const auto& minFilter : filters)
+			{
+				for (const auto& addressMode : addressModes)
+				{
+					float anisotropy = 1.0f;
+					// I would just do 1 variable without the uint32_t but floating point precision is a thing
+					for (uint32_t i = 0; i < 5; i++, anisotropy *= 2.0f)
+					{
+						samplerInfo.magFilter = magFilter;
+						samplerInfo.minFilter = minFilter;
+						samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+						samplerInfo.addressModeU = addressMode;
+						samplerInfo.addressModeV = addressMode;
+						samplerInfo.addressModeW = addressMode;
+						samplerInfo.anisotropyEnable = i != 1;
+						samplerInfo.maxAnisotropy = anisotropy;
+						samplers.emplace_back(device, samplerInfo);
+					}
+				}
+			}
+		}
 	}
 	ResourceManager::~ResourceManager()
 	{
@@ -169,17 +182,9 @@ CS_NAMESPACE_BEGIN::Vulkan
 
 		return bufferHandle;
 	}
-	TextureHandle ResourceManager::CreateTexture(const VkImageCreateInfo& createInfo, const VmaAllocationCreateInfo& allocationCreateInfo)
+	TextureHandle ResourceManager::CreateTexture(const VkImageCreateInfo& createInfo, const VmaAllocationCreateInfo& allocationCreateInfo, const TextureSpecification& textureSpec)
 	{
-		if (samplers.size() == 0)
-		{
-			VkSamplerCreateInfo samplerInfo = Create::SamplerCreateInfo(
-				VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1.0f, 1.0f
-			);
-			samplers.emplace_back(*device, samplerInfo);
-		}
-
-		TextureHandle textureHandle(textures.emplace(Vk::Image(*device, device->GetAllocator(), createInfo, allocationCreateInfo), samplers[0]));
+		TextureHandle textureHandle(textures.emplace(Vk::Image(*device, device->GetAllocator(), createInfo, allocationCreateInfo), GetSamplerFromSpecification(textureSpec)));
 		Texture* texturePtr = textures.get(textureHandle);
 
 		CS_ASSERT(texturePtr != nullptr, "Failed to add texture to slotmap");
@@ -192,29 +197,15 @@ CS_NAMESPACE_BEGIN::Vulkan
 	}
 	TextureHandle ResourceManager::UploadTexture(const cs_std::image& image, const TextureSpecification& textureSpec)
 	{
-		VkFormat format = GetImageFormat(textureSpec.colorspace, image.channels);
+		VkFormat format = GetFormatFromColorSpace(textureSpec.colorspace, image.channels);
 
 		/* ---------------------------------------------------------------- 0. - Data validation ---------------------------------------------------------------- */
 
 		CS_ASSERT(format != VK_FORMAT_UNDEFINED, "Invalid image data. Image format is not supported");
 		CS_ASSERT(image.width > 0 && image.height > 0, "Invalid image data. Image width and height must be greater than 0");
 
-		/* ---------------------------------------------------------------- 1. - Sampler Creation ---------------------------------------------------------------- */
-		// Create samplers up to the mip level of the image, these are reused for all textures
 		const size_t imageSize = static_cast<size_t>(image.width) * static_cast<size_t>(image.height) * static_cast<size_t>(image.channels);
 		const uint8_t mipLevels = 1 + (textureSpec.generateMipmaps ? static_cast<uint8_t>(std::log2(std::max(image.width, image.height))) : 0);
-		VkSamplerCreateInfo samplerInfo = Create::SamplerCreateInfo(
-			VK_FILTER_LINEAR, VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
-			textureSpec.anisotropy, 1.0f
-		);
-
-		VkSampler sampler = nullptr;
-		for (uint8_t i = static_cast<uint8_t>(samplers.size()); i < mipLevels; i++)
-		{
-			samplerInfo.maxLod = static_cast<float>(i);
-			samplers.emplace_back(*device, samplerInfo);
-		}
-		sampler = samplers[mipLevels - 1];
 
 		/* ----------------------------------------------------------------  2. - Staging ---------------------------------------------------------------- */
 		Vk::Buffer staging(
@@ -274,9 +265,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 		});
 
 		/* ----------------------------------------------------------------  4. - Handle Creation ---------------------------------------------------------------- */
-		//return TextureHandle(textures.emplace(std::move(texture), sampler));
 
-		TextureHandle textureHandle(textures.emplace(std::move(texture), sampler));
+		TextureHandle textureHandle(textures.emplace(std::move(texture), GetSamplerFromSpecification(textureSpec)));
 		Texture* texturePtr = textures.get(textureHandle);
 
 		CS_ASSERT(texturePtr != nullptr, "Failed to add texture to slotmap");
@@ -321,4 +311,46 @@ CS_NAMESPACE_BEGIN::Vulkan
 	size_t ResourceManager::GetMeshCount() const { return meshes.size(); }
 	VkDescriptorSetLayout ResourceManager::GetDescriptorSetLayout() const { return layout; }
 	VkDescriptorSet ResourceManager::GetDescriptorSet() const { return set; }
+	VkFormat ResourceManager::GetFormatFromColorSpace(ResourceManager::Colorspace colorSpace, uint16_t channels)
+	{
+		switch (colorSpace)
+		{
+		case ResourceManager::Colorspace::SRGB:
+			switch (channels)
+			{
+			case 1: return VK_FORMAT_R8_SRGB;
+			case 2: return VK_FORMAT_R8G8_SRGB;
+			case 3: return VK_FORMAT_R8G8B8_SRGB;
+			case 4: return VK_FORMAT_R8G8B8A8_SRGB;
+			}
+		case ResourceManager::Colorspace::Linear:
+			switch (channels)
+			{
+			case 1: return VK_FORMAT_R8_UNORM;
+			case 2: return VK_FORMAT_R8G8_UNORM;
+			case 3: return VK_FORMAT_R8G8B8_UNORM;
+			case 4: return VK_FORMAT_R8G8B8A8_UNORM;
+			}
+		}
+		return VK_FORMAT_UNDEFINED;
+	}
+	VkSampler ResourceManager::GetSamplerFromSpecification(const TextureSpecification& textureSpec)
+	{
+		constexpr size_t numFilters = 2;
+		constexpr size_t numAddressModes = 3;
+		constexpr size_t numAnisotropyLevels = 5;
+
+		uint32_t magFilterIdx = static_cast<uint32_t>(textureSpec.magFilter);
+		uint32_t minFilterIdx = static_cast<uint32_t>(textureSpec.minFilter);
+		uint32_t wrapModeIdx = static_cast<uint32_t>(textureSpec.wrapMode);
+
+		uint32_t anisotropyIdx = static_cast<uint32_t>(log2(textureSpec.anisotropy));
+
+		uint32_t samplerIdx = anisotropyIdx
+			+ (wrapModeIdx * numAnisotropyLevels)
+			+ (minFilterIdx * numAddressModes * numAnisotropyLevels)
+			+ (magFilterIdx * numFilters * numAddressModes * numAnisotropyLevels);
+
+		return samplers[samplerIdx];
+	}
 }
