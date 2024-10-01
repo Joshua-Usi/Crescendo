@@ -26,40 +26,36 @@ public:
 		Vulkan::TextureHandle fireParticleHandle = renderer.resourceManager.UploadTexture(fireParticle);
 
 		cs_std::image skybox = LoadImage("./assets/skybox-night.png");
-		currentScene.skybox = renderer.resourceManager.UploadTexture(skybox);
+		currentScene.SetSkybox(renderer.resourceManager.UploadTexture(skybox));
 
-		Entity sun = currentScene.entityManager.CreateEntity();
+		Entity sun = currentScene.CreateEntity();
 		sun.EmplaceComponent<Transform>(math::vec3(2.0f, 10.0f, 0.0f));
 		sun.GetComponent<Transform>().LookAt(math::vec3(0.0f));
 		sun.EmplaceComponent<DirectionalLight>(math::vec3(1.0f, 1.0f, 1.0f), 0.1f, false);
-		currentScene.entities.insert(sun);
 
-		Entity cameraEntity = currentScene.entityManager.CreateEntity();
+		Entity cameraEntity = currentScene.CreateEntity();
 		cameraEntity.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0f));
 		cameraEntity.EmplaceComponent<PerspectiveCamera>(70.0f, 0.1f, 1000.0f);
 		cameraEntity.AddBehaviour("CameraController");
 		cameraEntity.AddBehaviour("Flashlight");
-		currentScene.activeCamera = cameraEntity;
-		currentScene.entities.insert(cameraEntity);
+		currentScene.SetActiveCamera(cameraEntity);
 
-		Entity updatingText = currentScene.entityManager.CreateEntity();
+		Entity updatingText = currentScene.CreateEntity();
 		updatingText.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0));
 		updatingText.EmplaceComponent<Text>(
 			"0fps",
 			"Inter", Color(255), 32.0f, 1.0f, Text::Alignment::Left);
 		updatingText.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::ScreenSpace);
 		updatingText.AddBehaviour("FPSCounter");
-		currentScene.entities.insert(updatingText);
 
-		Entity infoText = currentScene.entityManager.CreateEntity();
+		Entity infoText = currentScene.CreateEntity();
 		infoText.EmplaceComponent<Transform>(math::vec3(0.0f, -32.0f, 0.0));
 		infoText.EmplaceComponent<Text>(
 			"'W', 'A', 'S', 'D' to move\n'Space' to fly up\n'Shift' to fly down\n'R' to move faster\n'F11' to toggle fullscreen\n'Esc' to unlock cursor\n'Esc' again to exit\n'Ctrl' + 'F5' to restart\nClick on the window to lock cursor\n'F' to toggle flashlight",
 			"Inter", Color(255), 24.0f, 1.0f, Text::Alignment::Left);
 		infoText.EmplaceComponent<TextRenderer>(TextRenderer::RenderMode::ScreenSpace);
-		currentScene.entities.insert(infoText);
 
-		Entity particleEmitter = currentScene.entityManager.CreateEntity();
+		Entity particleEmitter = currentScene.CreateEntity();
 		particleEmitter.EmplaceComponent<Transform>(math::vec3(0.0f, 45.0f, 0.0f));
 		particleEmitter.EmplaceComponent<ParticleEmitter>(12000, 0.05f, 100,
 			[](float currentTime, float dt, ParticleEmitter::Particle& p) {
@@ -93,7 +89,6 @@ public:
 		// Create point light for fire
 		particleEmitter.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.55f, 0.0f), 100.0f, true);
 		particleEmitter.AddBehaviour("Campfire");
-		currentScene.entities.insert(particleEmitter);
 
 		// Each of the different lights in the default sponza scene
 		std::vector<math::vec3> pointLights =
@@ -116,10 +111,9 @@ public:
 		};
 		for (uint32_t i = 0; i < pointLights.size(); i++)
 		{
-			Entity pointLight = currentScene.entityManager.CreateEntity();
+			Entity pointLight = currentScene.CreateEntity();
 			pointLight.EmplaceComponent<Transform>(pointLights[i]);
 			pointLight.EmplaceComponent<PointLight>(glm::vec3(1.0f, 0.654f, 0.341f), 10.0f, true);
-			currentScene.entities.insert(pointLight);
 		}
 
 		std::string assetPath = CVar::Get<std::string>("pc_assetpath");
@@ -132,10 +126,6 @@ public:
 		}
 
 		currentScene.LoadModels(models);
-
-		currentScene.entityManager.ForEach<Name>([&](Name& n) {
-			cs_std::console::log(n.name);
-		});
 	}
 	void OnUpdate(double dt)
 	{

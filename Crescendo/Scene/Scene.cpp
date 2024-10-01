@@ -87,7 +87,7 @@ CS_NAMESPACE_BEGIN
 						textureIndex++;
 					}
 
-					Entity entity = entityManager.CreateEntity();
+					Entity entity = CreateEntity();
 					entity.EmplaceComponent<Transform>(attributes.transform);
 					entity.EmplaceComponent<MeshData>(cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data), meshHandle);
 					entity.EmplaceComponent<Material>(Vulkan::PipelineHandle(), Vulkan::TextureHandle(), Vulkan::TextureHandle(), attributes.isTransparent, attributes.isDoubleSided, !attributes.isTransparent);
@@ -141,5 +141,15 @@ CS_NAMESPACE_BEGIN
 
 			}
 		}
+	}
+	void Scene::SetActiveCamera(Entity& camera) { activeCamera = camera; }
+	Entity& Scene::GetActiveCamera() { return activeCamera; }
+	void Scene::SetSkybox(Vulkan::TextureHandle skyboxHandle) { skybox = skyboxHandle; }
+	Vulkan::TextureHandle Scene::GetSkybox() { return skybox; }
+	Entity Scene::CreateEntity()
+	{
+		Entity entity = entityManager.CreateEntity();
+		entities.emplace(entity);
+		return entity;
 	}
 }
