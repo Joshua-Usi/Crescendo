@@ -13,7 +13,7 @@ CS_NAMESPACE_BEGIN
 
 			uint32_t textureIndex = 0;
 
-			struct TextureInfo { uint32_t textureIdx; Vulkan::ResourceManager::Colorspace colorspace; };
+			struct TextureInfo { uint32_t textureIdx; RenderResourceManager::Colorspace colorspace; };
 
 			struct EntityTextureInfo
 			{
@@ -33,25 +33,64 @@ CS_NAMESPACE_BEGIN
 					auto& attributes = model.meshAttributes[i];
 
 					if (!mesh.has_attribute(cs_std::graphics::Attribute::TANGENT)) cs_std::graphics::generate_tangents(mesh);
-					Vulkan::MeshHandle meshHandle = resourceManager.UploadMesh(mesh);
+					Vulkan::Mesh meshHandle;
+					meshHandle.vertexAttributes.emplace_back(
+						resourceManager.CreateGPUBuffer(
+							mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data.data(),
+							mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data.size() * sizeof(float),
+							RenderResourceManager::GPUBufferUsage::VertexBuffer
+						),
+						cs_std::graphics::Attribute::POSITION
+					);
+					meshHandle.vertexAttributes.emplace_back(
+						resourceManager.CreateGPUBuffer(
+							mesh.get_attribute(cs_std::graphics::Attribute::NORMAL).data.data(),
+							mesh.get_attribute(cs_std::graphics::Attribute::NORMAL).data.size() * sizeof(float),
+							RenderResourceManager::GPUBufferUsage::VertexBuffer
+						),
+						cs_std::graphics::Attribute::NORMAL
+					);
+					meshHandle.vertexAttributes.emplace_back(
+						resourceManager.CreateGPUBuffer(
+							mesh.get_attribute(cs_std::graphics::Attribute::TANGENT).data.data(),
+							mesh.get_attribute(cs_std::graphics::Attribute::TANGENT).data.size() * sizeof(float),
+							RenderResourceManager::GPUBufferUsage::VertexBuffer
+						),
+						cs_std::graphics::Attribute::TANGENT
+					);
+					meshHandle.vertexAttributes.emplace_back(
+						resourceManager.CreateGPUBuffer(
+							mesh.get_attribute(cs_std::graphics::Attribute::TEXCOORD_0).data.data(),
+							mesh.get_attribute(cs_std::graphics::Attribute::TEXCOORD_0).data.size() * sizeof(float),
+							RenderResourceManager::GPUBufferUsage::VertexBuffer
+						),
+						cs_std::graphics::Attribute::TEXCOORD_0
+					);
+					meshHandle.indexBuffer = resourceManager.CreateGPUBuffer(
+						mesh.indices.data(),
+						mesh.indices.size() * sizeof(uint32_t),
+						RenderResourceManager::GPUBufferUsage::IndexBuffer
+					);
+					meshHandle.indexCount = mesh.indices.size();
+					meshHandle.indexType = VK_INDEX_TYPE_UINT32;
 
 					if (!attributes.diffuse.empty() && textureMap.find(attributes.diffuse) == textureMap.end())
 					{
 						textureMap[attributes.diffuse].textureIdx = textureIndex;
-						textureMap[attributes.diffuse].colorspace = Vulkan::ResourceManager::Colorspace::SRGB;
+						textureMap[attributes.diffuse].colorspace = RenderResourceManager::Colorspace::SRGB;
 						textureIndex++;
 					}
 					if (!attributes.normal.empty() && textureMap.find(attributes.normal) == textureMap.end())
 					{
 						textureMap[attributes.normal].textureIdx = textureIndex;
-						textureMap[attributes.normal].colorspace = Vulkan::ResourceManager::Colorspace::Linear;
+						textureMap[attributes.normal].colorspace = RenderResourceManager::Colorspace::Linear;
 						textureIndex++;
 					}
 
 					Entity entity = entityManager.CreateEntity();
 					entity.EmplaceComponent<Transform>(attributes.transform);
 					entity.EmplaceComponent<MeshData>(cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data), meshHandle);
-					entity.EmplaceComponent<Material>(0, Vulkan::TextureHandle(), Vulkan::TextureHandle(), attributes.isTransparent, attributes.isDoubleSided, !attributes.isTransparent);
+					entity.EmplaceComponent<Material>(Vulkan::PipelineHandle(), Vulkan::TextureHandle(), Vulkan::TextureHandle(), attributes.isTransparent, attributes.isDoubleSided, !attributes.isTransparent);
 
 					EntityTextureInfo info;
 					info.entity = entity;
@@ -65,7 +104,7 @@ CS_NAMESPACE_BEGIN
 			std::vector<std::string> textureStrings(textureMap.size());
 			for (const auto& [path, info] : textureMap) textureStrings[info.textureIdx] = path.string();
 
-			struct TaggedImage { cs_std::image image; Vulkan::ResourceManager::Colorspace colorspace; };
+			struct TaggedImage { cs_std::image image; RenderResourceManager::Colorspace colorspace; };
 
 			std::vector<cs_std::image> images(textureStrings.size());
 			for (uint32_t i = 0; i < textureStrings.size(); i++)
@@ -87,15 +126,11 @@ CS_NAMESPACE_BEGIN
 			{
 				auto& image = images[i];
 				Vulkan::TextureHandle handle = resourceManager.UploadTexture(image, {
-						textureMap[textureStrings[i]].colorspace,
-						Vulkan::ResourceManager::Filter::Linear,
-						Vulkan::ResourceManager::Filter::Linear,
-						Vulkan::ResourceManager::WrapMode::Repeat,
-						1.0f,
-						true
+						textureMap[textureStrings[i]].colorspace, RenderResourceManager::Filter::Linear,
+						RenderResourceManager::Filter::Linear, RenderResourceManager::WrapMode::Repeat,
+						1.0f, true
 					});
 				textures.push_back(handle);
-				Vulkan::Texture& texture = resourceManager.GetTexture(handle);
 			}
 
 			for (auto& info : entityTextureInfo)

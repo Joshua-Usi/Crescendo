@@ -1,7 +1,7 @@
 #pragma once
 #include "common.hpp"
 #include "Component.hpp"
-#include "Rendering/Vulkan/ResourceHandles.hpp"
+#include "Rendering/ResourceHandles.hpp"
 
 CS_NAMESPACE_BEGIN
 {

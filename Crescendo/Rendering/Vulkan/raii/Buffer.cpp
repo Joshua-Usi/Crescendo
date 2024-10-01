@@ -49,5 +49,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			cs_std::console::fatal("Cannot memcpy to unmapped memory! Memory lives on GPU!");
 	}
 	Buffer::operator VkBuffer() const { return buffer; }
+	VkBuffer Buffer::GetBuffer() const { return buffer; }
 	VkDeviceSize Buffer::GetSize() const { return size; }
 }

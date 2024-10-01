@@ -41,6 +41,7 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Vk::Swapchain::Image& GetImage(size_t index);
 	public:
 		void RecreateSwapchain(VkPresentModeKHR presentMode);
+		// Manually call the recreation callback
 		void CallRecreationCallback();
 		void AcquireNextImage(VkSemaphore imageAvailableSemaphore, uint64_t timeout = std::numeric_limits<uint64_t>::max());
 		void Present(VkQueue queue, VkSemaphore renderFinishSemaphore);

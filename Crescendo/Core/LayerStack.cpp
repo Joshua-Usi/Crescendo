@@ -52,6 +52,10 @@ CS_NAMESPACE_BEGIN
 	}
 	void LayerStack::Update(double time)
 	{
+		// Note to operating system that it can switch to another thread
+		if (this->layersToUpdate.empty())
+			std::this_thread::yield();
+
 		constexpr double DELTA_TIME_CAP_MULTIPLIER = 4.0;
 		for (auto& layer : this->layersToUpdate)
 		{

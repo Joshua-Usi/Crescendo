@@ -6,12 +6,12 @@
 #include "ECS/ECS.hpp"
 #include "Scene/Scene.hpp" 
 #include "Rendering/Vulkan/Instance.hpp"
-#include "Rendering/Vulkan/ResourceManager.hpp"
 #include "Rendering/Vulkan/FrameManager.hpp"
 #include "Rendering/Font.hpp"
 #include "cs_std/task_queue.hpp"
 #include "cs_std/timestamp.hpp"
 #include "ApplicationCommandLineArgs.hpp"
+#include "Rendering/RenderResourceManager.hpp"
 
 CS_NAMESPACE_BEGIN
 {
@@ -31,53 +31,47 @@ CS_NAMESPACE_BEGIN
 	private:
 		Vulkan::Instance instance;
 	public:
-		Vulkan::ResourceManager resourceManager;
+		RenderResourceManager resourceManager;
+
+		std::vector<Vulkan::Mesh> loadedMeshes;
 	private:
 		Vulkan::FrameManager frameManager;
 
-		Vulkan::Vk::Pipeline postProcessingPipeline;
-		Vulkan::Vk::Sampler postProcessingSampler;
+		Vulkan::PipelineHandle postProcessingPipelineHandle;
 
-		Vulkan::Vk::RenderPass depthRenderPass;
-		Vulkan::Vk::Framebuffer depthFramebuffer;
+		Vulkan::RenderPassHandle depthRenderPassHandle;
+		Vulkan::FramebufferHandle depthFramebufferHandle;
 		Vulkan::TextureHandle depthImageHandle;
-		Vulkan::Vk::Pipeline depthPipeline;
+		Vulkan::PipelineHandle depthPipelineHandle;
 
-		Vulkan::Vk::RenderPass mainRenderPass;
-		Vulkan::Vk::Pipeline mainPipeline;
+		Vulkan::RenderPassHandle mainRenderPassHandle;
+		Vulkan::PipelineHandle mainPipelineHandle;
 		Vulkan::TextureHandle mainImageHandle;
-		Vulkan::Vk::Framebuffer mainFramebuffer;
+		Vulkan::FramebufferHandle mainFramebufferHandle;
 
-		struct BufferHandles
-		{
-			Vulkan::BufferHandle transforms, particles, directionalLights, pointLights, spotLights, textAdvances, textCharacters;
-			uint32_t dummy;
-		};
+		std::vector<Vulkan::SSBOBufferHandle> transformsHandle;
 
-		std::vector<Vulkan::BufferHandle> transformsHandle;
-		Vulkan::TextureHandle bufferHandle;
+		Vulkan::PipelineHandle particlePipelineHandle;
+		std::vector<Vulkan::SSBOBufferHandle> particleBufferHandle;
 
-		Vulkan::Vk::Pipeline particlePipeline;
-		std::vector<Vulkan::BufferHandle> particleBufferHandle;
+		std::vector<Vulkan::SSBOBufferHandle> directionalLightsHandle;
+		std::vector<Vulkan::SSBOBufferHandle> pointLightsHandle;
+		std::vector<Vulkan::SSBOBufferHandle> spotLightsHandle;
 
-		std::vector<Vulkan::BufferHandle> directionalLightsHandle;
-		std::vector<Vulkan::BufferHandle> pointLightsHandle;
-		std::vector<Vulkan::BufferHandle> spotLightsHandle;
+		Vulkan::PipelineHandle skyboxPipelineHandle;
+		Vulkan::Mesh skyboxMesh;
 
-		Vulkan::Vk::Pipeline skyboxPipeline;
-		Vulkan::MeshHandle skyboxMeshHandle;
-
-		Vulkan::Vk::Pipeline textPipeline;
+		Vulkan::PipelineHandle textPipelineHandle;
 		std::unordered_map<std::string, Font> fonts;
-		std::vector<Vulkan::BufferHandle> textAdvanceDataHandle;
+		std::vector<Vulkan::SSBOBufferHandle> textAdvanceDataHandle;
 		// Each individual character
-		std::vector<Vulkan::BufferHandle> textCharacterDataHandle;
+		std::vector<Vulkan::SSBOBufferHandle> textCharacterDataHandle;
 
-		Vulkan::Vk::Pipeline bloomDownsamplePipeline, bloomUpsamplePipeline;
-		Vulkan::Vk::RenderPass bloomRenderPass;
+		Vulkan::PipelineHandle bloomDownsamplePipelineHandle, bloomUpsamplePipelineHandle;
+		Vulkan::RenderPassHandle bloomRenderPassHandle;
 		// first framebuffer is the composite image, the rest are the downsampled images
-		std::vector<Vulkan::Vk::Framebuffer> bloomFramebuffers;
-		std::vector<Vulkan::TextureHandle> bloomImages;
+		std::vector<Vulkan::FramebufferHandle> bloomFramebufferHandles;
+		std::vector<Vulkan::TextureHandle> bloomImageHandles;
 
 		uint32_t frameIdx = 0;
 	protected:

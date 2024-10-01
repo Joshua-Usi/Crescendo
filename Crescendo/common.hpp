@@ -26,7 +26,7 @@
 		// Only active in debug builds
 		#define CS_DEBUG_ASSERT(x, message) if (!(x)) { cs_std::console::fatal(__FILE__, ":", __LINE__, ' ', message); abort(); }
 	#else
-		#define CS_DEBUG(x, message) x
+		#define CS_DEBUG_ASSERT(x, message) x
 	#endif
 #endif
 

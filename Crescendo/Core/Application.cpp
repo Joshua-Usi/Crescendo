@@ -16,13 +16,12 @@
 // HDR	
 #define CS_FRAMEBUFFER_COLOR_FORMAT VK_FORMAT_B10G11R11_UFLOAT_PACK32
 #define CS_FRAMEBUFFER_DEPTH_FORMAT VK_FORMAT_D32_SFLOAT
-	
 
 CS_NAMESPACE_BEGIN
 {
 	struct MainPassRenderData
 	{
-		Vulkan::MeshHandle mesh;
+		Vulkan::Mesh mesh;
 		Vulkan::TextureHandle diffuse;
 		Vulkan::TextureHandle normal;
 		uint32_t modelID;
@@ -40,7 +39,7 @@ CS_NAMESPACE_BEGIN
 	struct TextRenderData
 	{
 		// reference to the handle that stores character data
-		Vulkan::BufferHandle fontCharacterData;
+		Vulkan::SSBOBufferHandle fontCharacterData;
 		// start index for the text data, in characters
 		uint32_t startIdx, count;
 		uint32_t modelID;
@@ -52,29 +51,31 @@ CS_NAMESPACE_BEGIN
 	};
 
 	template<typename T>
-	Vulkan::BufferHandle ResizeBufferIfNecessary(Vulkan::ResourceManager& resourceManager, Vulkan::BufferHandle bufferHandle, size_t requiredElementCount)
+	Vulkan::SSBOBufferHandle ResizeBufferIfNecessary(RenderResourceManager& resourceManager, Vulkan::SSBOBufferHandle bufferHandle, size_t requiredElementCount)
 	{
-		Vulkan::Buffer& buffer = resourceManager.GetBuffer(bufferHandle);
-		uint32_t bufferElementCount = buffer.buffer.GetElementCount<T>();
+		Vulkan::Vk::Buffer& buffer = resourceManager.GetSSBOBuffer(bufferHandle);
+		uint32_t bufferElementCount = buffer.GetElementCount<T>();
 		// 1.5x increase
 		while (bufferElementCount < requiredElementCount) bufferElementCount += bufferElementCount / 2;
-		if (bufferElementCount > buffer.buffer.GetElementCount<T>())
-		{
-			resourceManager.DestroyBuffer(bufferHandle);
-			return resourceManager.CreateBuffer(sizeof(T) * bufferElementCount, VK_SHADER_STAGE_ALL);
-		}
+
 		// If resize wasn't necessary, return the original buffer
-		return bufferHandle;
+		if (bufferElementCount <= buffer.GetElementCount<T>())
+			return bufferHandle;
+
+		resourceManager.DestroySSBOBuffer(bufferHandle);
+		return resourceManager.CreateSSBOBuffer(sizeof(T) * bufferElementCount);
+
 	}
 
 	static bool isFirstWindow = true;
 	Application* Application::self = nullptr;
-	Application::Application(const ApplicationCommandLineArgs& args) : isRunning(true), shouldRestart(false), taskQueue(cs_std::task_queue()), timestamp(), layerManager(LayerStack())
+	Application::Application(const ApplicationCommandLineArgs& args) : isRunning(true), shouldRestart(false)
 	{
 		self = this;
 		// Either use the default config, which should be in the same directory as the executable, named "config.xml" or can be specified in the command line
 		std::string config = args.HasArg("config") ? args.GetArg("config") : "config.xml";
-		if (cs_std::text_file(config).exists()) CVar::LoadConfigXML(config);
+		if (cs_std::text_file(config).exists())
+			CVar::LoadConfigXML(config);
 
 		this->CreateDefaultWindow();
 
@@ -94,45 +95,49 @@ CS_NAMESPACE_BEGIN
 
 				// Depth prepass image
 				resourceManager.DestroyTexture(depthImageHandle);
+				resourceManager.DestroyFramebuffer(depthFramebufferHandle);
 				depthImageHandle = resourceManager.CreateTexture(
 					Vulkan::Create::ImageCreateInfo(
 						VK_IMAGE_TYPE_2D, CS_FRAMEBUFFER_DEPTH_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), renderScale),
 						1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
 					),
 					Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY),
-					Vulkan::ResourceManager::TextureSpecification(
-						Vulkan::ResourceManager::Colorspace::Linear, Vulkan::ResourceManager::Filter::Nearest, Vulkan::ResourceManager::Filter::Nearest,
-						Vulkan::ResourceManager::WrapMode::ClampToEdge, 1.0f, false
+					RenderResourceManager::TextureSpecification(
+						RenderResourceManager::Colorspace::Linear, RenderResourceManager::Filter::Nearest, RenderResourceManager::Filter::Nearest,
+						RenderResourceManager::WrapMode::ClampToEdge, 1.0f, false
 					)
 				);
-				const VkImageView depthImageView = resourceManager.GetTexture(depthImageHandle).image.GetImageView();
-				depthFramebuffer = Vulkan::Vk::Framebuffer(surface.GetDevice(), Vulkan::Create::FramebufferCreateInfo(
-					depthRenderPass, &depthImageView, Vulkan::Create::Extent2D(swapchain.GetExtent(), renderScale), 1
-				));
+				const VkImageView depthImageView = resourceManager.GetTexture(depthImageHandle).GetImageView();
+				depthFramebufferHandle = resourceManager.CreateFramebuffer(
+					resourceManager.GetRenderPass(depthRenderPassHandle), { depthImageView },  Vulkan::Create::Extent2D(swapchain.GetExtent(), renderScale)
+				);
 
 				// Main offscreen image to render to
 				resourceManager.DestroyTexture(mainImageHandle);
+				resourceManager.DestroyFramebuffer(mainFramebufferHandle);
 				mainImageHandle = resourceManager.CreateTexture(
 					Vulkan::Create::ImageCreateInfo(
 						VK_IMAGE_TYPE_2D, CS_FRAMEBUFFER_COLOR_FORMAT, Vulkan::Create::Extent3D(swapchain.GetExtent3D(), renderScale),
 						1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
 					),
 					Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY),
-					Vulkan::ResourceManager::TextureSpecification(
-						Vulkan::ResourceManager::Colorspace::Linear, Vulkan::ResourceManager::Filter::Linear, Vulkan::ResourceManager::Filter::Linear,
-						Vulkan::ResourceManager::WrapMode::ClampToEdge, 1.0f, false
+					RenderResourceManager::TextureSpecification(
+						RenderResourceManager::Colorspace::Linear, RenderResourceManager::Filter::Linear, RenderResourceManager::Filter::Linear,
+						RenderResourceManager::WrapMode::ClampToEdge, 1.0f, false
 					)
 				);
-				const std::array<VkImageView, 2> attachments2 = { resourceManager.GetTexture(mainImageHandle).image, depthImageView };
-				mainFramebuffer = Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
-					mainRenderPass, attachments2, Vulkan::Create::Extent2D(swapchain.GetExtent(), renderScale), 1
-				));
+				mainFramebufferHandle = resourceManager.CreateFramebuffer(
+					resourceManager.GetRenderPass(mainRenderPassHandle), { resourceManager.GetTexture(mainImageHandle).GetImageView(), depthImageView }, Vulkan::Create::Extent2D(swapchain.GetExtent(), renderScale)
+				);
 
 				// Destroy any old bloom buffers
-				for (uint32_t i = 0, size = bloomFramebuffers.size(); i < size; i++)
-					resourceManager.DestroyTexture(bloomImages[i]);
-				bloomFramebuffers.clear();
-				bloomImages.clear();
+				for (uint32_t i = 0, size = bloomFramebufferHandles.size(); i < size; i++)
+				{
+					resourceManager.DestroyTexture(bloomImageHandles[i]);
+					resourceManager.DestroyFramebuffer(bloomFramebufferHandles[i]);
+				}
+				bloomFramebufferHandles.clear();
+				bloomImageHandles.clear();
 
 				// Create new bloom buffers
 				// Bloom levels are calculated based on the width of the window. All the way down to 8x8
@@ -148,25 +153,24 @@ CS_NAMESPACE_BEGIN
 							1, 1, multisamples, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
 						),
 						Vulkan::Create::AllocationCreateInfo(VMA_MEMORY_USAGE_GPU_ONLY),
-						Vulkan::ResourceManager::TextureSpecification(
-							Vulkan::ResourceManager::Colorspace::Linear, Vulkan::ResourceManager::Filter::Linear, Vulkan::ResourceManager::Filter::Linear,
-							Vulkan::ResourceManager::WrapMode::ClampToEdge, 1.0f, false
+						RenderResourceManager::TextureSpecification(
+							RenderResourceManager::Colorspace::Linear, RenderResourceManager::Filter::Linear, RenderResourceManager::Filter::Linear,
+							RenderResourceManager::WrapMode::ClampToEdge, 1.0f, false
 						)
 					);
-					const std::array<VkImageView, 1> attachments = { resourceManager.GetTexture(bloomImageHandle).image };
-					bloomFramebuffers.push_back(Vulkan::Vk::Framebuffer(device, Vulkan::Create::FramebufferCreateInfo(
-						bloomRenderPass, attachments, Vulkan::Create::Extent2D(swapchain.GetExtent(), bloomImageScale), 1
-					)));
-					bloomImages.push_back(bloomImageHandle);
+					bloomImageHandles.push_back(bloomImageHandle);
+					bloomFramebufferHandles.push_back(resourceManager.CreateFramebuffer(
+						resourceManager.GetRenderPass(bloomRenderPassHandle), { resourceManager.GetTexture(bloomImageHandle).GetImageView() }, Vulkan::Create::Extent2D(swapchain.GetExtent(), bloomImageScale)
+					));
 				}
 			},
 			.presentMode = (CVar::Get<int32_t>("ec_refreshrate") == 0) ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR
 		});
 		this->frameManager = Vulkan::FrameManager(this->instance.GetSurface(0).GetDevice(), CVar::Get<uint32_t>("rc_framesinflight"));
-		this->resourceManager = Vulkan::ResourceManager(this->instance.GetSurface(0).GetDevice(), {
-				CVar::Get<uint32_t>("irc_maxbufferdescriptors_bindless"),
-				CVar::Get<uint32_t>("irc_maxtexturedescriptors_bindless")
-		});
+		this->resourceManager = RenderResourceManager(
+			this->instance.GetSurface(0).GetDevice(),
+			CVar::Get<uint32_t>("irc_maxbufferdescriptors_bindless"),
+			CVar::Get<uint32_t>("irc_maxtexturedescriptors_bindless"));
 
 		// Create a default scene
 		loadedScenes.emplace_back();
@@ -179,98 +183,165 @@ CS_NAMESPACE_BEGIN
 
 			const VkSampleCountFlagBits multisamples = static_cast<VkSampleCountFlagBits>(CVar::Get<uint64_t>("rc_multisamples"));
 
-			depthRenderPass = Vulkan::Vk::RenderPass::CreateReversedZDepthRenderPass(device, CS_FRAMEBUFFER_DEPTH_FORMAT, multisamples);
-			mainRenderPass = Vulkan::Vk::RenderPass::CreateMainRenderPass(device, CS_FRAMEBUFFER_COLOR_FORMAT, CS_FRAMEBUFFER_DEPTH_FORMAT, multisamples);
-			bloomRenderPass = Vulkan::Vk::RenderPass::CreateBloomRenderPass(device, CS_FRAMEBUFFER_COLOR_FORMAT);
+			{
+				VkAttachmentDescription depthAttachment = Vulkan::Create::AttachmentDescription(
+					CS_FRAMEBUFFER_DEPTH_FORMAT, multisamples, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+					VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+				);
+				VkAttachmentReference depthAttachmentRef = Vulkan::Create::AttachmentReference(0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+				VkSubpassDescription depthSubpass = Vulkan::Create::SubpassDescription(VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, nullptr, nullptr, &depthAttachmentRef, nullptr);
+				const std::array<VkSubpassDependency, 2> depthDependencies = {
+					Vulkan::Create::SubpassDependency(
+						VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+						VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_DEPENDENCY_BY_REGION_BIT
+					),
+					Vulkan::Create::SubpassDependency(
+						0, VK_SUBPASS_EXTERNAL, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+						VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_DEPENDENCY_BY_REGION_BIT
+					)
+				};
+				depthRenderPassHandle = resourceManager.CreateRenderPass(Vulkan::Create::RenderPassCreateInfo(&depthAttachment, &depthSubpass, depthDependencies));
+			}
+			{
+				VkAttachmentDescription colorAttachment = Vulkan::Create::AttachmentDescription(
+					CS_FRAMEBUFFER_COLOR_FORMAT, multisamples, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+					VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+				);
+				VkAttachmentReference colorAttachmentRef = Vulkan::Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+				VkAttachmentDescription depthAttachment = Vulkan::Create::AttachmentDescription(
+					CS_FRAMEBUFFER_DEPTH_FORMAT, multisamples, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+					VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+				);
+				VkAttachmentReference depthAttachmentRef = Vulkan::Create::AttachmentReference(1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+				const VkSubpassDescription subpass = Vulkan::Create::SubpassDescription(
+					VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, &colorAttachmentRef, nullptr, &depthAttachmentRef, nullptr
+				);
+				VkSubpassDependency colorDependency = Vulkan::Create::SubpassDependency(
+					VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+					VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_DEPENDENCY_BY_REGION_BIT
+				);
+				VkSubpassDependency colorDependency2 = Vulkan::Create::SubpassDependency(
+					0, VK_SUBPASS_EXTERNAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_DEPENDENCY_BY_REGION_BIT
+				);
+				VkSubpassDependency depthDependency = Vulkan::Create::SubpassDependency(
+					VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+					VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_DEPENDENCY_BY_REGION_BIT
+				);
+				std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
+				std::array<VkSubpassDependency, 3> dependencies = { colorDependency, colorDependency2, depthDependency };
+
+				mainRenderPassHandle = resourceManager.CreateRenderPass(Vulkan::Create::RenderPassCreateInfo(attachments, &subpass, dependencies));
+			}
+			{
+				VkAttachmentDescription colorAttachment = Vulkan::Create::AttachmentDescription(
+					CS_FRAMEBUFFER_COLOR_FORMAT, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+					VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+				);
+				VkAttachmentReference colorAttachmentRef = Vulkan::Create::AttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+				const VkSubpassDescription subpass = Vulkan::Create::SubpassDescription(
+					VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, &colorAttachmentRef, nullptr, nullptr, nullptr
+				);
+				VkSubpassDependency dependency = Vulkan::Create::SubpassDependency(
+					VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_DEPENDENCY_BY_REGION_BIT
+				);
+				bloomRenderPassHandle = resourceManager.CreateRenderPass(Vulkan::Create::RenderPassCreateInfo(&colorAttachment, &subpass, &dependency));
+			}
 
 			surface.CallRecreationCallback();
 
-			const std::string postProcessingShader = CVar::Get<std::string>("ircs_postprocessing");
 			const std::string depthPrepassShader = CVar::Get<std::string>("ircs_depthprepass");
 			const std::string mainShader = CVar::Get<std::string>("ircs_main");
 			const std::string skyboxShader = CVar::Get<std::string>("ircs_skybox");
 			const std::string particleShader = CVar::Get<std::string>("ircs_particle");
 			const std::string textShader = CVar::Get<std::string>("ircs_text");
-
-			postProcessingPipeline = Vulkan::Vk::Pipeline(device, {
-				cs_std::binary_file("./shaders/compiled/fullscreen_quad.vert.spv").open().read_if_exists(),
-				cs_std::binary_file(postProcessingShader + ".frag.spv").open().read_if_exists(),
-				Vulkan::Vk::PipelineVariants::GetPostProcessingVariant(),
-				resourceManager.GetDescriptorSetLayout(),
-				swapchain.GetRenderPass()
-			});
-			depthPipeline = Vulkan::Vk::Pipeline(device, {
+			const std::string postProcessingShader = CVar::Get<std::string>("ircs_postprocessing");
+			
+			depthPipelineHandle = resourceManager.CreatePipeline({
 				cs_std::binary_file(depthPrepassShader + ".vert.spv").open().read_if_exists(), {},
 				Vulkan::Vk::PipelineVariants::GetDepthPrepassVariant(),
-				resourceManager.GetDescriptorSetLayout(), depthRenderPass
+				resourceManager.GetDescriptorSetLayout(),
+				resourceManager.GetRenderPass(depthRenderPassHandle)
 			});
-			mainPipeline = Vulkan::Vk::Pipeline(device, {
+			mainPipelineHandle = resourceManager.CreatePipeline({
 				cs_std::binary_file(mainShader + ".vert.spv").open().read_if_exists(),
 				cs_std::binary_file(mainShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetDefaultVariant(),
-				resourceManager.GetDescriptorSetLayout(), mainRenderPass
+				resourceManager.GetDescriptorSetLayout(),
+				resourceManager.GetRenderPass(mainRenderPassHandle)
 			});
-			skyboxPipeline = Vulkan::Vk::Pipeline(device, {
+			skyboxPipelineHandle = resourceManager.CreatePipeline({
 				cs_std::binary_file(skyboxShader + ".vert.spv").open().read_if_exists(),
 				cs_std::binary_file(skyboxShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetSkyboxVariant(),
-				resourceManager.GetDescriptorSetLayout(), mainRenderPass
+				resourceManager.GetDescriptorSetLayout(),
+				resourceManager.GetRenderPass(mainRenderPassHandle)
 			});
-			particlePipeline = Vulkan::Vk::Pipeline(device, {
+			particlePipelineHandle = resourceManager.CreatePipeline({
 				cs_std::binary_file(particleShader + ".vert.spv").open().read_if_exists(),
 				cs_std::binary_file(particleShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetParticleVariant(),
-				resourceManager.GetDescriptorSetLayout(), mainRenderPass
+				resourceManager.GetDescriptorSetLayout(),
+				resourceManager.GetRenderPass(mainRenderPassHandle)
 			});
-			textPipeline = Vulkan::Vk::Pipeline(device, {
+			textPipelineHandle = resourceManager.CreatePipeline({
 				cs_std::binary_file(textShader + ".vert.spv").open().read_if_exists(),
 				cs_std::binary_file(textShader + ".frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetTextVariant(),
-				resourceManager.GetDescriptorSetLayout(), mainRenderPass
+				resourceManager.GetDescriptorSetLayout(),
+				resourceManager.GetRenderPass(mainRenderPassHandle)
 			});
-			bloomDownsamplePipeline = Vulkan::Vk::Pipeline(device, {
+			bloomDownsamplePipelineHandle = resourceManager.CreatePipeline({
 				cs_std::binary_file("./shaders/compiled/fullscreen_quad.vert.spv").open().read_if_exists(),
 				cs_std::binary_file("./shaders/compiled/bloom_downsample.frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetPostProcessingVariant(),
-				resourceManager.GetDescriptorSetLayout(), bloomRenderPass
+				resourceManager.GetDescriptorSetLayout(),
+				resourceManager.GetRenderPass(bloomRenderPassHandle)
 			});
-			bloomUpsamplePipeline = Vulkan::Vk::Pipeline(device, {
+			bloomUpsamplePipelineHandle = resourceManager.CreatePipeline({
 				cs_std::binary_file("./shaders/compiled/fullscreen_quad.vert.spv").open().read_if_exists(),
 				cs_std::binary_file("./shaders/compiled/bloom_upsample.frag.spv").open().read_if_exists(),
 				Vulkan::Vk::PipelineVariants::GetPostProcessingVariant(),
-				resourceManager.GetDescriptorSetLayout(), bloomRenderPass
+				resourceManager.GetDescriptorSetLayout(),
+				resourceManager.GetRenderPass(bloomRenderPassHandle)
+			});
+			postProcessingPipelineHandle = resourceManager.CreatePipeline({
+				cs_std::binary_file("./shaders/compiled/fullscreen_quad.vert.spv").open().read_if_exists(),
+				cs_std::binary_file(postProcessingShader + ".frag.spv").open().read_if_exists(),
+				Vulkan::Vk::PipelineVariants::GetPostProcessingVariant(),
+				resourceManager.GetDescriptorSetLayout(), swapchain.GetRenderPass()
 			});
 
 			// Skybox mesh
 			Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
-			cs_std::graphics::mesh skyboxMesh;
-			skyboxMesh.add_attribute(cs_std::graphics::Attribute::POSITION, skybox.vertices);
-			skyboxMesh.add_attribute(cs_std::graphics::Attribute::NORMAL, skybox.normals);
-			skyboxMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, skybox.textureUVs);
-			skyboxMesh.indices = skybox.indices;
-
-			skyboxMeshHandle = resourceManager.UploadMesh(skyboxMesh);
+			skyboxMesh.vertexAttributes.emplace_back(resourceManager.CreateGPUBuffer(skybox.vertices.data(), sizeof(float) * skybox.vertices.size(), RenderResourceManager::GPUBufferUsage::VertexBuffer), cs_std::graphics::Attribute::POSITION);
+			skyboxMesh.vertexAttributes.emplace_back(resourceManager.CreateGPUBuffer(skybox.normals.data(), sizeof(float) * skybox.normals.size(), RenderResourceManager::GPUBufferUsage::VertexBuffer), cs_std::graphics::Attribute::NORMAL);
+			skyboxMesh.vertexAttributes.emplace_back(resourceManager.CreateGPUBuffer(skybox.textureUVs.data(), sizeof(float) * skybox.textureUVs.size(), RenderResourceManager::GPUBufferUsage::VertexBuffer), cs_std::graphics::Attribute::TEXCOORD_0);
+			skyboxMesh.indexBuffer = resourceManager.CreateGPUBuffer(skybox.indices.data(), sizeof(uint32_t) * skybox.indices.size(), RenderResourceManager::GPUBufferUsage::IndexBuffer);
+			skyboxMesh.indexCount = skybox.indices.size();
+			skyboxMesh.indexType = VK_INDEX_TYPE_UINT32;
 
 			for (uint32_t i = 0; i < frameManager.GetFrameCount(); i++)
 			{
 				// Create transforms buffer
-				transformsHandle.push_back(resourceManager.CreateBuffer(sizeof(cs_std::math::mat4) * CS_STARTING_OBJECT_COUNT, VK_SHADER_STAGE_ALL));
+				transformsHandle.push_back(resourceManager.CreateSSBOBuffer(sizeof(cs_std::math::mat4) * CS_STARTING_OBJECT_COUNT));
 
 				// Create lights buffer
-				directionalLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(DirectionalLight::ShaderRepresentation) * CS_STARTING_DIRECTIONAL_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
-				pointLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(PointLight::ShaderRepresentation) * CS_STARTING_POINT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
-				spotLightsHandle.push_back(resourceManager.CreateBuffer(sizeof(SpotLight::ShaderRepresentation) * CS_STARTING_SPOT_LIGHT_COUNT, VK_SHADER_STAGE_ALL));
+				directionalLightsHandle.push_back(resourceManager.CreateSSBOBuffer(sizeof(DirectionalLight::ShaderRepresentation) * CS_STARTING_DIRECTIONAL_LIGHT_COUNT));
+				pointLightsHandle.push_back(resourceManager.CreateSSBOBuffer(sizeof(PointLight::ShaderRepresentation) * CS_STARTING_POINT_LIGHT_COUNT));
+				spotLightsHandle.push_back(resourceManager.CreateSSBOBuffer(sizeof(SpotLight::ShaderRepresentation) * CS_STARTING_SPOT_LIGHT_COUNT));
 
 				// Create particle buffer
-				particleBufferHandle.push_back(resourceManager.CreateBuffer(sizeof(ParticleEmitter::ParticleShaderRepresentation) * CS_STARTING_PARTICLE_COUNT, VK_SHADER_STAGE_ALL));
+				particleBufferHandle.push_back(resourceManager.CreateSSBOBuffer(sizeof(ParticleEmitter::ParticleShaderRepresentation) * CS_STARTING_PARTICLE_COUNT));
 
 				// Create text advance data buffer
-				textAdvanceDataHandle.push_back(resourceManager.CreateBuffer(sizeof(float) * CS_STARTING_TEXT_CHARACTER_COUNT, VK_SHADER_STAGE_ALL));
+				textAdvanceDataHandle.push_back(resourceManager.CreateSSBOBuffer(sizeof(float) * CS_STARTING_TEXT_CHARACTER_COUNT));
 
 				// Create text character data buffer (stores the text we want to render)
 				// Note this is actually a uint32_t, because it's the smallest type we can use in glsl
 				// this means that there is 4 characters in one element
-				textCharacterDataHandle.push_back(resourceManager.CreateBuffer(sizeof(char) * CS_STARTING_TEXT_CHARACTER_COUNT, VK_SHADER_STAGE_ALL));
+				textCharacterDataHandle.push_back(resourceManager.CreateSSBOBuffer(sizeof(char) * CS_STARTING_TEXT_CHARACTER_COUNT));
 			}
 
 			// Load fonts
@@ -296,7 +367,6 @@ CS_NAMESPACE_BEGIN
 	}
 	void Application::InternalUpdate(double dt)
 	{
-
 		// Commonly used resources
 		Vulkan::Surface& surface = this->instance.GetSurface(0);
 		Vulkan::Vk::Swapchain& swapchain = surface.GetSwapchain();
@@ -389,8 +459,8 @@ CS_NAMESPACE_BEGIN
 		// Only sort the transparent meshes
 		std::sort(meshes.begin() + depthPrepassMeshCount, meshes.end(), [&](const MainPassRenderData& a, const MainPassRenderData& b) {
 			// use the meshTransforms to get it's position in the scene
-			float depthA = cs_std::math::distance(cameraPosition, cs_std::math::vec3(meshTransforms[a.modelID][3]));
-			float depthB = cs_std::math::distance(cameraPosition, cs_std::math::vec3(meshTransforms[b.modelID][3]));
+			float depthA = cs_std::math::distance2(cameraPosition, cs_std::math::vec3(meshTransforms[a.modelID][3]));
+			float depthB = cs_std::math::distance2(cameraPosition, cs_std::math::vec3(meshTransforms[b.modelID][3]));
 			return depthA > depthB;
 		});
 
@@ -502,22 +572,22 @@ CS_NAMESPACE_BEGIN
 		cmd.WaitCompletion();
 
 		// Resize buffers if required
-		transformsHandle[currentFrameIndex] = ResizeBufferIfNecessary<cs_std::math::mat4>(resourceManager, transformsHandle[currentFrameIndex], meshTransforms.size());
-		directionalLightsHandle[currentFrameIndex] = ResizeBufferIfNecessary<DirectionalLight::ShaderRepresentation>(resourceManager, directionalLightsHandle[currentFrameIndex], directionalLights.size());
-		pointLightsHandle[currentFrameIndex] = ResizeBufferIfNecessary<PointLight::ShaderRepresentation>(resourceManager, pointLightsHandle[currentFrameIndex], pointLights.size());
-		spotLightsHandle[currentFrameIndex] = ResizeBufferIfNecessary<SpotLight::ShaderRepresentation>(resourceManager, spotLightsHandle[currentFrameIndex], spotLights.size());
-		particleBufferHandle[currentFrameIndex] = ResizeBufferIfNecessary<ParticleEmitter::ParticleShaderRepresentation>(resourceManager, particleBufferHandle[currentFrameIndex], particles.size());
-		textAdvanceDataHandle[currentFrameIndex] = ResizeBufferIfNecessary<float>(resourceManager, textAdvanceDataHandle[currentFrameIndex], textAdvanceData.size());
-		textCharacterDataHandle[currentFrameIndex] = ResizeBufferIfNecessary<char>(resourceManager, textCharacterDataHandle[currentFrameIndex], textCharacterData.size());
+		transformsHandle[currentFrameIndex]			= ResizeBufferIfNecessary<cs_std::math::mat4>(resourceManager, transformsHandle[currentFrameIndex], meshTransforms.size());
+		directionalLightsHandle[currentFrameIndex]	= ResizeBufferIfNecessary<DirectionalLight::ShaderRepresentation>(resourceManager, directionalLightsHandle[currentFrameIndex], directionalLights.size());
+		pointLightsHandle[currentFrameIndex]		= ResizeBufferIfNecessary<PointLight::ShaderRepresentation>(resourceManager, pointLightsHandle[currentFrameIndex], pointLights.size());
+		spotLightsHandle[currentFrameIndex]			= ResizeBufferIfNecessary<SpotLight::ShaderRepresentation>(resourceManager, spotLightsHandle[currentFrameIndex], spotLights.size());
+		particleBufferHandle[currentFrameIndex]		= ResizeBufferIfNecessary<ParticleEmitter::ParticleShaderRepresentation>(resourceManager, particleBufferHandle[currentFrameIndex], particles.size());
+		textAdvanceDataHandle[currentFrameIndex]	= ResizeBufferIfNecessary<float>(resourceManager, textAdvanceDataHandle[currentFrameIndex], textAdvanceData.size());
+		textCharacterDataHandle[currentFrameIndex]	= ResizeBufferIfNecessary<char>(resourceManager, textCharacterDataHandle[currentFrameIndex], textCharacterData.size());
 
 		// Write data to buffers
-		resourceManager.GetBuffer(transformsHandle[currentFrameIndex]).buffer.memcpy(meshTransforms.data(), sizeof(cs_std::math::mat4) * meshTransforms.size());
-		resourceManager.GetBuffer(directionalLightsHandle[currentFrameIndex]).buffer.memcpy(directionalLights.data(), sizeof(DirectionalLight::ShaderRepresentation) * directionalLights.size());
-		resourceManager.GetBuffer(pointLightsHandle[currentFrameIndex]).buffer.memcpy(pointLights.data(), sizeof(PointLight::ShaderRepresentation) * pointLights.size());
-		resourceManager.GetBuffer(spotLightsHandle[currentFrameIndex]).buffer.memcpy(spotLights.data(), sizeof(SpotLight::ShaderRepresentation) * spotLights.size());
-		resourceManager.GetBuffer(particleBufferHandle[currentFrameIndex]).buffer.memcpy(particles.data(), sizeof(ParticleEmitter::ParticleShaderRepresentation) * particles.size());
-		resourceManager.GetBuffer(textAdvanceDataHandle[currentFrameIndex]).buffer.memcpy(textAdvanceData.data(), sizeof(float) * textAdvanceData.size());
-		resourceManager.GetBuffer(textCharacterDataHandle[currentFrameIndex]).buffer.memcpy(textCharacterData.data(), sizeof(char) * textCharacterData.size());
+		resourceManager.GetSSBOBuffer(transformsHandle[currentFrameIndex])			.memcpy(meshTransforms.data(),		sizeof(cs_std::math::mat4) * meshTransforms.size());
+		resourceManager.GetSSBOBuffer(directionalLightsHandle[currentFrameIndex])	.memcpy(directionalLights.data(),	sizeof(DirectionalLight::ShaderRepresentation) * directionalLights.size());
+		resourceManager.GetSSBOBuffer(pointLightsHandle[currentFrameIndex])			.memcpy(pointLights.data(),			sizeof(PointLight::ShaderRepresentation) * pointLights.size());
+		resourceManager.GetSSBOBuffer(spotLightsHandle[currentFrameIndex])			.memcpy(spotLights.data(),			sizeof(SpotLight::ShaderRepresentation) * spotLights.size());
+		resourceManager.GetSSBOBuffer(particleBufferHandle[currentFrameIndex])		.memcpy(particles.data(),			sizeof(ParticleEmitter::ParticleShaderRepresentation) * particles.size());
+		resourceManager.GetSSBOBuffer(textAdvanceDataHandle[currentFrameIndex])		.memcpy(textAdvanceData.data(),		sizeof(float) * textAdvanceData.size());
+		resourceManager.GetSSBOBuffer(textCharacterDataHandle[currentFrameIndex])	.memcpy(textCharacterData.data(),	sizeof(char) * textCharacterData.size());
 
 		cmd.Reset();
 
@@ -526,6 +596,11 @@ CS_NAMESPACE_BEGIN
 		cmd.Begin();
 
 		// Depth prepass
+
+		Vulkan::Vk::Framebuffer& depthFramebuffer = resourceManager.GetFramebuffer(depthFramebufferHandle);
+		Vulkan::Vk::RenderPass& depthRenderPass = resourceManager.GetRenderPass(depthRenderPassHandle);
+		Vulkan::Vk::Pipeline& depthPipeline = resourceManager.GetPipeline(depthPipelineHandle);
+
 		cmd.DynamicStateSetViewport(depthFramebuffer.GetViewport());
 		cmd.DynamicStateSetScissor(depthFramebuffer.GetScissor());
 
@@ -542,14 +617,23 @@ CS_NAMESPACE_BEGIN
 		{
 			MainPassRenderData& data = meshes[i];
 			cmd.BindPipeline(depthPipeline[data.doubleSided]);
-			Vulkan::Mesh& mesh = resourceManager.GetMesh(data.mesh);
-			cmd.BindIndexBuffer(mesh.indexBuffer);
-			cmd.BindVertexBuffers({ *mesh.GetAttributeBuffer(cs_std::graphics::Attribute::POSITION) }, { 0 });
-			cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, data.modelID);
+			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(data.mesh.indexBuffer));
+			cmd.BindVertexBuffers({
+				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::POSITION))
+			}, { 0 });
+			cmd.DrawIndexed(data.mesh.indexCount, 1, 0, 0, data.modelID);
 		}
 		cmd.EndRenderPass();
 
 		// Main pass
+
+		Vulkan::Vk::Framebuffer& mainFramebuffer = resourceManager.GetFramebuffer(mainFramebufferHandle);
+		Vulkan::Vk::RenderPass& mainRenderPass = resourceManager.GetRenderPass(mainRenderPassHandle);
+		Vulkan::Vk::Pipeline& mainPipeline = resourceManager.GetPipeline(mainPipelineHandle);
+		Vulkan::Vk::Pipeline& skyboxPipeline = resourceManager.GetPipeline(skyboxPipelineHandle);
+		Vulkan::Vk::Pipeline& particlePipeline = resourceManager.GetPipeline(particlePipelineHandle);
+		Vulkan::Vk::Pipeline& textPipeline = resourceManager.GetPipeline(textPipelineHandle);
+
 		cmd.DynamicStateSetViewport(mainFramebuffer.GetViewport());
 		cmd.DynamicStateSetScissor(mainFramebuffer.GetScissor());
 
@@ -567,12 +651,12 @@ CS_NAMESPACE_BEGIN
 			const uint32_t skyboxTexture = activeScene->skybox.GetIndex();
 			cmd.PushConstants(skyboxPipeline, skyboxParams, VK_SHADER_STAGE_VERTEX_BIT);
 			cmd.PushConstants(skyboxPipeline, skyboxTexture, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(SkyboxParams));
-			cmd.BindIndexBuffer(resourceManager.GetMesh(skyboxMeshHandle).indexBuffer);
+			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(skyboxMesh.indexBuffer));
 			cmd.BindVertexBuffers({
-				*resourceManager.GetMesh(skyboxMeshHandle).GetAttributeBuffer(cs_std::graphics::Attribute::POSITION),
-				*resourceManager.GetMesh(skyboxMeshHandle).GetAttributeBuffer(cs_std::graphics::Attribute::TEXCOORD_0),
-				}, { 0, 0 });
-			cmd.DrawIndexed(resourceManager.GetMesh(skyboxMeshHandle).indexCount, 1, 0, 0, 0);
+				resourceManager.GetGPUBuffer(skyboxMesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::POSITION)),
+				resourceManager.GetGPUBuffer(skyboxMesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::TEXCOORD_0))
+			}, { 0, 0 });
+			cmd.DrawIndexed(skyboxMesh.indexCount, 1, 0, 0, 0);
 			cmd.BindDescriptorSet(mainPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
 		}
 
@@ -585,14 +669,13 @@ CS_NAMESPACE_BEGIN
 		for (size_t i = 0; i < meshes.size(); i++)
 		{
 			MainPassRenderData& data = meshes[i];
-			Vulkan::Mesh& mesh = resourceManager.GetMesh(data.mesh);
 			cmd.BindPipeline(mainPipeline[data.doubleSided]);
-			cmd.BindIndexBuffer(mesh.indexBuffer);
+			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(data.mesh.indexBuffer));
 			cmd.BindVertexBuffers({
-				*mesh.GetAttributeBuffer(cs_std::graphics::Attribute::POSITION),
-				*mesh.GetAttributeBuffer(cs_std::graphics::Attribute::NORMAL),
-				*mesh.GetAttributeBuffer(cs_std::graphics::Attribute::TANGENT),
-				*mesh.GetAttributeBuffer(cs_std::graphics::Attribute::TEXCOORD_0)
+				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::POSITION)),
+				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::NORMAL)),
+				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::TANGENT)),
+				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::TEXCOORD_0))
 			}, { 0, 0, 0, 0 });
 			const struct MainPassFragmentParams {
 				uint32_t diffuseTexIdx, normalTexIdx;
@@ -608,13 +691,13 @@ CS_NAMESPACE_BEGIN
 				cs_std::math::vec4(cameraPosition, 1.0f)
 			};
 			cmd.PushConstants(mainPipeline, texturesParams, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(MainPassVertexParams));
-			cmd.DrawIndexed(mesh.indexCount, 1, 0, 0, data.modelID);
+			cmd.DrawIndexed(data.mesh.indexCount, 1, 0, 0, data.modelID);
 		}
 
 		// Particle pass
 		cmd.BindPipeline(particlePipeline);
 		cmd.BindDescriptorSet(particlePipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
-		for (uint32_t i = 0; i < particleEmitters.size(); i++ )
+		for (uint32_t i = 0; i < particleEmitters.size(); i++)
 		{
 			ParticleEmitterRenderData& data = particleEmitters[i];
 			const struct ParticleVertexParams {
@@ -641,9 +724,6 @@ CS_NAMESPACE_BEGIN
 		{
 			TextRenderData& data = textRenderData[i];
 
-			Vulkan::Vk::PipelineVariants variant1 = textPipeline.GetVariants().GetVariant(0);
-			Vulkan::Vk::PipelineVariants variant2 = textPipeline.GetVariants().GetVariant(1);
-
 			cmd.BindPipeline(textPipeline[(data.cameraID == 2) ? 0 : 1]);
 
 			const struct TextVertexParams {
@@ -663,49 +743,57 @@ CS_NAMESPACE_BEGIN
 			cmd.PushConstants(textPipeline, textParamsVertex, VK_SHADER_STAGE_VERTEX_BIT);
 			cmd.PushConstants(textPipeline, textParamsFrag, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(TextVertexParams));
 			// One quad for each character, hence 6 vertices
-			cmd.Draw(data.count * 6, 1, 0, data.modelID);
+			cmd.Draw(data.count * 6, 1, 0, data.modelID);	
 		}
 
 		cmd.EndRenderPass();
 
 		// Bloom downsample
-		for (uint32_t i = 1; i < bloomFramebuffers.size(); i++)
+
+		Vulkan::Vk::Pipeline& bloomDownsamplePipeline = resourceManager.GetPipeline(bloomDownsamplePipelineHandle);
+		Vulkan::Vk::RenderPass& bloomRenderPass = resourceManager.GetRenderPass(bloomRenderPassHandle);
+		for (uint32_t i = 1; i < bloomFramebufferHandles.size(); i++)
 		{
-			cmd.DynamicStateSetViewport(bloomFramebuffers[i].GetViewport());
-			cmd.DynamicStateSetScissor(bloomFramebuffers[i].GetScissor());
-			cmd.BeginRenderPass(bloomRenderPass, bloomFramebuffers[i], bloomFramebuffers[i].GetScissor(), { Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 1.0f) });
+			Vulkan::Vk::Framebuffer& bloomFramebuffer = resourceManager.GetFramebuffer(bloomFramebufferHandles[i]);
+
+			cmd.DynamicStateSetViewport(bloomFramebuffer.GetViewport());
+			cmd.DynamicStateSetScissor(bloomFramebuffer.GetScissor());
+			cmd.BeginRenderPass(bloomRenderPass, bloomFramebuffer, bloomFramebuffer.GetScissor(), { Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 1.0f) });
 			cmd.BindPipeline(bloomDownsamplePipeline);
 			cmd.BindDescriptorSet(bloomDownsamplePipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
 			// Sample the previous bloom buffer
 			const struct BloomParams {
 				uint32_t bloomTexIdx;
 				float threshold;
-			} bloomParams{ (i == 1) ? mainImageHandle.GetIndex() : bloomImages[i - 1].GetIndex(), 1.0f };
+			} bloomParams{ (i == 1) ? mainImageHandle.GetIndex() : bloomImageHandles[i - 1].GetIndex(), 1.0f };
 			cmd.PushConstants(bloomDownsamplePipeline, bloomParams, VK_SHADER_STAGE_FRAGMENT_BIT);
 			cmd.Draw(6);
 			cmd.EndRenderPass();
 		}
 
 		// Bloom upsample
-		for (int32_t i = static_cast<int32_t>(bloomFramebuffers.size()) - 1; i > 0; i--)
+		Vulkan::Vk::Pipeline& bloomUpsamplePipeline = resourceManager.GetPipeline(bloomUpsamplePipelineHandle);
+		for (int32_t i = static_cast<int32_t>(bloomFramebufferHandles.size()) - 1; i > 0; i--)
 		{
-			cmd.DynamicStateSetViewport(bloomFramebuffers[i - 1].GetViewport());
-			cmd.DynamicStateSetScissor(bloomFramebuffers[i - 1].GetScissor());
-			cmd.BeginRenderPass(bloomRenderPass, bloomFramebuffers[i - 1], bloomFramebuffers[i - 1].GetScissor(), { Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 1.0f) });
+			Vulkan::Vk::Framebuffer& bloomFramebuffer = resourceManager.GetFramebuffer(bloomFramebufferHandles[i - 1]);
+
+			cmd.DynamicStateSetViewport(bloomFramebuffer.GetViewport());
+			cmd.DynamicStateSetScissor(bloomFramebuffer.GetScissor());
+			cmd.BeginRenderPass(bloomRenderPass, bloomFramebuffer, bloomFramebuffer.GetScissor(), { Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 1.0f) });
 			cmd.BindPipeline(bloomUpsamplePipeline);
 			cmd.BindDescriptorSet(bloomUpsamplePipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
 			const struct BloomParams {
 				uint32_t bloomTexIdx;
-			} bloomParams{ bloomImages[i].GetIndex() };
+			} bloomParams{ bloomImageHandles[i].GetIndex() };
 			cmd.PushConstants(bloomUpsamplePipeline, bloomParams, VK_SHADER_STAGE_FRAGMENT_BIT);
 			cmd.Draw(6);
 			cmd.EndRenderPass();
 		}
 
 		// Final post processing pass
-		VkViewport viewport = swapchain.GetViewport(true);
+		Vulkan::Vk::Pipeline& postProcessingPipeline = resourceManager.GetPipeline(postProcessingPipelineHandle);
 
-		cmd.DynamicStateSetViewport(viewport);
+		cmd.DynamicStateSetViewport(swapchain.GetViewport(true));
 		cmd.DynamicStateSetScissor(swapchain.GetScissor());
 		cmd.BeginRenderPass(
 			swapchain.GetRenderPass(), swapchain.GetFramebuffer(swapchain.GetAcquiredImageIndex()).framebuffer, swapchain.GetScissor(),
@@ -716,7 +804,7 @@ CS_NAMESPACE_BEGIN
 
 		const struct PostProcessingParams {
 			uint32_t offscreenTexIdx, bloomTexIdx;
-		} postProcessingParams { mainImageHandle.GetIndex(), bloomImages[0].GetIndex() };
+		} postProcessingParams { mainImageHandle.GetIndex(), bloomImageHandles[0].GetIndex() };
 		cmd.PushConstants(postProcessingPipeline, postProcessingParams, VK_SHADER_STAGE_FRAGMENT_BIT);
 		cmd.Draw(6);
 		cmd.EndRenderPass();

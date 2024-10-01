@@ -1,6 +1,6 @@
 #pragma once
 #include "common.hpp"
-#include "Rendering/Vulkan/ResourceManager.hpp"
+#include "Rendering/RenderResourceManager.hpp"
 
 struct stbtt_fontinfo;
 
@@ -28,15 +28,22 @@ CS_NAMESPACE_BEGIN
 			ShaderRepresentation GetShaderRepresentation() const { return { texture.GetIndex(), width, height, bearingX, bearingY, advance, 0, 0 }; }
 		};
 	private:
-		std::vector<Character::ShaderRepresentation> GetShaderRepresentation() const;
-		cs_std::image GenerateMSDF(stbtt_fontinfo& fontInfo, int32_t glyphIndex, uint32_t borderWidth, float scale);
+		RenderResourceManager* resourceManager;
 	public:
 		float ascent, descent, lineGap, lineHeight;
 		std::vector<Character> characters;
-		Vulkan::BufferHandle characterDataBufferHandle;
+		Vulkan::SSBOBufferHandle characterDataBufferHandle;
+	private:
+		std::vector<Character::ShaderRepresentation> GetShaderRepresentation() const;
+		cs_std::image GenerateMSDF(stbtt_fontinfo& fontInfo, int32_t glyphIndex, uint32_t borderWidth, float scale);
 	public:
 		Font() = default;
-		Font(const std::vector<uint8_t>& ttfData, Vulkan::ResourceManager& resourceManager);
+		Font(const std::vector<uint8_t>& ttfData, RenderResourceManager& resourceManager);
+		~Font();
+		Font(const Font&) = delete;
+		Font& operator=(const Font&) = delete;
+		Font(Font&& other) noexcept;
+		Font& operator=(Font&& other) noexcept;
 		std::vector<float> GenerateCumulativeAdvance(const std::string& text, uint32_t start = 0, uint32_t count = UINT32_MAX) const;
 	};
 }

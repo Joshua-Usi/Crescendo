@@ -4,12 +4,13 @@
 
 CS_NAMESPACE_BEGIN
 {
-	Font::Font(const std::vector<uint8_t>& ttfData, Vulkan::ResourceManager& resourceManager)
+	Font::Font(const std::vector<uint8_t>& ttfData, RenderResourceManager& resourceManager)
 		// 95 printable ASCII characters
-		: characters(95)
+		: resourceManager(&resourceManager), characters(95)
 	{
 		stbtt_fontinfo fontInfo;
-		if (!stbtt_InitFont(&fontInfo, ttfData.data(), 0)) cs_std::console::error("Failed to initialise font");
+		if (!stbtt_InitFont(&fontInfo, ttfData.data(), 0))
+			cs_std::console::error("Failed to initialise font");
 
 		uint32_t borderWidth = 4;
 
@@ -28,7 +29,8 @@ CS_NAMESPACE_BEGIN
 		for (int32_t codepoint = 32; codepoint < 126; codepoint++)
 		{
 			int32_t glyphIndex = stbtt_FindGlyphIndex(&fontInfo, codepoint);
-			if (glyphIndex == 0) continue;
+			if (glyphIndex == 0)
+				continue;
 
 			Font::Character character;
 
@@ -51,20 +53,43 @@ CS_NAMESPACE_BEGIN
 			{
 				cs_std::image glyph = GenerateMSDF(fontInfo, glyphIndex, borderWidth, scale);
 				character.texture = resourceManager.UploadTexture(glyph, {
-						Vulkan::ResourceManager::Colorspace::Linear,
-						Vulkan::ResourceManager::Filter::Linear,
-						Vulkan::ResourceManager::Filter::Linear,
-						Vulkan::ResourceManager::WrapMode::ClampToEdge,
-						1.0f,
-						false
+					RenderResourceManager::Colorspace::Linear, RenderResourceManager::Filter::Linear,
+					RenderResourceManager::Filter::Linear, RenderResourceManager::WrapMode::ClampToEdge,
+					1.0f, false
 				});
 			}
 			characters[codepoint - 32] = character;
 		}
 
 		std::vector<Font::Character::ShaderRepresentation> characterData = GetShaderRepresentation();
-		characterDataBufferHandle = resourceManager.CreateBuffer(sizeof(Font::Character::ShaderRepresentation) * characterData.size(), VK_SHADER_STAGE_ALL);
-		resourceManager.GetBuffer(characterDataBufferHandle).buffer.memcpy(characterData.data(), sizeof(Font::Character::ShaderRepresentation) * characterData.size());
+		characterDataBufferHandle = resourceManager.CreateSSBOBuffer(sizeof(Font::Character::ShaderRepresentation) * characterData.size(), characterData.data());
+	}
+	Font::~Font()
+	{
+		if (resourceManager == nullptr)
+			return;
+
+		resourceManager->DestroySSBOBuffer(characterDataBufferHandle);
+	}
+	Font::Font(Font&& other) noexcept
+		: resourceManager(other.resourceManager), characters(std::move(other.characters)), characterDataBufferHandle(other.characterDataBufferHandle),
+		ascent(other.ascent), descent(other.descent), lineHeight(other.lineHeight), lineGap(other.lineGap)
+	{
+		other.resourceManager = nullptr;
+	}
+	Font& Font::operator=(Font&& other) noexcept
+	{
+		if (this != &other)
+		{
+			resourceManager = other.resourceManager; other.resourceManager = nullptr;
+			characters = std::move(other.characters);
+			characterDataBufferHandle = other.characterDataBufferHandle;
+			ascent = other.ascent;
+			descent = other.descent;
+			lineHeight = other.lineHeight;
+			lineGap = other.lineGap;
+		}
+		return *this;
 	}
 	cs_std::image Font::GenerateMSDF(stbtt_fontinfo& fontInfo, int32_t glyphIndex, uint32_t borderWidth, float scale)
 	{
@@ -100,12 +125,12 @@ CS_NAMESPACE_BEGIN
 		std::vector<float> data;
 		data.reserve(count);
 		data.push_back(0.0f);
-		// Reserve early, if there are spaces, it's likely we won't use all of the space
 		float cumulativeAdvance = 0.0f;
 		for (size_t i = start; i < count - 1; i++)
 		{
 			const char c = text[i];
-			if (c < 32 || c > 126) continue;
+			if (c < 32 || c > 126)
+				continue;
 			if (c == 32)
 			{
 				cumulativeAdvance += characters[0].advance;

@@ -28,7 +28,4 @@ void main()
 
 	// Bloom
 	oColor.rgb = oColor.rgb + bloomColor;
-
-	// Gamma correction
-	// oColor.rgb = pow(oColor.rgb, vec3(2.2));
 }
