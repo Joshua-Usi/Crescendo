@@ -37,4 +37,8 @@ CS_NAMESPACE_BEGIN::Vulkan
 	{
 		this->surfaces.erase(this->surfaces.begin() + index);
 	}
+	size_t Instance::GetSurfaceCount() const
+	{
+		return this->surfaces.size();
+	}
 }

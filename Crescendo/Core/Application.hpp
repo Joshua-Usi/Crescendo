@@ -13,6 +13,8 @@
 #include "ApplicationCommandLineArgs.hpp"
 #include "Rendering/RenderResourceManager.hpp"
 
+#include "Rendering/Renderer.hpp"
+
 CS_NAMESPACE_BEGIN
 {
 	class Application
@@ -28,53 +30,8 @@ CS_NAMESPACE_BEGIN
 
 		std::vector<Scene> loadedScenes;
 		Scene* activeScene;
-	private:
-		Vulkan::Instance instance;
-	public:
-		RenderResourceManager resourceManager;
-
-		std::vector<Vulkan::Mesh> loadedMeshes;
-	private:
-		Vulkan::FrameManager frameManager;
-
-		Vulkan::PipelineHandle postProcessingPipelineHandle;
-
-		Vulkan::RenderPassHandle depthRenderPassHandle;
-		Vulkan::FramebufferHandle depthFramebufferHandle;
-		Vulkan::TextureHandle depthImageHandle;
-		Vulkan::PipelineHandle depthPipelineHandle;
-
-		Vulkan::RenderPassHandle mainRenderPassHandle;
-		Vulkan::PipelineHandle mainPipelineHandle;
-		Vulkan::TextureHandle mainImageHandle;
-		Vulkan::FramebufferHandle mainFramebufferHandle;
-
-		std::vector<Vulkan::SSBOBufferHandle> transformsHandle;
-
-		Vulkan::PipelineHandle particlePipelineHandle;
-		std::vector<Vulkan::SSBOBufferHandle> particleBufferHandle;
-
-		std::vector<Vulkan::SSBOBufferHandle> directionalLightsHandle;
-		std::vector<Vulkan::SSBOBufferHandle> pointLightsHandle;
-		std::vector<Vulkan::SSBOBufferHandle> spotLightsHandle;
-
-		Vulkan::PipelineHandle skyboxPipelineHandle;
-		Vulkan::Mesh skyboxMesh;
-
-		Vulkan::PipelineHandle textPipelineHandle;
-		std::unordered_map<std::string, Font> fonts;
-		std::vector<Vulkan::SSBOBufferHandle> textAdvanceDataHandle;
-		// Each individual character
-		std::vector<Vulkan::SSBOBufferHandle> textCharacterDataHandle;
-
-		Vulkan::PipelineHandle bloomDownsamplePipelineHandle, bloomUpsamplePipelineHandle;
-		Vulkan::RenderPassHandle bloomRenderPassHandle;
-		// first framebuffer is the composite image, the rest are the downsampled images
-		std::vector<Vulkan::FramebufferHandle> bloomFramebufferHandles;
-		std::vector<Vulkan::TextureHandle> bloomImageHandles;
-
-		uint32_t frameIdx = 0;
 	protected:
+		Renderer renderer;
 		cs_std::task_queue taskQueue;
 	private:
 		void InternalUpdate(double dt);

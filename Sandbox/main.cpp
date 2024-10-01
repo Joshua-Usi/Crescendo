@@ -23,10 +23,10 @@ public:
 		Scene& currentScene = GetActiveScene();
 
 		cs_std::image fireParticle = LoadImage("./assets/fire-particle.png");
-		Vulkan::TextureHandle fireParticleHandle = resourceManager.UploadTexture(fireParticle);
+		Vulkan::TextureHandle fireParticleHandle = renderer.resourceManager.UploadTexture(fireParticle);
 
 		cs_std::image skybox = LoadImage("./assets/skybox-night.png");
-		currentScene.skybox = resourceManager.UploadTexture(skybox);
+		currentScene.skybox = renderer.resourceManager.UploadTexture(skybox);
 
 		Entity sun = currentScene.entityManager.CreateEntity();
 		sun.EmplaceComponent<Transform>(math::vec3(2.0f, 10.0f, 0.0f));

@@ -8,7 +8,7 @@ CS_NAMESPACE_BEGIN
 	{
 		{
 			auto* app = Application::Get();
-			auto& resourceManager = app->resourceManager;
+			auto& resourceManager = app->renderer.resourceManager;
 			auto& taskQueue = app->taskQueue;
 
 			uint32_t textureIndex = 0;

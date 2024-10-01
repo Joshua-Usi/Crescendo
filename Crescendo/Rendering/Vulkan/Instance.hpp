@@ -28,5 +28,6 @@ CS_NAMESPACE_BEGIN::Vulkan
 		Surface& GetSurface(size_t index);
 		void CreateSurface(void* window, const Surface::SurfaceSpecification& spec);
 		void RemoveSurface(size_t index);
+		size_t GetSurfaceCount() const;
 	};
 }
