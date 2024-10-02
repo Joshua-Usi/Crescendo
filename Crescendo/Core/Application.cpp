@@ -58,21 +58,24 @@ CS_NAMESPACE_BEGIN
 
 			// Check if all windows are closed, then terminate app
 			bool allWindowsClosed = true;
-			for (auto& window : this->windows) allWindowsClosed &= !window->IsOpen();
-			if (allWindowsClosed && !ShouldRestart()) this->Exit();
-
+			for (auto& window : this->windows)
+				allWindowsClosed &= !window->IsOpen();
+			if (allWindowsClosed && !ShouldRestart())
+				this->Exit();
 		}
 		this->OnExit();
 	}
 	void Application::Exit()
 	{
-		for (auto& window : this->windows) window->Close();
+		for (auto& window : this->windows)
+			window->Close();
 		this->isRunning = false;
 		this->shouldRestart = false;
 	}
 	void Application::Restart()
 	{
-		for (auto& window : this->windows) window->Close();
+		for (auto& window : this->windows)
+			window->Close();
 		this->isRunning = false;
 		this->shouldRestart = true;
 		isFirstWindow = true;

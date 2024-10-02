@@ -16,13 +16,13 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 
 		cs_std::console::info("Using bindless codepath");
 
-		const vkb::Device& device = deviceResult.value();
+		vkb::Device& device = deviceResult.value();
 		this->device = device;
 
 		// Get queues
-		auto universal = device.get_queue(vkb::QueueType::graphics);
-		auto transfer = device.get_queue(vkb::QueueType::transfer);
-		auto compute = device.get_queue(vkb::QueueType::compute);
+		vkb::Result<VkQueue> universal = device.get_queue(vkb::QueueType::graphics);
+		vkb::Result<VkQueue> transfer = device.get_dedicated_queue(vkb::QueueType::transfer);
+		vkb::Result<VkQueue> compute = device.get_dedicated_queue(vkb::QueueType::compute);
 
 		const bool hasDedicatedTransfer = transfer.has_value() && universal.value() == transfer.value();
 		const bool hasDedicatedCompute = compute.has_value() && universal.value() == compute.value();
@@ -39,8 +39,8 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		this->compute.queue = (hasDedicatedCompute) ? compute.value() : this->universal.queue; // Fallback to universal
 
 		this->universal.family = device.get_queue_index(vkb::QueueType::graphics).value();
-		this->transfer.family = (hasDedicatedTransfer) ? device.get_queue_index(vkb::QueueType::transfer).value() : this->universal.family; // Fallback to universal
-		this->compute.family = (hasDedicatedCompute) ? device.get_queue_index(vkb::QueueType::compute).value() : this->universal.family; // Fallback to universal
+		this->transfer.family = (hasDedicatedTransfer) ? device.get_dedicated_queue_index(vkb::QueueType::transfer).value() : this->universal.family; // Fallback to universal
+		this->compute.family = (hasDedicatedCompute) ? device.get_dedicated_queue_index(vkb::QueueType::compute).value() : this->universal.family; // Fallback to universal
 
 		// Create allocator
 		VmaVulkanFunctions vma_vulkan_func{};

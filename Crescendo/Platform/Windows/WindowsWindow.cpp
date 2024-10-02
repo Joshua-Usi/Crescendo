@@ -55,7 +55,6 @@ CS_NAMESPACE_BEGIN
 			{
 				IsGLFWInitialised = false;
 				glfwTerminate();
-				cs_std::console::verbose("GLFW terminated");
 			}
 		}
 	}
