@@ -41,12 +41,12 @@ CS_NAMESPACE_BEGIN
 		cs_std::math::vec3 position;
 		cs_std::math::vec3 scale;
 
-		Transform() : rotation(0.0f, 0.0f, 0.0f, 1.0f), position(0.0f, 0.0f, 0.0f), scale(1.0f, 1.0f, 1.0f) {}
+		Transform() : rotation(1.0f, 0.0f, 0.0f, 0.0f), position(0.0f, 0.0f, 0.0f), scale(1.0f, 1.0f, 1.0f) {}
 		Transform(const cs_std::math::vec3& position, const cs_std::math::quat& rotation, const cs_std::math::vec3& scale) : rotation(rotation), position(position), scale(scale) {}
 		// No scale
 		Transform(const cs_std::math::vec3& position, const cs_std::math::quat& rotation) : rotation(rotation), position(position), scale(1.0f, 1.0f, 1.0f) {}
 		// No rotation, no scale
-		Transform(const cs_std::math::vec3& position) : rotation(0.0f, 0.0f, 0.0f, 1.0f), position(position), scale(1.0f, 1.0f, 1.0f) {}
+		Transform(const cs_std::math::vec3& position) : rotation(1.0f, 0.0f, 0.0f, 0.0f), position(position), scale(1.0f, 1.0f, 1.0f) {}
 		// If given a matrix, extract the position, rotation, and scale from it
 		Transform(const cs_std::math::mat4& matrix) : position(cs_std::math::vec3(matrix[3])), scale(cs_std::math::vec3(cs_std::math::length(cs_std::math::vec3(matrix[0])), cs_std::math::length(cs_std::math::vec3(matrix[1])), cs_std::math::length(cs_std::math::vec3(matrix[2]))))
 		{
