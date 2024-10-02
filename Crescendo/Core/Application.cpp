@@ -55,13 +55,6 @@ CS_NAMESPACE_BEGIN
 			const double time = this->timestamp.elapsed<double>();
 			this->layerManager.QueryForUpdate(time);
 			this->layerManager.Update(time);
-
-			// Check if all windows are closed, then terminate app
-			bool allWindowsClosed = true;
-			for (auto& window : this->windows)
-				allWindowsClosed &= !window->IsOpen();
-			if (allWindowsClosed && !ShouldRestart())
-				this->Exit();
 		}
 		this->OnExit();
 	}

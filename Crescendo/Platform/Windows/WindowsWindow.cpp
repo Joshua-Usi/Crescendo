@@ -1,5 +1,6 @@
 #include "WindowsWindow.hpp"
 #include "Interfaces/Input.hpp"
+#include "Core/Application.hpp"
 
 CS_NAMESPACE_BEGIN
 {
@@ -55,6 +56,7 @@ CS_NAMESPACE_BEGIN
 			{
 				IsGLFWInitialised = false;
 				glfwTerminate();
+				Application::Get()->Exit();
 			}
 		}
 	}
