@@ -11,14 +11,10 @@
 #define GetLayoutVariableName(Name) u##Name##Register
 
 #define RegisterUniform(Name, Struct) \
-  layout(set = BINDLESS_DESCRIPTOR_SET, binding = BINDLESS_UNIFORM_BINDING) \
-      uniform Name Struct \
-      GetLayoutVariableName(Name)[]
+	layout(set = BINDLESS_DESCRIPTOR_SET, binding = BINDLESS_UNIFORM_BINDING) uniform Name Struct GetLayoutVariableName(Name)[]
 
 #define RegisterBuffer(Layout, BufferAccess, Name, Struct) \
-  layout(Layout, set = BINDLESS_DESCRIPTOR_SET, \
-         binding = BINDLESS_STORAGE_BINDING) \
-  BufferAccess buffer Name Struct GetLayoutVariableName(Name)[]
+	layout(Layout, set = BINDLESS_DESCRIPTOR_SET, binding = BINDLESS_STORAGE_BINDING) BufferAccess buffer Name Struct GetLayoutVariableName(Name)[]
 
 #define GetResource(Name, Index) GetLayoutVariableName(Name)[Index]
 

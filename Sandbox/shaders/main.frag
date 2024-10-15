@@ -1,6 +1,13 @@
 #version 460
 #include "bindless.glsl"
 
+// Feature flags
+// #define USE_DIFFUSE_MAP defines if we use the diffuse texture map, if not defined, it uses the texture index as a 8-bit packed color
+// #define USE_NORMAL_MAP defines if we use the normal map, if not defined, uses a default normal
+
+#define USE_DIFFUSE_MAP
+#define USE_NORMAL_MAP
+
 struct DirectionalLight {
 	vec4 direction; // x, y, z, intensity
 	vec4 color; // a unused
@@ -24,7 +31,7 @@ layout (location = 2) in mat3 iTBN;
 layout (location = 0) out vec4 oColor;
 
 layout(push_constant) uniform PushConstants {
-	layout(offset = 8) uint diffuseTexIdx;
+	layout(offset = 8) uint albedoTexIdx;
 	uint normalTexIdx;
 
 	uint directionalLightBufferIdx;
@@ -117,8 +124,20 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal_ws, vec3 viewDir_ws, vec3 fragme
 
 void main()	
 {
-	vec4 texelColor = texture(uTextures2D[diffuseTexIdx], iTexCoord);
-	vec4 normalColor = texture(uTextures2D[normalTexIdx], iTexCoord);
+	
+	#ifdef USE_DIFFUSE_MAP
+		vec4 texelColor = texture(uTextures2D[albedoTexIdx], iTexCoord);
+	#endif
+
+	#ifdef USE_SOLID_COLOR
+		vec4 texelColor = uSolidColor;
+	#endif
+
+	#ifdef USE_NORMAL_MAP
+		vec4 normalColor = texture(uTextures2D[normalTexIdx], iTexCoord);
+	#else
+		vec4 normalColor = vec4(0.0f, 0.0f, 1.0f, 1.0f);
+	#endif
 
 	/* ---------------- Lighting ---------------- */
 

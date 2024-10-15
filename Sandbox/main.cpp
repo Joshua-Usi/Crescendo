@@ -15,10 +15,10 @@ public:
 	using Application::Application;
 	void OnStartup()
 	{
-		ScriptStorage::RegisterScript("CameraController", []() { return new CameraController(); });
-		ScriptStorage::RegisterScript("Campfire", []() { return new Campfire(); });
-		ScriptStorage::RegisterScript("FPSCounter", []() { return new FPSCounter(); });
-		ScriptStorage::RegisterScript("Flashlight", []() { return new Flashlight(); });
+		ScriptStorage::RegisterScript("CameraController", [](Entity e) { return new CameraController(e); });
+		ScriptStorage::RegisterScript("Campfire", [](Entity e) { return new Campfire(e); });
+		ScriptStorage::RegisterScript("FPSCounter", [](Entity e) { return new FPSCounter(e); });
+		ScriptStorage::RegisterScript("Flashlight", [](Entity e) { return new Flashlight(e); });
 
 		Scene& currentScene = GetActiveScene();
 
@@ -41,7 +41,7 @@ public:
 		currentScene.SetActiveCamera(cameraEntity);
 
 		Entity updatingText = currentScene.CreateEntity();
-		updatingText.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0));
+		updatingText.EmplaceComponent<Transform>(math::vec3(1200.0f, 0.0f, 0.0));
 		updatingText.EmplaceComponent<Text>(
 			"0fps",
 			"Inter", Color(255), 32.0f, 1.0f, Text::Alignment::Left);
@@ -49,7 +49,7 @@ public:
 		updatingText.AddBehaviour("FPSCounter");
 
 		Entity infoText = currentScene.CreateEntity();
-		infoText.EmplaceComponent<Transform>(math::vec3(0.0f, -32.0f, 0.0));
+		infoText.EmplaceComponent<Transform>(math::vec3(0.0f, 0.0f, 0.0));
 		infoText.EmplaceComponent<Text>(
 			"'W', 'A', 'S', 'D' to move\n'Space' to fly up\n'Shift' to fly down\n'R' to move faster\n'F11' to toggle fullscreen\n'Esc' to unlock cursor\n'Esc' again to exit\n'Ctrl' + 'F5' to restart\nClick on the window to lock cursor\n'F' to toggle flashlight",
 			"Inter", Color(255), 24.0f, 1.0f, Text::Alignment::Left);
@@ -61,7 +61,7 @@ public:
 			[](float currentTime, float dt, ParticleEmitter::Particle& p) {
 				// air friction
 				p.velocity *= math::pow(0.1f, dt);
-				p.velocity.y += 5.0f * dt;
+				p.velocity.y -= 5.0f * dt;
 				p.position += p.velocity * dt;
 			},
 			[](float currentTime) {

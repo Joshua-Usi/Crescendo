@@ -12,7 +12,7 @@ CS_NAMESPACE_BEGIN
 	struct Behaviours;
 	struct Behaviour;
 
-	struct Entity
+	class Entity
 	{
 	private:
 		friend class EntityManager;
@@ -51,7 +51,7 @@ CS_NAMESPACE_BEGIN
 	class EntityManager
 	{
 	private:
-		friend struct Entity;
+		friend class Entity;
 		entt::registry registry;
 	public:
 		EntityManager() : registry({}) {};

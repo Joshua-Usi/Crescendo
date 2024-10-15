@@ -25,5 +25,5 @@ void main()
 	oColor = vec4(color.rgb, opacity * color.a);
 	
 	// For debugging
-	// oColor = vec4(msdf, 1.0);
+	// oColor = vec4(1.0);
 }

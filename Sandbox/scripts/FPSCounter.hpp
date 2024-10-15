@@ -5,13 +5,10 @@ using namespace CrescendoEngine;
 class FPSCounter : public Behaviour
 {
 public:
-	Text* text;
+	Text& text;
 
 	std::deque<double> frameTimes;
-	virtual void OnAttach(Entity e) override
-	{
-		text = &e.GetComponent<Text>();
-	}
+	FPSCounter(Entity entity) : text(entity.GetComponent<Text>()) {}
 	virtual void OnUpdate(double dt) override
 	{
 		frameTimes.push_back(Application::Get()->GetTime<double>());
@@ -19,6 +16,6 @@ public:
 			frameTimes.pop_front();
 
 		uint32_t fps = static_cast<uint32_t>(frameTimes.size() / 2);
-		text->text = std::to_string(fps) + "fps";
+		text.text = std::to_string(fps) + "fps";
 	}
 };

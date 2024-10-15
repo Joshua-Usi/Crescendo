@@ -10,6 +10,7 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
+#include <filesystem>
 
 #define CS_NAMESPACE_BEGIN namespace CrescendoEngine
 

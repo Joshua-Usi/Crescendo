@@ -136,8 +136,8 @@ CS_NAMESPACE_BEGIN
 			for (auto& info : entityTextureInfo)
 			{
 				Material& material = info.entity.GetComponent<Material>();
-				if (info.expectedDiffuseTextureIdx != -1) material.diffuseHandle = textures[info.expectedDiffuseTextureIdx];
-				if (info.expectedNormalTextureIdx != -1) material.normalHandle = textures[info.expectedNormalTextureIdx];
+				if (info.expectedDiffuseTextureIdx != -1) material.albedo = textures[info.expectedDiffuseTextureIdx];
+				if (info.expectedNormalTextureIdx != -1) material.normal = textures[info.expectedNormalTextureIdx];
 
 			}
 		}

@@ -46,6 +46,11 @@ if not exist premake5.exe (
 :: Move back out to main directory
 cd ../../../
 
+:: Setup third party submodule
+pushd "Crescendo\Libraries\Thirdparty"
+call Setup.bat
+popd
+
 :: Ask the user for the project name
 set /p projectName="Enter the project name: "
 

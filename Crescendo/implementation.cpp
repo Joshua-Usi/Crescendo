@@ -9,3 +9,5 @@
 #include "stb_truetype.h"
 #define MSDF_IMPLEMENTATION
 #include "msdf_c/msdf.h"
+#define TCPP_IMPLEMENTATION
+#include "tcpp/tcppLibrary.hpp"
