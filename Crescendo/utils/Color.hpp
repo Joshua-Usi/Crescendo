@@ -3,11 +3,9 @@
 
 CS_NAMESPACE_BEGIN
 {
-	class alignas(uint32_t) Color
+	struct alignas(uint32_t) Color
 	{
-	private:
 		uint8_t r, g, b, a;
-	public:
 		Color() : r(0), g(0), b(0), a(0) {}
 
 		Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) : r(r), g(g), b(b), a(a) {}
@@ -16,7 +14,6 @@ CS_NAMESPACE_BEGIN
 		Color (uint8_t gray) : r(gray), g(gray), b(gray), a(255) {}
 
 		uint32_t GetPacked() const { return (a << 24) | (b << 16) | (g << 8) | r; }
-	public:
 		inline static Color FromHSV(float h, float s, float v)
 		{
 			float c = v * s;
@@ -38,4 +35,12 @@ CS_NAMESPACE_BEGIN
 		// from packed uint32_t
 		inline static Color FromPacked(uint32_t packed) { return Color((packed & 0xFF), (packed >> 8) & 0xFF, (packed >> 16) & 0xFF, (packed >> 24) & 0xFF); }
 	};
+	inline Color GenerateColorFromIndex(uint32_t index) {
+		float h = ((index * 2654435761) % 360); // Hue between 0 and 1
+		float s = 0.75f;                  // Set saturation to 75%
+		float v = 0.85f;                  // Set value/brightness to 85%
+
+		// Use the FromHSV function to generate the color
+		return Color::FromHSV(h, s, v);
+	}
 }

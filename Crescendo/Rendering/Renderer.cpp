@@ -23,10 +23,8 @@ CS_NAMESPACE_BEGIN
 	struct MainPassRenderData
 	{
 		Vulkan::Mesh mesh;
-		Vulkan::TextureHandle diffuse;
-		Vulkan::TextureHandle normal;
+		Material* material;
 		uint32_t modelID;
-		bool doubleSided;
 	};
 
 	struct ParticleEmitterRenderData
@@ -245,12 +243,22 @@ CS_NAMESPACE_BEGIN
 
 			std::vector<uint8_t> fullScreenQuad = GLSLToSPIRV("./shaders/fullscreen_quad.vert");
 
+			PreprocessorDefines defines;
+			defines
+				.Define("USE_DIFFUSE_MAP")
+				//.Define("USE_METALLIC_MAP")
+				//.Define("USE_ROUGHNESS_MAP")
+				.Define("USE_NORMAL_MAP")
+				//.Define("USE_AO_MAP")
+				//.Define("USE_EMISSIVE_MAP")
+				.Define("USE_LIGHTING");
+
 			depthPipelineHandle = resourceManager.CreatePipeline({
 				GLSLToSPIRV(depthPrepassShader + ".vert"), {},
 				Vulkan::Vk::PipelineVariants::GetDepthPrepassVariant(), resourceManager.GetDescriptorSetLayout(), resourceManager.GetRenderPass(depthRenderPassHandle)
 			});
 			mainPipelineHandle = resourceManager.CreatePipeline({
-				GLSLToSPIRV(mainShader + ".vert"), GLSLToSPIRV(mainShader + ".frag"),
+				GLSLToSPIRV(mainShader + ".vert"), GLSLToSPIRV(mainShader + ".frag", defines),
 				Vulkan::Vk::PipelineVariants::GetDefaultVariant(), resourceManager.GetDescriptorSetLayout(), resourceManager.GetRenderPass(mainRenderPassHandle)
 			});
 			skyboxPipelineHandle = resourceManager.CreatePipeline({
@@ -382,7 +390,7 @@ CS_NAMESPACE_BEGIN
 		scene.entityManager.ForEach<Transform, MeshData, Material>([&](Transform& transform, MeshData& mesh, Material& material) {
 			meshTransforms.push_back(transform.GetModelMatrix());
 			MainPassRenderData data(
-				mesh.meshHandle, std::get<Vulkan::TextureHandle>(material.albedo), std::get<Vulkan::TextureHandle>(material.normal), meshTransforms.size() - 1, material.isDoubleSided
+				mesh.meshHandle, &material, meshTransforms.size() - 1
 			);
 			if (material.isTransparent)
 			{
@@ -554,7 +562,7 @@ CS_NAMESPACE_BEGIN
 		for (size_t i = 0; i < depthPrepassMeshCount; i++)
 		{
 			MainPassRenderData& data = meshes[i];
-			cmd.BindPipeline(depthPipeline[data.doubleSided]);
+			cmd.BindPipeline(depthPipeline[data.material->isDoubleSided]);
 			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(data.mesh.indexBuffer));
 			cmd.BindVertexBuffers({ resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::POSITION)) }, { 0 });
 			cmd.DrawIndexed(data.mesh.indexCount, 1, 0, 0, data.modelID);
@@ -598,32 +606,32 @@ CS_NAMESPACE_BEGIN
 		}
 
 		// main pass has two push constants, one in the vertex shader, one in the fragment shader
-		PushConstantBuffer mainPassVertexParams;
-		mainPassVertexParams
+		PushConstantBuffer mainPassParams;
+		mainPassParams
+			// Vertex
 			.Push(2)
-			.Push(transformsHandle[currentFrameIndex].GetIndex());
+			.Push(transformsHandle[currentFrameIndex].GetIndex())
+			// Fragment
+			.Separate()
+			.Push(directionalLightsHandle[currentFrameIndex].GetIndex())
+			.Push(pointLightsHandle[currentFrameIndex].GetIndex())
+			.Push(spotLightsHandle[currentFrameIndex].GetIndex())
+			.Push(static_cast<uint32_t>(directionalLights.size()))
+			.Push(static_cast<uint32_t>(pointLights.size()))
+			.Push(static_cast<uint32_t>(spotLights.size()))
+			.Push(cs_std::math::vec4(cameraPosition, 1.0f));
 
 		cmd.BindDescriptorSet(mainPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
-		cmd.PushConstants(mainPipeline, mainPassVertexParams.Get(), mainPassVertexParams.GetSize(), VK_SHADER_STAGE_VERTEX_BIT);
+		cmd.PushConstants(mainPipeline, mainPassParams.Get(), 2 * sizeof(uint32_t), VK_SHADER_STAGE_VERTEX_BIT);
+		cmd.PushConstants(mainPipeline, mainPassParams.Get(2 * sizeof(uint32_t)), mainPassParams.GetSize(2 * sizeof(uint32_t)), VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
 		// Render objects, renders opaque first, then transparent
 		for (size_t i = 0; i < meshes.size(); i++)
 		{
 			MainPassRenderData& data = meshes[i];
 			PushConstantBuffer mainPassFragmentParams;
-			mainPassFragmentParams
-				.Push(data.diffuse.GetIndex())
-				.Push(data.normal.GetIndex())
-				.Push(directionalLightsHandle[currentFrameIndex].GetIndex())
-				.Push(pointLightsHandle[currentFrameIndex].GetIndex())
-				.Push(spotLightsHandle[currentFrameIndex].GetIndex())
-				.Push(static_cast<uint32_t>(directionalLights.size()))
-				.Push(static_cast<uint32_t>(pointLights.size()))
-				.Push(static_cast<uint32_t>(spotLights.size()))
-				.Push(0)
-				.Push(0)
-				.Push(cs_std::math::vec4(cameraPosition, 1.0f));
+			data.material->BuildPushConstantBuffer(mainPassFragmentParams);
 
-			cmd.BindPipeline(mainPipeline[data.doubleSided]);
+			cmd.BindPipeline(mainPipeline[data.material->isDoubleSided]);
 			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(data.mesh.indexBuffer));
 			cmd.BindVertexBuffers({
 				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::POSITION)),
@@ -631,7 +639,7 @@ CS_NAMESPACE_BEGIN
 				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::TANGENT)),
 				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::TEXCOORD_0))
 			}, { 0, 0, 0, 0 });
-			cmd.PushConstants(mainPipeline, mainPassFragmentParams.Get(), mainPassFragmentParams.GetSize(), VK_SHADER_STAGE_FRAGMENT_BIT, mainPassVertexParams.GetSize());
+			cmd.PushConstants(mainPipeline, mainPassFragmentParams.Get(), mainPassFragmentParams.GetSize(), VK_SHADER_STAGE_FRAGMENT_BIT, mainPassParams.GetSize());
 			cmd.DrawIndexed(data.mesh.indexCount, 1, 0, 0, data.modelID);
 		}
 
@@ -697,7 +705,7 @@ CS_NAMESPACE_BEGIN
 			PushConstantBuffer bloomParams;
 			bloomParams
 				.Push((i == 1) ? mainImageHandle.GetIndex() : bloomImageHandles[i - 1].GetIndex()) // Sample the previous bloom buffer
-				.Push(1.0f);
+				.Push(1.0f); // Threshold
 
 			cmd.DynamicStateSetViewport(bloomFramebuffer.GetViewport());
 			cmd.DynamicStateSetScissor(bloomFramebuffer.GetScissor());

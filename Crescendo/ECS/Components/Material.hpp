@@ -2,28 +2,15 @@
 #include "common.hpp"
 #include "Rendering/ResourceHandles.hpp"
 #include "utils/Color.hpp"
-
+#include "Rendering/PushConstantBuffer.hpp"
 #include <variant>
 
 CS_NAMESPACE_BEGIN
 {
 	struct Material : public Component
 	{
+		// If defined, uses a specialised pipeline, otherwise it uses the default
 		Vulkan::PipelineHandle pipeline;
-
-		// Used for textured materials
-		//Vulkan::TextureHandle diffuseHandle; // rgba
-		//Vulkan::TextureHandle metallicHandle; // r
-		//Vulkan::TextureHandle roughnessHandle; // r
-		//Vulkan::TextureHandle normalHandle; // rgb
-		//Vulkan::TextureHandle aoHandle; // r
-		//Vulkan::TextureHandle emissiveHandle; // rgb
-		//Vulkan::TextureHandle clearCoatHandle; // r
-		//Vulkan::TextureHandle clearCoatRoughnessHandle; // r
-		//Vulkan::TextureHandle transmissionHandle; // r
-		//Vulkan::TextureHandle subsurfaceHandle; // r
-		//Vulkan::TextureHandle sheenHandle; // r
-		//Vulkan::TextureHandle alphaMaskHandle; // r
 
 		//// Non-textured values
 		//Color baseColor = Color(255, 255, 255, 255);
@@ -39,30 +26,66 @@ CS_NAMESPACE_BEGIN
 		//float sheen = 0.0f;
 		//float alphaMask = 0.0f;
 
-		std::variant<Vulkan::TextureHandle, Color> albedo; // rgba
-		std::variant<Vulkan::TextureHandle, float> metallic; // r
-		std::variant<Vulkan::TextureHandle, float> roughness; // r
-		std::variant<Vulkan::TextureHandle, cs_std::math::vec3> normal; // rgb
-		std::variant<Vulkan::TextureHandle, float> ao; // r
-		std::variant<Vulkan::TextureHandle, cs_std::math::vec3> emissive; // rgb
-		std::variant<Vulkan::TextureHandle, float> clearCoat; // r
-		std::variant<Vulkan::TextureHandle, float> clearCoatRoughness; // r
-		std::variant<Vulkan::TextureHandle, float> transmission; // r
-		std::variant<Vulkan::TextureHandle, float> subsurface; // r
-		std::variant<Vulkan::TextureHandle, float> sheen; // r
+		// Metallic-roughness pbr
+		std::variant<Vulkan::TextureHandle, Color> albedo; // rgba, default to Color(255, 255, 255, 255)
+		std::variant<Vulkan::TextureHandle, float> metallic; // r, default to 0.0f
+		std::variant<Vulkan::TextureHandle, float> roughness; // r, default to 0.5f
+		std::variant<Vulkan::TextureHandle, std::monostate> normal; // rgb, default to none
+		std::variant<Vulkan::TextureHandle, float> ao; // r, default to 1.0f
+		std::variant<Vulkan::TextureHandle, cs_std::math::vec3> emissive; // rgb, default to vec3(0.0f, 0.0f, 0.0f)
+
+		// Principled BSDF
+		// std::variant<Vulkan::TextureHandle, float> clearCoat; // r, default to 0.0f
+		// std::variant<Vulkan::TextureHandle, float> clearCoatRoughness; // r, default to 0.0f
+		// std::variant<Vulkan::TextureHandle, float> transmission; // r, default to 0.0f
+		// std::variant<Vulkan::TextureHandle, float> subsurface; // r, default to 0.0f
+		// std::variant<Vulkan::TextureHandle, float> sheen; // r default to 0.0f
 
 		bool isTransparent;
 		bool isDoubleSided;
-		bool isUnlit;
+		//bool isUnlit;
 		bool isReceivingShadows;
 		bool isShadowCasting;
-		bool isWritingToDepth;
-		bool isTestingDepth;
 
 		Material()
 			: pipeline()
-			, albedo(), metallic(), roughness(), normal(), ao(), emissive(), clearCoat(), clearCoatRoughness(), transmission(), subsurface(), sheen(),
-			isTransparent(false), isDoubleSided(false), isUnlit(false), isReceivingShadows(true), isShadowCasting(true), isWritingToDepth(true), isTestingDepth(true) {}
-		Material(Vulkan::PipelineHandle pipeline, Vulkan::TextureHandle albedo, Vulkan::TextureHandle normal, bool isTransparent, bool isDoubleSided, bool isShadowCasting) : pipeline(pipeline), albedo(albedo), normal(normal), isTransparent(isTransparent), isDoubleSided(isDoubleSided), isShadowCasting(isShadowCasting) {}
+			, albedo(Color(255, 255, 255, 255)), metallic(0.0f), roughness(0.5f), normal(std::monostate()), ao(1.0f), emissive(cs_std::math::vec3(0.0f)), /*clearCoat(), clearCoatRoughness(), transmission(), subsurface(), sheen(),*/
+			isTransparent(false), isDoubleSided(false), isReceivingShadows(true), isShadowCasting(true) {}
+		Material(Vulkan::TextureHandle albedo, Vulkan::TextureHandle normal, bool isTransparent, bool isDoubleSided, bool isShadowCasting)
+			: pipeline(),
+			albedo(albedo), metallic(0.0f), roughness(0.5f), normal(normal), ao(1.0f), emissive(cs_std::math::vec3(0.0f)),
+			isTransparent(isTransparent), isDoubleSided(isDoubleSided), isReceivingShadows(true), isShadowCasting(isShadowCasting) {}
+	
+
+		void BuildPushConstantBuffer(PushConstantBuffer<128>& buffer)
+		{
+			if (std::holds_alternative<Vulkan::TextureHandle>(albedo))
+				buffer.Push(std::get<Vulkan::TextureHandle>(albedo).GetIndex());
+			else
+				buffer.Push(std::get<Color>(albedo));
+
+			if (std::holds_alternative<Vulkan::TextureHandle>(metallic))
+				buffer.Push(std::get<Vulkan::TextureHandle>(metallic).GetIndex());
+			else
+				buffer.Push(std::get<float>(metallic));
+
+			if (std::holds_alternative<Vulkan::TextureHandle>(roughness))
+				buffer.Push(std::get<Vulkan::TextureHandle>(roughness).GetIndex());
+			else
+				buffer.Push(std::get<float>(roughness));
+
+			if (std::holds_alternative<Vulkan::TextureHandle>(normal))
+				buffer.Push(std::get<Vulkan::TextureHandle>(normal).GetIndex());
+
+			if (std::holds_alternative<Vulkan::TextureHandle>(ao))
+				buffer.Push(std::get<Vulkan::TextureHandle>(ao).GetIndex());
+			else
+				buffer.Push(std::get<float>(ao));
+
+			if (std::holds_alternative<Vulkan::TextureHandle>(emissive))
+				buffer.Push(std::get<Vulkan::TextureHandle>(emissive).GetIndex());
+			else
+				buffer.Push(cs_std::math::vec4(std::get<cs_std::math::vec3>(emissive), 1.0f));
+		}
 	};
 }

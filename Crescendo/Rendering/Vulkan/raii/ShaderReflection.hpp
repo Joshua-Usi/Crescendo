@@ -55,7 +55,13 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 			{
 				uint32_t size = 0;
 				for (const auto& member : members)
-					size += member.size;
+				{
+					uint32_t alignment = (member.size == 3 * sizeof(float)) ? 4 * sizeof(float) : member.size;
+					uint32_t prePadding = (alignment - (size % alignment)) % alignment;
+					uint32_t postPadding = (member.size == 3 * sizeof(float)) ? sizeof(float) : 0;
+
+					size += prePadding + member.size + postPadding;
+				}
 				return size;
 			}
 		};

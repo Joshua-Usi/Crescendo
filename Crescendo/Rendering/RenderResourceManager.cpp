@@ -245,7 +245,7 @@ CS_NAMESPACE_BEGIN
 	}
 	Vulkan::PipelineHandle RenderResourceManager::CreatePipeline(const Vulkan::Vk::Pipeline::PipelineCreateInfo& createInfo)
 	{
-		return Vulkan::PipelineHandle(pipelines.emplace(Vulkan::Vk::Pipeline(*device, createInfo)));
+		return Vulkan::PipelineHandle(pipelines.emplace(*device, createInfo));
 	}
 	Vulkan::SSBOBufferHandle RenderResourceManager::ReserveSSBOBuffer()
 	{

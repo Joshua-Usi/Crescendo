@@ -1,28 +1,16 @@
 #version 460
 #include "bindless.glsl"
+#include "lighting.glsl"
 
 // Feature flags
-// #define USE_DIFFUSE_MAP defines if we use the diffuse texture map, if not defined, it uses the texture index as a 8-bit packed color
-// #define USE_NORMAL_MAP defines if we use the normal map, if not defined, uses a default normal
+// #define USE_DIFFUSE_MAP : use the diffuse texture, otherwise uses a solid color
+// #define USE_METALLIC_MAP : use the metallic texture, otherwise uses a metallic value
+// #define USE_ROUGHNESS_MAP : use the roughness map, otherwise use a roughness value
+// #define USE_NORMAL_MAP : use the normal texture, otherwise the default normal. does not need to be defined if USE_LIGHTING is not
+// #define USE_AO_MAP : use the ambient occlusion map, otherwise uses a ao value. usually 1.0f
+// #define USE_EMISSIVE_MAP : uses the emissive texture, otherwise uses an emissive color
 
-#define USE_DIFFUSE_MAP
-#define USE_NORMAL_MAP
-
-struct DirectionalLight {
-	vec4 direction; // x, y, z, intensity
-	vec4 color; // a unused
-};
-
-struct PointLight {
-	vec4 position; // x, y, z, intensity
-	vec4 color; // a unused
-};
-
-struct SpotLight {
-	vec4 position; // x, y, z, intensity
-	vec4 direction; // x, y, z, cos(spotAngle), end to end
-	vec4 color; // r, g, b, cos(fadeAngle)
-};
+// #define USE_LIGHTING : object is subject to lighting calculations. otherwise it renders unlit with full ambient lighting
 
 layout (location = 0) in vec3 iPosition_ws;
 layout (location = 1) in vec2 iTexCoord;
@@ -31,9 +19,8 @@ layout (location = 2) in mat3 iTBN;
 layout (location = 0) out vec4 oColor;
 
 layout(push_constant) uniform PushConstants {
-	layout(offset = 8) uint albedoTexIdx;
-	uint normalTexIdx;
-
+	layout(offset = 8)
+#ifdef USE_LIGHTING
 	uint directionalLightBufferIdx;
 	uint pointLightBufferIdx;
 	uint spotLightBufferIdx;
@@ -42,11 +29,43 @@ layout(push_constant) uniform PushConstants {
 	uint pointLightCount;
 	uint spotLightCount;
 
-	// To align the cameraViewPos vector
-	uint dummy0;
-	uint dummy1;
-
 	vec4 cameraViewPos;
+#endif
+
+#ifdef USE_DIFFUSE_MAP
+	uint albedoTexIdx;
+#else
+	uint color; // RGBA packed 4x8
+#endif
+
+#ifdef USE_METALLIC_MAP
+	uint metallicTexIdx;
+#else 
+	float metallic;
+#endif
+
+#ifdef USE_ROUGHNESS_MAP
+	uint roughnessTexIdx;
+#else 
+	float roughness;
+#endif
+
+#ifdef USE_NORMAL_MAP
+	uint normalTexIdx;
+#endif
+
+#ifdef USE_AO_MAP
+	uint aoTexIdx;
+#else
+	float ao;
+#endif
+
+#ifdef USE_EMISSIVE_MAP
+	uint emissiveTexIdx;
+#else
+	vec4 emissive; // a unused
+#endif
+
 	// uint shadowTexCount;
 };
 
@@ -64,108 +83,70 @@ RegisterBuffer(std430, readonly, SpotLightBuffer, { SpotLight spotLightData[]; }
 //     return shadow;
 // }
 
-float distSqrd(vec3 a, vec3 b)
-{
-	vec3 dist = a - b;
-	return dot(dist, dist);
-}
-
-float lightAttenuation(float intensity, float distanceSquared)
-{
-	return intensity / (distanceSquared + 1.0);
-}
-
-vec3 CalcDirectionalLight(DirectionalLight light, vec3 normal_ws, vec3 viewDir_ws)
-{
-	const float intensity = light.direction.w;
-
-	vec3 lightDir_ws = light.direction.xyz;
-	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ws);
-
-	vec3 diff = max(dot(normal_ws, lightDir_ws), 0.0f) * light.color.rgb;
-	vec3 spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 32.0f) * light.color.rgb;
-
-	return (diff + spec) * intensity;
-}
-
-vec3 CalcPointLight(PointLight light, vec3 normal_ws, vec3 viewDir_ws, vec3 fragmentPosition_ws)
-{
-	const float intensity = light.position.w;
-
-	vec3 lightDir_ws = normalize(light.position.xyz - fragmentPosition_ws);
-	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ws);
-	float attenuation = lightAttenuation(intensity, distSqrd(light.position.xyz, fragmentPosition_ws));
-
-	vec3 diff = max(dot(normal_ws, lightDir_ws), 0.0f) * light.color.rgb;
-	vec3 spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 32.0f) * light.color.rgb;
-
-	return (diff + spec) * attenuation;
-}
-
-vec3 CalcSpotLight(SpotLight light, vec3 normal_ws, vec3 viewDir_ws, vec3 fragmentPosition_ws)
-{
-	const float spotAngle_cos = light.direction.w;
-	const float fadeAngle_cos = light.color.a;
-	const float intensity = light.position.w;
-
-	vec3 lightDir_ws = normalize(light.position.xyz - fragmentPosition_ws);
-	vec3 reflectDir_ws = reflect(-lightDir_ws, normal_ws);
-	float attenuation = lightAttenuation(intensity, distSqrd(light.position.xyz, fragmentPosition_ws));
-
-	float theta = dot(lightDir_ws, normalize(-light.direction.rgb)); 
-    float epsilon = spotAngle_cos - fadeAngle_cos;
-    float intensityFactor = clamp((theta - fadeAngle_cos) / epsilon, 0.0, 1.0);
-
-	vec3 diff = max(dot(normal_ws, lightDir_ws), 0.0f) * light.color.rgb;
-	vec3 spec = pow(max(dot(viewDir_ws, reflectDir_ws), 0.0f), 32.0f) * light.color.rgb;
-
-	return (diff + spec) * attenuation * intensityFactor;
-}
-
 void main()	
 {
-	
 	#ifdef USE_DIFFUSE_MAP
 		vec4 texelColor = texture(uTextures2D[albedoTexIdx], iTexCoord);
-	#endif
-
-	#ifdef USE_SOLID_COLOR
-		vec4 texelColor = uSolidColor;
-	#endif
-
-	#ifdef USE_NORMAL_MAP
-		vec4 normalColor = texture(uTextures2D[normalTexIdx], iTexCoord);
 	#else
-		vec4 normalColor = vec4(0.0f, 0.0f, 1.0f, 1.0f);
+		vec4 texelColor = unpackUnorm4x8(color);
+	#endif
+	#ifdef USE_METALLIC_MAP
+		float metallicValue = texture(uTextures2D[metallicTexIdx], iTexCoord).r;
+	#else
+		float metallicValue = metallic;
+	#endif
+	#ifdef USE_ROUGHNESS_MAP
+		float roughnessValue = texture(uTextures2D[roughnessTexIdx], iTexCoord).r;
+	#else
+		float roughnessValue = roughness;
+	#endif
+	#ifdef USE_NORMAL_MAP
+		vec3 normalColor = texture(uTextures2D[normalTexIdx], iTexCoord).rgb;
+	#else
+		vec3 normalColor = vec3(0.0f, 0.0f, 1.0f);
+	#endif
+
+	#ifdef USE_AO_MAP
+		float aoValue = texture(uTextures2D[normalTexIdx], iTexCoord).r;
+	#else
+		float aoValue = ao;
+	#endif
+
+	#ifdef USE_EMISSIVE_MAP
+		vec3 emissiveColor = texture(uTextures2D[emissiveTexIdx], iTexCoord).rgb;
+	#else
+		vec3 emissiveColor = emissive.rgb;
 	#endif
 
 	/* ---------------- Lighting ---------------- */
+	#ifdef USE_LIGHTING
+		vec3 lightIntensity = vec3(0.0f);
+		vec3 normal_ts = normalize(iTBN * (normalColor * 2.0f - 1.0f));
+		vec3 viewDir_ws = normalize(cameraViewPos.xyz - iPosition_ws);
 
-	vec3 normal_ts = normalize(iTBN * (normalColor.rgb * 2.0f - 1.0f));
-	vec3 viewDir_ws = normalize(cameraViewPos.xyz - iPosition_ws);
+		// Directional lights
+		for (uint i = 0; i < directionalLightCount; i++)
+		{
+			const DirectionalLight directionalLight = GetResource(DirectionalLightBuffer, directionalLightBufferIdx).directionalLightData[i];
+			lightIntensity += CalcDirectionalLight(directionalLight, normal_ts, viewDir_ws);
+		}
 
-	vec3 lightIntensity = vec3(0.0f);
+		// Point lights
+		for (uint i = 0; i < pointLightCount; i++)
+		{
+			const PointLight pointLight = GetResource(PointLightBuffer, pointLightBufferIdx).pointLightData[i];
+			lightIntensity += CalcPointLight(pointLight, normal_ts, viewDir_ws, iPosition_ws);
+		}
 
-	// Directional lights
-	for (uint i = 0; i < directionalLightCount; i++)
-	{
-		const DirectionalLight directionalLight = GetResource(DirectionalLightBuffer, directionalLightBufferIdx).directionalLightData[i];
-		lightIntensity += CalcDirectionalLight(directionalLight, normal_ts, viewDir_ws);
-	}
-
-	// Point lights
-	for (uint i = 0; i < pointLightCount; i++)
-	{
-		const PointLight pointLight = GetResource(PointLightBuffer, pointLightBufferIdx).pointLightData[i];
-		lightIntensity += CalcPointLight(pointLight, normal_ts, viewDir_ws, iPosition_ws);
-	}
-
-	// Spot lights
-	for (uint i = 0; i < spotLightCount; i++)
-	{
-		const SpotLight spotlight = GetResource(SpotLightBuffer, spotLightBufferIdx).spotLightData[i];
-		lightIntensity += CalcSpotLight(spotlight, normal_ts, viewDir_ws, iPosition_ws);
-	}
+		// Spot lights
+		for (uint i = 0; i < spotLightCount; i++)
+		{
+			const SpotLight spotlight = GetResource(SpotLightBuffer, spotLightBufferIdx).spotLightData[i];
+			lightIntensity += CalcSpotLight(spotlight, normal_ts, viewDir_ws, iPosition_ws);
+		}
+	#else
+		vec3 lightIntensity = vec3(1.0f);
+	#endif
 
 	/* ---------------- Shadows ---------------- */
 	
@@ -175,5 +156,5 @@ void main()
 	/* ---------------- Output ---------------- */
 
 	// Output
-	oColor = vec4(lightIntensity * texelColor.rgb, texelColor.a);
+	oColor = vec4(lightIntensity * texelColor.rgb + emissiveColor, texelColor.a);
 }

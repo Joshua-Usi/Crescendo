@@ -90,7 +90,7 @@ CS_NAMESPACE_BEGIN
 					Entity entity = CreateEntity();
 					entity.EmplaceComponent<Transform>(attributes.transform);
 					entity.EmplaceComponent<MeshData>(cs_std::graphics::bounding_aabb(mesh.get_attribute(cs_std::graphics::Attribute::POSITION).data), meshHandle);
-					entity.EmplaceComponent<Material>(Vulkan::PipelineHandle(), Vulkan::TextureHandle(), Vulkan::TextureHandle(), attributes.isTransparent, attributes.isDoubleSided, !attributes.isTransparent);
+					entity.EmplaceComponent<Material>(Vulkan::TextureHandle(), Vulkan::TextureHandle(), attributes.isTransparent, attributes.isDoubleSided, !attributes.isTransparent);
 
 					EntityTextureInfo info;
 					info.entity = entity;

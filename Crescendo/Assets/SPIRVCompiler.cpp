@@ -3,7 +3,7 @@
 #include "glslang/Include/intermediate.h"
 #include "glslang/GlslangToSpv.h"
 #include "tcpp/tcppLibrary.hpp"
-#include "utils/utils.hpp"
+#include "cs_std/file.hpp"
 #include <mutex>
 
 constexpr TBuiltInResource DEFAULT_BUILT_IN_RESOURCE_LIMIT
@@ -128,36 +128,93 @@ CS_NAMESPACE_BEGIN
 {
 	static std::once_flag glslangInitFlag;
 
+	PreprocessorDefines& PreprocessorDefines::Define(const std::string& macro)
+	{
+		defines += "#define " + macro + '\n';
+		return *this;
+	}
+	PreprocessorDefines& PreprocessorDefines::Define(const std::string& macro, const std::string& value)
+	{
+		defines += "#define " + macro + ' ' + value + '\n';
+		return *this;
+	}
+	const std::string& PreprocessorDefines::Get() const { return defines; }
+
 	EShLanguage GetLanguageFromExtension(const std::filesystem::path& file)
 	{
-		if (file.extension() == ".vert")
-			return EShLangVertex;
-		if (file.extension() == ".frag")
-			return EShLangFragment;
-		if (file.extension() == ".comp")
-			return EShLangCompute;
-		if (file.extension() == ".geom")
-			return EShLangGeometry;
-		if (file.extension() == ".tesc")
-			return EShLangTessControl;
-		if (file.extension() == ".tese")
-			return EShLangTessEvaluation;
+		if (file.extension() == ".frag") return EShLangFragment;
+		if (file.extension() == ".comp") return EShLangCompute;
+		if (file.extension() == ".geom") return EShLangGeometry;
+		if (file.extension() == ".tesc") return EShLangTessControl;
+		if (file.extension() == ".tese") return EShLangTessEvaluation;
 		// default to vertex shader
 		return EShLangVertex;
 	}
+	std::string GLSLPreprocessorIncludesRecursive(const std::filesystem::path& filePath, std::set<std::filesystem::path>& included_files)
+	{
+		// Prevent infinite recursion due to circular includes
+		if (included_files.count(filePath) > 0)
+			return "";
+		included_files.insert(filePath);
+		cs_std::text_file tf(filePath);
+		if (!tf.exists())
+			throw std::runtime_error("File not found: " + filePath.string());
+		tf.open();
 
-	std::vector<uint8_t> GLSLToSPIRV(const std::filesystem::path& file)
+		std::istringstream iss(tf.read());
+		std::string line, result;
+
+		while (std::getline(iss, line)) {
+			// Trim leading whitespaces
+			line.erase(line.begin(), std::find_if(line.begin(), line.end(), [](int ch) {
+				return !std::isspace(ch);
+			}));
+
+			// If the line doesn't start with '#include', append it as is
+			if (line.compare(0, 8, "#include") != 0) {
+				result += line + "\n";
+				continue;
+			}
+
+			// Process the '#include' directive
+			size_t start_pos = line.find_first_of("\"<", 8);
+			if (start_pos == std::string::npos)
+				throw std::runtime_error("Invalid #include syntax in file: " + filePath.string());
+
+			char delimiter = line[start_pos];
+			size_t end_pos = line.find_first_of(delimiter == '"' ? "\"" : ">", start_pos + 1);
+			if (end_pos == std::string::npos)
+				throw std::runtime_error("Invalid #include syntax in file: " + filePath.string());
+
+			std::string filename = line.substr(start_pos + 1, end_pos - start_pos - 1);
+			std::filesystem::path include_path;
+
+			if (delimiter == '"')
+				include_path = filePath.parent_path() / filename;
+			else
+				throw std::runtime_error("System includes are not supported: " + filename);
+
+			std::string included_content = GLSLPreprocessorIncludesRecursive(include_path, included_files);
+			result += included_content;
+		}
+		return result;
+	}
+	std::string GLSLPreprocessorIncludes(const std::filesystem::path& filePath)
+	{
+		// prevent multiple includes
+		std::set<std::filesystem::path> includedFiles;
+		return GLSLPreprocessorIncludesRecursive(filePath, includedFiles);
+	}
+	std::vector<uint8_t> GLSLToSPIRV(const std::filesystem::path& file, const PreprocessorDefines& defines)
 	{
 		std::call_once(glslangInitFlag, []() {
-			if (!glslang::InitializeProcess()) {
-				cs_std::console::error("Failed to initialize glslang.");
+			if (!glslang::InitializeProcess())
 				throw std::runtime_error("glslang initialization failed");
-			}
 		});
 
 		const TBuiltInResource* resources = &DEFAULT_BUILT_IN_RESOURCE_LIMIT;
+		std::string source = defines.Get() + GLSLPreprocessorIncludes(file);
 
-		std::string source = GLSLPreprocessorIncludes(file);
 		auto inputStream = std::make_unique<tcpp::StringInputStream>(source);
 		tcpp::Lexer lexer(std::move(inputStream));
 
@@ -235,8 +292,6 @@ CS_NAMESPACE_BEGIN
 
 		std::vector<uint32_t> spirv;
 		glslang::GlslangToSpv(*program.getIntermediate(language), spirv, &options);
-
-		 // glslang::FinalizeProcess();
 
 		std::vector<uint8_t> result;
 		result.resize(spirv.size() * sizeof(uint32_t));

@@ -149,7 +149,6 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		for (const auto& pushConstant : this->pushConstants)
 			size += pushConstant.GetSize();
 		return size;
-	
 	}
 	VkVertexInputBindingDescription ShaderReflection::GenerateVertexBindingDescription(uint32_t idx) const
 	{

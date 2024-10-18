@@ -11,8 +11,13 @@ include_files = {
 	"C:/VulkanSDK/" .. vulkan_ver .. "/Include/Volk/volk.c",
 }
 exclude_files = {}
-library_dirs = {
+library_dirs_release = {
 	"%{wks.location}/Crescendo/Libraries/ThirdParty/glfw/libs",
+	"%{wks.location}/Crescendo/Libraries/ThirdParty/glslang/libs/Release",
+}
+library_dirs_debug = {
+	"%{wks.location}/Crescendo/Libraries/ThirdParty/glfw/libs",
+	"%{wks.location}/Crescendo/Libraries/ThirdParty/glslang/libs/Debug",
 }
 engine_dirs = {
 	"C:/VulkanSDK/" .. vulkan_ver .. "/Include",
@@ -35,6 +40,7 @@ universal_defines = {
 	"_CRT_SECURE_NO_WARNINGS",
 	"GLFW_INCLUDE_NONE",
 	"VK_NO_PROTOTYPES",
+	"CS_VULKAN_DIR=\"C:/VulkanSDK/" .. vulkan_ver .. "\"",
 }
 
 workspace(project_name)
@@ -57,10 +63,6 @@ project "Crescendo"
 	files(include_files)
 	removefiles(exclude_files)
 	includedirs(engine_dirs)
-	libdirs(library_dirs)
-	links {
-		"glfw3_mt.lib",
-	}
 	filter "system:windows"
 		systemversion "latest"
 		defines(universal_defines)
@@ -84,14 +86,23 @@ project(project_name)
 	objdir ("bin-intermediate/" .. output_dir .. "/%{prj.name}")
 	files(include_files)
 	includedirs(engine_dirs)
-	libdirs(library_dirs)
 	links {
 		"Crescendo",
 
+		"glfw3_mt.lib",
+		"GenericCodeGen.lib",
+		"glslang.lib",
+		"glslang-default-resource-limits.lib",
+		"MachineIndependent.lib",
+		"SPIRV-Tools.lib",
+		"SPIRV-Tools-opt.lib",
+		-- "SPIRV-Tools-shared.lib",
+
+		-- windows specific
 		"user32.lib",
 		"gdi32.lib",
 		"shell32.lib",
-		"kernel32.lib"
+		"kernel32.lib",
 	}
 	filter "system:windows"
 		cppdialect "C++20"
@@ -102,6 +113,7 @@ project(project_name)
 		symbols "on"
 		flags(flags_debug)
 		kind "ConsoleApp"
+		libdirs(library_dirs_debug)
 	filter "configurations:Release"
 		defines "CS_RELEASE"
 		optimize "on"
@@ -109,3 +121,4 @@ project(project_name)
 		optimize "speed"
 		flags(flags_optimised)
 		kind "ConsoleApp"
+		libdirs(library_dirs_release)
