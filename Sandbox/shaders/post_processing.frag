@@ -24,8 +24,5 @@ void main()
 	vec3 bloomColor = texture(uTextures2D[bloomIdx], iTexCoord).rgb;
 
 	// Tonemapped with ACES
-	oColor = vec4(ACESFilm(hdrColor), 1.0);
-
-	// Bloom
-	oColor.rgb = oColor.rgb + bloomColor;
+	oColor = vec4(ACESFilm(hdrColor + bloomColor), 1.0);
 }

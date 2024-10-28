@@ -1,26 +1,22 @@
 #version 460
 #include "bindless.glsl"
 #include "lighting.glsl"
-
-// Feature flags
-// #define USE_DIFFUSE_MAP : use the diffuse texture, otherwise uses a solid color
-// #define USE_METALLIC_MAP : use the metallic texture, otherwise uses a metallic value
-// #define USE_ROUGHNESS_MAP : use the roughness map, otherwise use a roughness value
-// #define USE_NORMAL_MAP : use the normal texture, otherwise the default normal. does not need to be defined if USE_LIGHTING is not
-// #define USE_AO_MAP : use the ambient occlusion map, otherwise uses a ao value. usually 1.0f
-// #define USE_EMISSIVE_MAP : uses the emissive texture, otherwise uses an emissive color
-
-// #define USE_LIGHTING : object is subject to lighting calculations. otherwise it renders unlit with full ambient lighting
+#include "permutations.glsl"
 
 layout (location = 0) in vec3 iPosition_ws;
-layout (location = 1) in vec2 iTexCoord;
-layout (location = 2) in mat3 iTBN;
+#ifdef USE_TEXTURE_MAPS
+	layout (location = 1) in vec2 iTexCoord;
+#endif 
+#ifdef USE_NORMAL_MAP
+	layout (location = 2) in mat3 iTBN;
+#else
+	layout (location = 2) in vec3 iNormal;
+#endif
 
 layout (location = 0) out vec4 oColor;
 
 layout(push_constant) uniform PushConstants {
 	layout(offset = 8)
-#ifdef USE_LIGHTING
 	uint directionalLightBufferIdx;
 	uint pointLightBufferIdx;
 	uint spotLightBufferIdx;
@@ -30,7 +26,6 @@ layout(push_constant) uniform PushConstants {
 	uint spotLightCount;
 
 	vec4 cameraViewPos;
-#endif
 
 #ifdef USE_DIFFUSE_MAP
 	uint albedoTexIdx;
@@ -52,7 +47,9 @@ layout(push_constant) uniform PushConstants {
 
 #ifdef USE_NORMAL_MAP
 	uint normalTexIdx;
-#endif
+#else
+	// uint normalDummy;
+#endif 
 
 #ifdef USE_AO_MAP
 	uint aoTexIdx;
@@ -72,16 +69,6 @@ layout(push_constant) uniform PushConstants {
 RegisterBuffer(std430, readonly, DirectionalLightBuffer, { DirectionalLight directionalLightData[]; });
 RegisterBuffer(std430, readonly, PointLightBuffer, { PointLight pointLightData[]; });
 RegisterBuffer(std430, readonly, SpotLightBuffer, { SpotLight spotLightData[]; });
-
-// Standard hard shadows
-// float textureProj(sampler2D shadowTex, vec4 shadowCoord)
-// {
-//     float shadow = 1.0f;
-//     float dist = texture(shadowTex, shadowCoord.xy).r;
-//     float condition = step(0.0, shadowCoord.w) * step(shadowCoord.z - 0.002f, dist);
-//     shadow = mix(0.4f, shadow, condition);
-//     return shadow;
-// }
 
 void main()	
 {
@@ -107,7 +94,7 @@ void main()
 	#endif
 
 	#ifdef USE_AO_MAP
-		float aoValue = texture(uTextures2D[normalTexIdx], iTexCoord).r;
+		float aoValue = texture(uTextures2D[aoTexIdx], iTexCoord).r;
 	#else
 		float aoValue = ao;
 	#endif
@@ -119,34 +106,34 @@ void main()
 	#endif
 
 	/* ---------------- Lighting ---------------- */
-	#ifdef USE_LIGHTING
-		vec3 lightIntensity = vec3(0.0f);
+	vec3 lightIntensity = vec3(0.0f);
+	#ifdef USE_NORMAL_MAP
 		vec3 normal_ts = normalize(iTBN * (normalColor * 2.0f - 1.0f));
-		vec3 viewDir_ws = normalize(cameraViewPos.xyz - iPosition_ws);
-
-		// Directional lights
-		for (uint i = 0; i < directionalLightCount; i++)
-		{
-			const DirectionalLight directionalLight = GetResource(DirectionalLightBuffer, directionalLightBufferIdx).directionalLightData[i];
-			lightIntensity += CalcDirectionalLight(directionalLight, normal_ts, viewDir_ws);
-		}
-
-		// Point lights
-		for (uint i = 0; i < pointLightCount; i++)
-		{
-			const PointLight pointLight = GetResource(PointLightBuffer, pointLightBufferIdx).pointLightData[i];
-			lightIntensity += CalcPointLight(pointLight, normal_ts, viewDir_ws, iPosition_ws);
-		}
-
-		// Spot lights
-		for (uint i = 0; i < spotLightCount; i++)
-		{
-			const SpotLight spotlight = GetResource(SpotLightBuffer, spotLightBufferIdx).spotLightData[i];
-			lightIntensity += CalcSpotLight(spotlight, normal_ts, viewDir_ws, iPosition_ws);
-		}
 	#else
-		vec3 lightIntensity = vec3(1.0f);
+		vec3 normal_ts = iNormal;
 	#endif
+	vec3 viewDir_ws = normalize(cameraViewPos.xyz - iPosition_ws);
+
+	// Directional lights
+	for (uint i = 0; i < directionalLightCount; i++)
+	{
+		const DirectionalLight directionalLight = GetResource(DirectionalLightBuffer, directionalLightBufferIdx).directionalLightData[i];
+		lightIntensity += CalcDirectionalLight(directionalLight, normal_ts, viewDir_ws);
+	}
+
+	// Point lights
+	for (uint i = 0; i < pointLightCount; i++)
+	{
+		const PointLight pointLight = GetResource(PointLightBuffer, pointLightBufferIdx).pointLightData[i];
+		lightIntensity += CalcPointLight(pointLight, normal_ts, viewDir_ws, iPosition_ws);
+	}
+
+	// Spot lights
+	for (uint i = 0; i < spotLightCount; i++)
+	{
+		const SpotLight spotlight = GetResource(SpotLightBuffer, spotLightBufferIdx).spotLightData[i];
+		lightIntensity += CalcSpotLight(spotlight, normal_ts, viewDir_ws, iPosition_ws);
+	}
 
 	/* ---------------- Shadows ---------------- */
 	

@@ -44,15 +44,15 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 		GraphicsCommandQueue(GraphicsCommandQueue&& other) noexcept : BaseCommandQueue(std::move(other)) {}
 		GraphicsCommandQueue& operator=(GraphicsCommandQueue&& other) noexcept { BaseCommandQueue::operator=(std::move(other)); return *this; }
 	public:
-		void BeginRenderPass(VkRenderPass renderPass, VkFramebuffer framebuffer, const VkRect2D& renderArea, const std::vector<VkClearValue>& clearValues, VkSubpassContents contents = VK_SUBPASS_CONTENTS_INLINE) const;
+		void BeginRenderPass(VkRenderPass renderPass, VkFramebuffer framebuffer, const VkRect2D& renderArea, const std::vector<VkClearValue>& clearValues = {}, VkSubpassContents contents = VK_SUBPASS_CONTENTS_INLINE) const;
 		void BeginRenderPass(VkRenderPass renderPass, VkFramebuffer framebuffer, const VkRect2D& renderArea, const VkClearValue& clearValue, VkSubpassContents contents = VK_SUBPASS_CONTENTS_INLINE) const;
 		void EndRenderPass() const;
 		void DynamicStateSetViewport(const VkViewport& viewport) const;
 		void DynamicStateSetScissor(const VkRect2D& scissor) const;
+		void BindVertexBuffers(const std::vector<VkBuffer>& buffers) const;
 		void BindVertexBuffers(const std::vector<VkBuffer>& buffers, const std::vector<VkDeviceSize>& offsets) const;
-		void BindIndexBuffer(VkBuffer indexBuffer, VkIndexType indexType = VK_INDEX_TYPE_UINT32) const;
-		void BindDescriptorSet(VkPipelineLayout layout, VkDescriptorSet set, uint32_t setIndex, uint32_t offset, bool isDynamic = true) const;
-		void BindDescriptorSets(VkPipelineLayout layout, const std::vector<VkDescriptorSet>& sets, uint32_t firstSet, const std::vector<uint32_t>& offsets) const;
+		void BindIndexBuffer(VkBuffer indexBuffer, VkIndexType indexType) const;
+		void BindDescriptorSet(VkPipelineLayout layout, VkDescriptorSet set) const;
 		void BindPipeline(VkPipeline pipeline) const;
 		template <typename T> void PushConstants(VkPipelineLayout layout, T& data, VkShaderStageFlags stageFlags, uint32_t offset = 0) const { PushConstants(layout, &data, sizeof(T), stageFlags, offset); }
 		void PushConstants(VkPipelineLayout layout, const void* data, uint32_t size, VkShaderStageFlags stageFlags, uint32_t offset = 0) const;

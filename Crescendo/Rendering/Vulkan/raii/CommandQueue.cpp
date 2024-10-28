@@ -98,6 +98,11 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		vkCmdSetScissor(this->commandBuffer, 0, 1, &scissor);
 	}
+	void GraphicsCommandQueue::BindVertexBuffers(const std::vector<VkBuffer>& buffers) const
+	{
+		std::vector<VkDeviceSize> offsets(buffers.size(), 0);
+		vkCmdBindVertexBuffers(this->commandBuffer, 0, static_cast<uint32_t>(buffers.size()), buffers.data(), offsets.data());
+	}
 	void GraphicsCommandQueue::BindVertexBuffers(const std::vector<VkBuffer>& buffers, const std::vector<VkDeviceSize>& offsets) const
 	{
 		vkCmdBindVertexBuffers(this->commandBuffer, 0, static_cast<uint32_t>(buffers.size()), buffers.data(), offsets.data());
@@ -106,13 +111,9 @@ CS_NAMESPACE_BEGIN::Vulkan::Vk
 	{
 		vkCmdBindIndexBuffer(this->commandBuffer, indexBuffer, 0, indexType);
 	}
-	void GraphicsCommandQueue::BindDescriptorSet(VkPipelineLayout layout, VkDescriptorSet set, uint32_t setIndex, uint32_t offset, bool isDynamic) const
+	void GraphicsCommandQueue::BindDescriptorSet(VkPipelineLayout layout, VkDescriptorSet set) const
 	{
-		vkCmdBindDescriptorSets(this->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, setIndex, 1, &set, isDynamic, &offset);
-	}
-	void GraphicsCommandQueue::BindDescriptorSets(VkPipelineLayout layout, const std::vector<VkDescriptorSet>& sets, uint32_t firstSet, const std::vector<uint32_t>& offsets) const
-	{
-		vkCmdBindDescriptorSets(this->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, firstSet, static_cast<uint32_t>(sets.size()), sets.data(), static_cast<uint32_t>(offsets.size()), offsets.data());
+		vkCmdBindDescriptorSets(this->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 1, &set, 0, nullptr);
 	}
 	void GraphicsCommandQueue::BindPipeline(VkPipeline pipeline) const
 	{

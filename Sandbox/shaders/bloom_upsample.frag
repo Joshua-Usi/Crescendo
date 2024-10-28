@@ -13,7 +13,8 @@ void main()
 {
     vec2 texelSize = 1.0 / textureSize(uTextures2D[imageIdx], 0);
 
-	const float o = max(texelSize.x, texelSize.y);
+	// const float o = max(texelSize.x, texelSize.y) * 0.01;
+    const float o = 1.0 / 128.0;
 
     // Adapted and taken from LearnOpenGL
     // Take 9 samples around current texel:

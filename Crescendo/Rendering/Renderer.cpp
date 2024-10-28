@@ -243,24 +243,25 @@ CS_NAMESPACE_BEGIN
 
 			std::vector<uint8_t> fullScreenQuad = GLSLToSPIRV("./shaders/fullscreen_quad.vert");
 
-			PreprocessorDefines defines;
-			defines
-				.Define("USE_DIFFUSE_MAP")
-				//.Define("USE_METALLIC_MAP")
-				//.Define("USE_ROUGHNESS_MAP")
-				.Define("USE_NORMAL_MAP")
-				//.Define("USE_AO_MAP")
-				//.Define("USE_EMISSIVE_MAP")
-				.Define("USE_LIGHTING");
+			cs_std::timestamp now;
 
 			depthPipelineHandle = resourceManager.CreatePipeline({
 				GLSLToSPIRV(depthPrepassShader + ".vert"), {},
 				Vulkan::Vk::PipelineVariants::GetDepthPrepassVariant(), resourceManager.GetDescriptorSetLayout(), resourceManager.GetRenderPass(depthRenderPassHandle)
 			});
-			mainPipelineHandle = resourceManager.CreatePipeline({
-				GLSLToSPIRV(mainShader + ".vert"), GLSLToSPIRV(mainShader + ".frag", defines),
-				Vulkan::Vk::PipelineVariants::GetDefaultVariant(), resourceManager.GetDescriptorSetLayout(), resourceManager.GetRenderPass(mainRenderPassHandle)
-			});
+			const std::array<std::string, 6> flags = { "USE_DIFFUSE_MAP", "USE_METALLIC_MAP", "USE_ROUGHNESS_MAP", "USE_NORMAL_MAP", "USE_AO_MAP", "USE_EMISSIVE_MAP" };
+			size_t combinations = 1ull << flags.size();
+			for (size_t i = 0; i < combinations; i++)
+			{
+				PreprocessorDefines defines;
+				for (size_t j = 0; j < flags.size(); j++)
+					if (i & (1ull << j))
+						defines.Define(flags[j]);
+				mainPipelineHandles.push_back(resourceManager.CreatePipeline({
+					GLSLToSPIRV(mainShader + ".vert", defines), GLSLToSPIRV(mainShader + ".frag", defines),
+					Vulkan::Vk::PipelineVariants::GetDefaultVariant(), resourceManager.GetDescriptorSetLayout(), resourceManager.GetRenderPass(mainRenderPassHandle)
+				}));
+			}
 			skyboxPipelineHandle = resourceManager.CreatePipeline({
 				GLSLToSPIRV(skyboxShader + ".vert"), GLSLToSPIRV(skyboxShader + ".frag"),
 				Vulkan::Vk::PipelineVariants::GetSkyboxVariant(), resourceManager.GetDescriptorSetLayout(), resourceManager.GetRenderPass(mainRenderPassHandle)
@@ -286,10 +287,11 @@ CS_NAMESPACE_BEGIN
 				Vulkan::Vk::PipelineVariants::GetPostProcessingVariant(), resourceManager.GetDescriptorSetLayout(), swapchain.GetRenderPass()
 			});
 
+			cs_std::console::info("Compiled ", 12 + 64, " shaders in ", now.elapsed<double>(), "s");
+
 			// Skybox mesh
 			Construct::Mesh skybox = Construct::SkyboxSphere(32, 32);
 			skyboxMesh.vertexAttributes.emplace_back(resourceManager.CreateGPUBuffer(skybox.vertices.data(), sizeof(float) * skybox.vertices.size(), RenderResourceManager::GPUBufferUsage::VertexBuffer), cs_std::graphics::Attribute::POSITION);
-			skyboxMesh.vertexAttributes.emplace_back(resourceManager.CreateGPUBuffer(skybox.normals.data(), sizeof(float) * skybox.normals.size(), RenderResourceManager::GPUBufferUsage::VertexBuffer), cs_std::graphics::Attribute::NORMAL);
 			skyboxMesh.vertexAttributes.emplace_back(resourceManager.CreateGPUBuffer(skybox.textureUVs.data(), sizeof(float) * skybox.textureUVs.size(), RenderResourceManager::GPUBufferUsage::VertexBuffer), cs_std::graphics::Attribute::TEXCOORD_0);
 			skyboxMesh.indexBuffer = resourceManager.CreateGPUBuffer(skybox.indices.data(), sizeof(uint32_t) * skybox.indices.size(), RenderResourceManager::GPUBufferUsage::IndexBuffer);
 			skyboxMesh.indexCount = skybox.indices.size();
@@ -557,14 +559,16 @@ CS_NAMESPACE_BEGIN
 		cmd.DynamicStateSetScissor(depthFramebuffer.GetScissor());
 		cmd.BeginRenderPass(depthRenderPass, depthFramebuffer, depthFramebuffer.GetScissor(), Vulkan::Create::DefaultDepthClear());
 		cmd.BindPipeline(depthPipeline);
-		cmd.BindDescriptorSet(depthPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+		cmd.BindDescriptorSet(depthPipeline, resourceManager.GetDescriptorSet());
 		cmd.PushConstants(depthPipeline, depthPrepassParams.Get(), depthPrepassParams.GetSize(), VK_SHADER_STAGE_VERTEX_BIT);
 		for (size_t i = 0; i < depthPrepassMeshCount; i++)
 		{
 			MainPassRenderData& data = meshes[i];
 			cmd.BindPipeline(depthPipeline[data.material->isDoubleSided]);
-			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(data.mesh.indexBuffer));
-			cmd.BindVertexBuffers({ resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::POSITION)) }, { 0 });
+			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(data.mesh.indexBuffer), data.mesh.indexType);
+			cmd.BindVertexBuffers({
+				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::POSITION))
+			});
 			cmd.DrawIndexed(data.mesh.indexCount, 1, 0, 0, data.modelID);
 		}
 		cmd.EndRenderPass();
@@ -573,7 +577,6 @@ CS_NAMESPACE_BEGIN
 
 		Vulkan::Vk::Framebuffer& mainFramebuffer = resourceManager.GetFramebuffer(mainFramebufferHandle);
 		Vulkan::Vk::RenderPass& mainRenderPass = resourceManager.GetRenderPass(mainRenderPassHandle);
-		Vulkan::Vk::Pipeline& mainPipeline = resourceManager.GetPipeline(mainPipelineHandle);
 		Vulkan::Vk::Pipeline& skyboxPipeline = resourceManager.GetPipeline(skyboxPipelineHandle);
 		Vulkan::Vk::Pipeline& particlePipeline = resourceManager.GetPipeline(particlePipelineHandle);
 		Vulkan::Vk::Pipeline& textPipeline = resourceManager.GetPipeline(textPipelineHandle);
@@ -594,80 +597,84 @@ CS_NAMESPACE_BEGIN
 				.Push(scene.skybox.GetIndex());
 
 			cmd.BindPipeline(skyboxPipeline);
-			cmd.BindDescriptorSet(skyboxPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+			cmd.BindDescriptorSet(skyboxPipeline, resourceManager.GetDescriptorSet());
 			cmd.PushConstants(skyboxPipeline, skyboxParams.Get(), skyboxParams.GetSize() - sizeof(uint32_t), VK_SHADER_STAGE_VERTEX_BIT);
 			cmd.PushConstants(skyboxPipeline, skyboxParams.Get(2 * sizeof(uint32_t)), sizeof(uint32_t), VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
-			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(skyboxMesh.indexBuffer));
+			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(skyboxMesh.indexBuffer), skyboxMesh.indexType);
 			cmd.BindVertexBuffers({
 				resourceManager.GetGPUBuffer(skyboxMesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::POSITION)),
 				resourceManager.GetGPUBuffer(skyboxMesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::TEXCOORD_0))
-			}, { 0, 0 });
+			});
 			cmd.DrawIndexed(skyboxMesh.indexCount, 1, 0, 0, 0);
 		}
-
-		// main pass has two push constants, one in the vertex shader, one in the fragment shader
-		PushConstantBuffer mainPassParams;
-		mainPassParams
-			// Vertex
-			.Push(2)
-			.Push(transformsHandle[currentFrameIndex].GetIndex())
-			// Fragment
-			.Separate()
-			.Push(directionalLightsHandle[currentFrameIndex].GetIndex())
-			.Push(pointLightsHandle[currentFrameIndex].GetIndex())
-			.Push(spotLightsHandle[currentFrameIndex].GetIndex())
-			.Push(static_cast<uint32_t>(directionalLights.size()))
-			.Push(static_cast<uint32_t>(pointLights.size()))
-			.Push(static_cast<uint32_t>(spotLights.size()))
-			.Push(cs_std::math::vec4(cameraPosition, 1.0f));
-
-		cmd.BindDescriptorSet(mainPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
-		cmd.PushConstants(mainPipeline, mainPassParams.Get(), 2 * sizeof(uint32_t), VK_SHADER_STAGE_VERTEX_BIT);
-		cmd.PushConstants(mainPipeline, mainPassParams.Get(2 * sizeof(uint32_t)), mainPassParams.GetSize(2 * sizeof(uint32_t)), VK_SHADER_STAGE_FRAGMENT_BIT, 2 * sizeof(uint32_t));
 		// Render objects, renders opaque first, then transparent
 		for (size_t i = 0; i < meshes.size(); i++)
 		{
 			MainPassRenderData& data = meshes[i];
 			PushConstantBuffer mainPassFragmentParams;
+			PushConstantBuffer mainPassParams;
+			uint32_t pipelineIndex = data.material->GetPipelineIndex();
+			Vulkan::Vk::Pipeline& pipeline = resourceManager.GetPipeline(mainPipelineHandles[pipelineIndex]);
+
+			// main pass has two push constants, one in the vertex shader, one in the fragment shader
+			mainPassParams
+				// Vertex
+				.Push(2)
+				.Push(transformsHandle[currentFrameIndex].GetIndex())
+				// Fragment
+				.Separate()
+				.Push(directionalLightsHandle[currentFrameIndex].GetIndex())
+				.Push(pointLightsHandle[currentFrameIndex].GetIndex())
+				.Push(spotLightsHandle[currentFrameIndex].GetIndex())
+				.Push(static_cast<uint32_t>(directionalLights.size()))
+				.Push(static_cast<uint32_t>(pointLights.size()))
+				.Push(static_cast<uint32_t>(spotLights.size()))
+				.Push(cs_std::math::vec4(cameraPosition, 1.0f));
+
+			cmd.BindDescriptorSet(pipeline, resourceManager.GetDescriptorSet());
+			cmd.PushConstants(pipeline, mainPassParams.Get(), mainPassParams.GetSeparator(), VK_SHADER_STAGE_VERTEX_BIT);
+			cmd.PushConstants(pipeline, mainPassParams.Get(mainPassParams.GetSeparator()), mainPassParams.GetSize(mainPassParams.GetSeparator()), VK_SHADER_STAGE_FRAGMENT_BIT, mainPassParams.GetSeparator());
+
 			data.material->BuildPushConstantBuffer(mainPassFragmentParams);
 
-			cmd.BindPipeline(mainPipeline[data.material->isDoubleSided]);
-			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(data.mesh.indexBuffer));
+			cmd.BindPipeline(pipeline[data.material->isDoubleSided]);
+			cmd.BindIndexBuffer(resourceManager.GetGPUBuffer(data.mesh.indexBuffer), data.mesh.indexType);
 			cmd.BindVertexBuffers({
 				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::POSITION)),
 				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::NORMAL)),
 				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::TANGENT)),
 				resourceManager.GetGPUBuffer(data.mesh.GetAttributeBufferHandle(cs_std::graphics::Attribute::TEXCOORD_0))
-			}, { 0, 0, 0, 0 });
-			cmd.PushConstants(mainPipeline, mainPassFragmentParams.Get(), mainPassFragmentParams.GetSize(), VK_SHADER_STAGE_FRAGMENT_BIT, mainPassParams.GetSize());
+			});
+			cmd.PushConstants(pipeline, mainPassFragmentParams.Get(), mainPassFragmentParams.GetSize(), VK_SHADER_STAGE_FRAGMENT_BIT, mainPassParams.GetSize());
 			cmd.DrawIndexed(data.mesh.indexCount, 1, 0, 0, data.modelID);
 		}
 
 		// Particle pass
 		cmd.BindPipeline(particlePipeline);
-		cmd.BindDescriptorSet(particlePipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+		cmd.BindDescriptorSet(particlePipeline, resourceManager.GetDescriptorSet());
 		for (uint32_t i = 0; i < particleEmitters.size(); i++)
 		{
 			ParticleEmitterRenderData& data = particleEmitters[i];
 			PushConstantBuffer particleParams;
 			particleParams
 				// Vertex
-				.Push(2)
+				.Push(0)
 				.Push(transformsHandle[currentFrameIndex].GetIndex())
 				.Push(particleBufferHandle[currentFrameIndex].GetIndex())
 				.Push(data.startIdx)
 				.Push(Application::Get()->GetTime<float>())
+				.Separate()
 				// Fragment
 				.Push(data.texture.GetIndex());
 
-			cmd.PushConstants(particlePipeline, particleParams.Get(), particleParams.GetSize() - sizeof(float), VK_SHADER_STAGE_VERTEX_BIT);
-			cmd.PushConstants(particlePipeline, particleParams.Get(5 * sizeof(float)), sizeof(float), VK_SHADER_STAGE_FRAGMENT_BIT, 5 * sizeof(float));
+			cmd.PushConstants(particlePipeline, particleParams.Get(), particleParams.GetSeparator(), VK_SHADER_STAGE_VERTEX_BIT);
+			cmd.PushConstants(particlePipeline, particleParams.Get(particleParams.GetSeparator()), sizeof(float), VK_SHADER_STAGE_FRAGMENT_BIT, particleParams.GetSeparator());
 			// One quad for each particle, hence 6 vertices
 			cmd.Draw(data.count * 6, 1, 0, data.modelID);
 		}
 
 		// Text pass
-		cmd.BindDescriptorSet(textPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+		cmd.BindDescriptorSet(textPipeline, resourceManager.GetDescriptorSet());
 		for (uint32_t i = 0; i < textRenderData.size(); i++)
 		{
 			TextRenderData& data = textRenderData[i];
@@ -683,12 +690,13 @@ CS_NAMESPACE_BEGIN
 				.Push(data.alignmentOffset)
 				.Push(data.lineOffset)
 				.Push(data.fontSize)
+				.Separate()
 				// Fragment
 				.Push(data.color.GetPacked());
 
 			cmd.BindPipeline(textPipeline[(data.cameraID == 2) ? 0 : 1]);
-			cmd.PushConstants(textPipeline, textParams.Get(), textParams.GetSize() - sizeof(float), VK_SHADER_STAGE_VERTEX_BIT);
-			cmd.PushConstants(textPipeline, textParams.Get(9 * sizeof(float)), sizeof(float), VK_SHADER_STAGE_FRAGMENT_BIT, 9 * sizeof(float));
+			cmd.PushConstants(textPipeline, textParams.Get(), textParams.GetSeparator(), VK_SHADER_STAGE_VERTEX_BIT);
+			cmd.PushConstants(textPipeline, textParams.Get(textParams.GetSeparator()), sizeof(float), VK_SHADER_STAGE_FRAGMENT_BIT, textParams.GetSeparator());
 			// One quad for each character, hence 6 vertices
 			cmd.Draw(data.count * 6, 1, 0, data.modelID);
 		}
@@ -702,16 +710,17 @@ CS_NAMESPACE_BEGIN
 		for (uint32_t i = 1; i < bloomFramebufferHandles.size(); i++)
 		{
 			Vulkan::Vk::Framebuffer& bloomFramebuffer = resourceManager.GetFramebuffer(bloomFramebufferHandles[i]);
-			PushConstantBuffer bloomParams;
+			PushConstantBuffer<12> bloomParams;
 			bloomParams
 				.Push((i == 1) ? mainImageHandle.GetIndex() : bloomImageHandles[i - 1].GetIndex()) // Sample the previous bloom buffer
-				.Push(1.0f); // Threshold
+				.Push((i == 1) ? 1.0f : 0.0f) // Threshold
+				.Push((i == 1) ? 0.5f : 0.0f); // Knee
 
 			cmd.DynamicStateSetViewport(bloomFramebuffer.GetViewport());
 			cmd.DynamicStateSetScissor(bloomFramebuffer.GetScissor());
 			cmd.BeginRenderPass(bloomRenderPass, bloomFramebuffer, bloomFramebuffer.GetScissor(), { Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 1.0f) });
 			cmd.BindPipeline(bloomDownsamplePipeline);
-			cmd.BindDescriptorSet(bloomDownsamplePipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+			cmd.BindDescriptorSet(bloomDownsamplePipeline, resourceManager.GetDescriptorSet());
 			cmd.PushConstants(bloomDownsamplePipeline, bloomParams.Get(), bloomParams.GetSize(), VK_SHADER_STAGE_FRAGMENT_BIT);
 			cmd.Draw(6);
 			cmd.EndRenderPass();
@@ -722,14 +731,14 @@ CS_NAMESPACE_BEGIN
 		for (int32_t i = static_cast<int32_t>(bloomFramebufferHandles.size()) - 1; i > 0; i--)
 		{
 			Vulkan::Vk::Framebuffer& bloomFramebuffer = resourceManager.GetFramebuffer(bloomFramebufferHandles[i - 1]);
-			PushConstantBuffer bloomParams;
+			PushConstantBuffer<4> bloomParams;
 			bloomParams.Push(bloomImageHandles[i].GetIndex());
 
 			cmd.DynamicStateSetViewport(bloomFramebuffer.GetViewport());
 			cmd.DynamicStateSetScissor(bloomFramebuffer.GetScissor());
 			cmd.BeginRenderPass(bloomRenderPass, bloomFramebuffer, bloomFramebuffer.GetScissor(), { Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 1.0f) });
 			cmd.BindPipeline(bloomUpsamplePipeline);
-			cmd.BindDescriptorSet(bloomUpsamplePipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+			cmd.BindDescriptorSet(bloomUpsamplePipeline, resourceManager.GetDescriptorSet());
 			cmd.PushConstants(bloomUpsamplePipeline, bloomParams.Get(), bloomParams.GetSize(), VK_SHADER_STAGE_FRAGMENT_BIT);
 			cmd.Draw(6);
 			cmd.EndRenderPass();
@@ -749,7 +758,7 @@ CS_NAMESPACE_BEGIN
 			{ Vulkan::Create::ClearValue(0.0f, 0.0f, 0.0f, 0.0f), Vulkan::Create::DefaultDepthClear() }
 		);
 		cmd.BindPipeline(postProcessingPipeline);
-		cmd.BindDescriptorSet(postProcessingPipeline, resourceManager.GetDescriptorSet(), 0, 0, false);
+		cmd.BindDescriptorSet(postProcessingPipeline, resourceManager.GetDescriptorSet());
 		cmd.PushConstants(postProcessingPipeline, postProcessingParams.Get(), postProcessingParams.GetSize(), VK_SHADER_STAGE_FRAGMENT_BIT);
 		cmd.Draw(6);
 		cmd.EndRenderPass();

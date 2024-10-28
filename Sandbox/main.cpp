@@ -8,6 +8,7 @@ using namespace CrescendoEngine;
 #include "scripts/Campfire.hpp"
 #include "scripts/FPSCounter.hpp"
 #include "scripts/Flashlight.hpp"
+#include "scripts/FlashingCube.hpp"
 
 class Sandbox : public Application
 {
@@ -19,6 +20,8 @@ public:
 		ScriptStorage::RegisterScript("Campfire", [](Entity e) { return new Campfire(e); });
 		ScriptStorage::RegisterScript("FPSCounter", [](Entity e) { return new FPSCounter(e); });
 		ScriptStorage::RegisterScript("Flashlight", [](Entity e) { return new Flashlight(e); });
+		ScriptStorage::RegisterScript("FlashingCube", [](Entity e) { return new FlashingCube(e); });
+
 
 		Scene& currentScene = GetActiveScene();
 
@@ -28,9 +31,45 @@ public:
 		cs_std::image skybox = LoadImage("./assets/skybox-night.png");
 		currentScene.SetSkybox(renderer.resourceManager.UploadTexture(skybox));
 
+		Construct::Mesh cube = Construct::Cube();
+
+		// convert to cs_std::mesh
+		cs_std::graphics::mesh<uint32_t> csMesh;
+		csMesh.add_attribute(cs_std::graphics::Attribute::POSITION, cube.vertices);
+		csMesh.add_attribute(cs_std::graphics::Attribute::NORMAL, cube.normals);
+		csMesh.add_attribute(cs_std::graphics::Attribute::TEXCOORD_0, cube.textureUVs);
+		csMesh.indices = cube.indices;
+
+		// Generate tangents
+		cs_std::graphics::generate_tangents(csMesh);
+
+		Vulkan::Mesh cubeMesh;
+
+		cubeMesh.vertexAttributes.emplace_back(renderer.resourceManager.CreateGPUBuffer(cube.vertices.data(), sizeof(float) * cube.vertices.size(), RenderResourceManager::GPUBufferUsage::VertexBuffer), cs_std::graphics::Attribute::POSITION);
+		cubeMesh.vertexAttributes.emplace_back(renderer.resourceManager.CreateGPUBuffer(cube.normals.data(), sizeof(float) * cube.normals.size(), RenderResourceManager::GPUBufferUsage::VertexBuffer), cs_std::graphics::Attribute::NORMAL);
+		cubeMesh.vertexAttributes.emplace_back(renderer.resourceManager.CreateGPUBuffer(cube.textureUVs.data(), sizeof(float) * cube.textureUVs.size(), RenderResourceManager::GPUBufferUsage::VertexBuffer), cs_std::graphics::Attribute::TEXCOORD_0);
+		cubeMesh.vertexAttributes.emplace_back(renderer.resourceManager.CreateGPUBuffer(csMesh.get_attribute(cs_std::graphics::Attribute::TANGENT).data.data(), sizeof(float) * csMesh.get_attribute(cs_std::graphics::Attribute::TANGENT).data.size(), RenderResourceManager::GPUBufferUsage::VertexBuffer), cs_std::graphics::Attribute::TANGENT);
+		cubeMesh.indexBuffer = renderer.resourceManager.CreateGPUBuffer(cube.indices.data(), sizeof(uint32_t) * cube.indices.size(), RenderResourceManager::GPUBufferUsage::IndexBuffer);
+		cubeMesh.indexCount = cube.indices.size();
+		cubeMesh.indexType = VK_INDEX_TYPE_UINT32;
+
+		for (int32_t i = -5; i < 5; i++)
+		{
+			for (int32_t j = -5; j < 5; j++)
+			{
+				Entity emissiveCube = currentScene.CreateEntity();
+				emissiveCube.EmplaceComponent<Transform>(math::vec3(i * 2.0f, 5.0f, j * 2.0f), math::vec3(0.5f));
+				emissiveCube.EmplaceComponent<MeshData>(cs_std::graphics::bounding_aabb(cube.vertices), cubeMesh);
+				Material& emissiveMaterial = emissiveCube.EmplaceComponent<Material>();
+				emissiveMaterial.albedo = Color(math::random<uint8_t>(0, 255), math::random<uint8_t>(0, 255), math::random<uint8_t>(0, 255));
+				emissiveMaterial.emissive = math::vec3(0.0f, 0.0f, 0.0f);
+				emissiveCube.AddBehaviour("FlashingCube");
+			}
+		}
+
+
 		Entity sun = currentScene.CreateEntity();
-		sun.EmplaceComponent<Transform>(math::vec3(2.0f, 10.0f, 0.0f));
-		sun.GetComponent<Transform>().LookAt(math::vec3(0.0f));
+		sun.EmplaceComponent<Transform>(math::vec3(2.0f, 10.0f, 0.0f)).LookAt(math::vec3(0.0f));
 		sun.EmplaceComponent<DirectionalLight>(math::vec3(1.0f, 1.0f, 1.0f), 0.1f, false);
 
 		Entity cameraEntity = currentScene.CreateEntity();
@@ -61,7 +100,7 @@ public:
 			[](float currentTime, float dt, ParticleEmitter::Particle& p) {
 				// air friction
 				p.velocity *= math::pow(0.1f, dt);
-				p.velocity.y -= 5.0f * dt;
+				p.velocity.y -= 0.5f * dt;
 				p.position += p.velocity * dt;
 			},
 			[](float currentTime) {
@@ -79,7 +118,7 @@ public:
 				float y = radius * sinf(phi) * sinf(theta);
 				float z = radius * cosf(phi);
 
-				p.position = math::vec3(0.0f);
+				p.position = math::vec3(0.0, 10.0f, 0.0f);
 				p.velocity = math::vec3(x, y, z);
 				p.deathTime = currentTime + math::random<float>(3.0f, 5.0f);
 				return p;

@@ -219,8 +219,8 @@ CS_NAMESPACE_BEGIN
 		tcpp::Lexer lexer(std::move(inputStream));
 
 		tcpp::Preprocessor::TPreprocessorConfigInfo config;
-		config.mOnErrorCallback = [](const tcpp::TErrorInfo& errorInfo) {
-			cs_std::console::error("Error: ", tcpp::ErrorTypeToString(errorInfo.mType), " at line ", errorInfo.mLine);
+		config.mOnErrorCallback = [&](const tcpp::TErrorInfo& errorInfo) {
+			cs_std::console::error("Error preprocessing in \"", file.string(), "\": ", tcpp::ErrorTypeToString(errorInfo.mType), " at line ", errorInfo.mLine);
 		};
 		config.mSkipComments = true;
 
@@ -262,8 +262,8 @@ CS_NAMESPACE_BEGIN
 		// Parse the preprocessed source
 		if (!shader.parse(resources, 460, ECoreProfile, false, true, EShMsgEnhanced))
 		{
-			cs_std::console::error("Failed to parse shader.");
-			cs_std::console::log("Parser info log: ", shader.getInfoLog());
+			cs_std::console::error("Error in parsing shader\"", file.string(), "\":", shader.getInfoLog());
+			return {};
 		}
 
 		// Link the shader program
@@ -272,9 +272,8 @@ CS_NAMESPACE_BEGIN
 
 		if (!program.link(EShMsgEnhanced))
 		{
-			cs_std::console::error("Failed to link program.");
-			cs_std::console::log("Info: ", program.getInfoLog());
-			cs_std::console::log("Debug Info: ", program.getInfoDebugLog());
+			cs_std::console::error("Error in linking shader\"", file.string(), "\":", program.getInfoLog());
+			return {};
 		}
 
 		glslang::SpvOptions options {

@@ -8,6 +8,7 @@ layout(location = 0) out vec4 oColor;
 layout(push_constant) uniform PushConstants {
 	uint imageIdx;
     float threshold;
+    float knee;
 };
 
 // Rec. 709 color space, standard for sRGB
@@ -15,8 +16,12 @@ float luminance(vec3 color) {
     return dot(color, vec3(0.2126, 0.7152, 0.0722));
 }
 
-vec3 applyThreshold(vec3 color, float threshold) {
-    return color * step(threshold, luminance(color));
+vec3 applyThreshold(vec3 color, float threshold, float knee)
+{
+    float lum = luminance(color);
+    float softThreshold = threshold - knee;
+    float t = clamp((lum - softThreshold) / (knee), 0.0, 1.0);
+    return color * t;
 }
 
 void main()
@@ -33,22 +38,22 @@ void main()
     // - l - m -
     // g - h - i
     // === ('e' is the current texel) ===
-    vec3 a = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x - 2 * x, iTexCoord.y + 2 * y)).rgb, threshold);
-    vec3 b = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x,         iTexCoord.y + 2 * y)).rgb, threshold);
-    vec3 c = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x + 2 * x, iTexCoord.y + 2 * y)).rgb, threshold);
+    vec3 a = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x - 2 * x, iTexCoord.y + 2 * y)).rgb, threshold, knee);
+    vec3 b = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x,         iTexCoord.y + 2 * y)).rgb, threshold, knee);
+    vec3 c = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x + 2 * x, iTexCoord.y + 2 * y)).rgb, threshold, knee);
 
-    vec3 d = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x - 2 * x, iTexCoord.y)).rgb, threshold);
-    vec3 e = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x,         iTexCoord.y)).rgb, threshold);  // Center texel
-    vec3 f = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x + 2 * x, iTexCoord.y)).rgb, threshold);
+    vec3 d = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x - 2 * x, iTexCoord.y)).rgb, threshold, knee);
+    vec3 e = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x,         iTexCoord.y)).rgb, threshold, knee);  // Center texel
+    vec3 f = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x + 2 * x, iTexCoord.y)).rgb, threshold, knee);
 
-    vec3 g = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x - 2 * x, iTexCoord.y - 2 * y)).rgb, threshold);
-    vec3 h = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x,         iTexCoord.y - 2 * y)).rgb, threshold);
-    vec3 i = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x + 2 * x, iTexCoord.y - 2 * y)).rgb, threshold);
+    vec3 g = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x - 2 * x, iTexCoord.y - 2 * y)).rgb, threshold, knee);
+    vec3 h = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x,         iTexCoord.y - 2 * y)).rgb, threshold, knee);
+    vec3 i = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x + 2 * x, iTexCoord.y - 2 * y)).rgb, threshold, knee);
 
-    vec3 j = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x - x, iTexCoord.y + y)).rgb, threshold);
-    vec3 k = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x + x, iTexCoord.y + y)).rgb, threshold);
-    vec3 l = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x - x, iTexCoord.y - y)).rgb, threshold);
-    vec3 m = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x + x, iTexCoord.y - y)).rgb, threshold);
+    vec3 j = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x - x, iTexCoord.y + y)).rgb, threshold, knee);
+    vec3 k = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x + x, iTexCoord.y + y)).rgb, threshold, knee);
+    vec3 l = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x - x, iTexCoord.y - y)).rgb, threshold, knee);
+    vec3 m = applyThreshold(texture(uTextures2D[imageIdx], vec2(iTexCoord.x + x, iTexCoord.y - y)).rgb, threshold, knee);
 
     // Average the samples:
     vec3 bloom = e * 0.125;

@@ -28,7 +28,7 @@ CS_NAMESPACE_BEGIN
 		Vulkan::PipelineHandle depthPipelineHandle;
 
 		Vulkan::RenderPassHandle mainRenderPassHandle;
-		Vulkan::PipelineHandle mainPipelineHandle;
+		std::vector<Vulkan::PipelineHandle> mainPipelineHandles;
 		Vulkan::TextureHandle mainImageHandle;
 		Vulkan::FramebufferHandle mainFramebufferHandle;
 

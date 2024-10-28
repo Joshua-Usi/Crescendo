@@ -40,5 +40,6 @@ CS_NAMESPACE_BEGIN
 			separator = size;
 			return *this;
 		}
+		size_t GetSeparator() { return separator; }
 	};
 }
