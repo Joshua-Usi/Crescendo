@@ -44,7 +44,6 @@ end
 
 function applyReleaseSettings()
 	symbols "off"
-    optimize "on"
     floatingpoint "fast"
     optimize "speed"
     flags(universal_optimised_flags)
