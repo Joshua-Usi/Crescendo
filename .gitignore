@@ -1,0 +1,40 @@
+# Project configuration files
+*.vcxproj
+*.vcxproj.filters
+*.sln
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio profiler
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+# Visual Studio Trace Files
+*.e2e
+
+# Windows Installer files from build outputs
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Visual studio cache directories
+.vs/
+
+# Build files
+/bin
+
+vendor/
+# Intermediate build files
+bin-intermediate/
+
+# Obsidian related files
+.obsidian/
