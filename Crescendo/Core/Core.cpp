@@ -44,15 +44,29 @@ namespace CrescendoEngine
 
 		return std::string(doc["entrypoint"].get_string().value());
 	}
-	void Core::LoadModule(const std::filesystem::path& path)
-	{
+	void Core::LoadModule(
+		const std::filesystem::path& path, std::vector<ModuleCreateData>& modules,
+		std::unordered_set<std::string>& loadingModules, std::unordered_set<std::string>& loadedModules
+	) {
+		std::string moduleName = path.filename().string();
+
+		// Check for cycles
+		if (loadingModules.count(moduleName))
+			Console::Fatal<std::runtime_error>("Cycle detected while loading module: ", moduleName);
+
+		// Skiped already loaded modules
+		if (loadedModules.count(moduleName))
+			return;
+
+		// Mark module as currently loading
+		loadingModules.insert(moduleName);
+
 		// Load the DLL
 		void* dllHandle = LoadLibraryA(path.string().c_str());
 		if (dllHandle == nullptr)
 			Console::Fatal<std::runtime_error>("Could not load module ", path);
 
 		// Get the metadata
-		using GetMetadataFunc = ModuleMetadata(*)();
 		auto GetMetadata = (GetMetadataFunc)GetProcAddress(dllHandle, "GetMetadata");
 		if (GetMetadata == nullptr)
 		{
@@ -60,19 +74,7 @@ namespace CrescendoEngine
 			Console::Fatal<std::runtime_error>("Could not find metadata function \"GetMetadata\" in module ", path);
 		}
 
-		// Extract metadata data
-		ModuleMetadata metadata = GetMetadata();
-		Console::Log("Loaded module: ", metadata.name, " v", metadata.version, " by ", metadata.author, " (", metadata.description, ")");
-		std::vector<std::string> dependencies = ParseDependencies(metadata.dependencies);
-		if (dependencies.size() > 0)
-		{
-			for (const auto& dependency : dependencies)
-				Console::Log("    ", metadata.name, " depends on ", dependency);
-		} else
-			Console::Log("   ", metadata.name, " has no dependencies");
-
 		// Get the factory function
-		using CreateModuleFunc = Module*(*)();
 		CreateModuleFunc CreateModule = (CreateModuleFunc)GetProcAddress(dllHandle, "CreateModule");
 		if (CreateModule == nullptr)
 		{
@@ -80,21 +82,31 @@ namespace CrescendoEngine
 			Console::Fatal<std::runtime_error>("Could not find factory function \"CreateModule\" in module ", path);
 		}
 
-		// Create the module instance
-		Module* module = CreateModule();
-		if (module == nullptr)
-		{
-			FreeLibrary(dllHandle);
-			Console::Fatal<std::runtime_error>("Failed to create module instance from module ", path);
-		}
-		m_loadedModules.push_back({ dllHandle, std::unique_ptr<Module>(module) });
+		// Extract metadata data
+		ModuleMetadata metadata = GetMetadata();
+		Console::Log("Loaded module: ", metadata.name, " v", metadata.version, " by ", metadata.author, " (", metadata.description, ") - dependencies: ", metadata.dependencies);
+		std::vector<std::string> dependencies = ParseDependencies(metadata.dependencies);
+
+		// Load dependencies
+		for (const auto& dependencyName : dependencies)
+			LoadModule(dependencyName, modules, loadingModules, loadedModules);
+
+		modules.push_back({ dllHandle, CreateModule, GetMetadata });
+		loadingModules.erase(moduleName);
+		loadedModules.insert(moduleName);
 	}
-	void Core::LoadModules(const std::vector<std::string>& modules)
+	void Core::InitializeModules(const std::vector<ModuleCreateData>& modules)
 	{
 		for (const auto& module : modules)
-			LoadModule(module);
-		for (auto& module : m_loadedModules)
-			module.module->OnLoad();
+		{
+			Module* instance = module.createModule();
+			if (instance == nullptr)
+			{
+				FreeLibrary(module.dllHandle);
+				Console::Fatal<std::runtime_error>("Failed to create module instance");
+			}
+			m_loadedModules.push_back({ module.dllHandle, std::unique_ptr<Module>(instance) });
+		}
 	}
 	void Core::MainLoop()
 	{
@@ -155,10 +167,13 @@ namespace CrescendoEngine
 
 		std::string entrypoint = LoadConfig(configPath);
 
-		std::vector<std::string> modules = { entrypoint };
-		std::vector<
+		std::vector<ModuleCreateData> modules;
+		// Used for tracking circular dependencies
+		std::unordered_set<std::string> loadingModules;
+		std::unordered_set<std::string> loadedModules;
 
-		LoadModule(entrypoint);
+		LoadModule(entrypoint, modules, loadingModules, loadedModules);
+		InitializeModules(modules);
 		MainLoop();
 		UnloadModules();
 

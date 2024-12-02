@@ -15,9 +15,20 @@
 
 // Exporting symbols
 #if defined(CS_TARGET_WINDOWS)
-#define CS_EXPORT __declspec(dllexport)
+	// Normal exports
+	#ifdef CS_BUILDING_DLL
+		#define CS_EXPORT __declspec(dllexport)
+	#else
+		#define CS_EXPORT __declspec(dllimport)
+	#endif
+	// Exports specifically for building the common DLL
+	#ifdef CS_BUILDING_COMMON_DLL
+		#define CS_COMMON_EXPORT __declspec(dllexport)
+	#else
+		#define CS_COMMON_EXPORT __declspec(dllimport)
+	#endif
 #elif defined(CS_TARGET_LINUX) || defined(CS_TARGET_MAC)
-#define CS_EXPORT __attribute__((visibility("default")))
+	#define CS_EXPORT __attribute__((visibility("default")))
 #else
-#error "Unknown platform"
+	#error "Unknown platform"
 #endif

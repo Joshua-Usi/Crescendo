@@ -43,9 +43,10 @@ function applyDebugSettings()
 end
 
 function applyReleaseSettings()
+	symbols "off"
     optimize "on"
     floatingpoint "fast"
-    optimize "size"
+    optimize "speed"
     flags(universal_optimised_flags)
 end
 
@@ -68,6 +69,7 @@ function applyModuleSettings()
 	applyCppSettings()
 	applyBuildsettings()
 	prebuildcommands(module_prebuild_commands)
+	defines("CS_BUILDING_DLL")
 	files { "%{prj.location}/Entrypoint.cpp" }
 	filter "system:windows"
 		systemversion "latest"
@@ -81,17 +83,30 @@ workspace "Crescendo"
 	architecture "x64"
 	startproject "Core"
 	configurations {
+		-- Intended for debugging
 		"Debug",
-		-- Intended for development
+		-- Intended for normal use
 		"Release",
+		-- Intended for release 
+		"Production"
 	}
 
 -- Common files
 project "common"
 	location "./%{wks.name}/common"
-    kind "None"
-    files(universal_includes)
-    includedirs(universal_include_dirs)
+    kind "SharedLib"
+
+    applyCppSettings()
+	applyBuildsettings()
+
+	defines("CS_BUILDING_COMMON_DLL")
+
+	filter "system:windows"
+		systemversion "latest"
+	filter "configurations:Debug"
+        applyDebugSettings()
+    filter "configurations:Release"
+        applyReleaseSettings()
 
 project "thirdparty"
 	location "./%{wks.name}/thirdparty"
@@ -136,4 +151,8 @@ project "Core"
 
 project "Main"
 	location "./%{wks.name}/Main"
+
+	links {
+		"common"
+	}
 	applyModuleSettings()
