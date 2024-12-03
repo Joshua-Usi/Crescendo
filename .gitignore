@@ -38,3 +38,6 @@ bin-intermediate/
 
 # Obsidian related files
 .obsidian/
+
+# thirdparty files
+Crescendo/thirdparty

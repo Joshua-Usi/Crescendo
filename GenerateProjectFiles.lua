@@ -38,15 +38,15 @@ module_prebuild_commands = {
 }
 
 function applyDebugSettings()
-    symbols "on"
-    flags(universal_debug_flags)
+	symbols "on"
+	flags(universal_debug_flags)
 end
 
 function applyReleaseSettings()
 	symbols "off"
-    floatingpoint "fast"
-    optimize "speed"
-    flags(universal_optimised_flags)
+	floatingpoint "fast"
+	optimize "speed"
+	flags(universal_optimised_flags)
 end
 
 function applyCppSettings()
@@ -70,12 +70,13 @@ function applyModuleSettings()
 	prebuildcommands(module_prebuild_commands)
 	defines("CS_BUILDING_DLL")
 	files { "%{prj.location}/Entrypoint.cpp" }
+	links { "common" }
 	filter "system:windows"
 		systemversion "latest"
 	filter "configurations:Debug"
-        applyDebugSettings()
-    filter "configurations:Release"
-        applyReleaseSettings()
+		applyDebugSettings()
+	filter "configurations:Release"
+		applyReleaseSettings()
 end
 
 workspace "Crescendo"
@@ -93,9 +94,9 @@ workspace "Crescendo"
 -- Common files
 project "common"
 	location "./%{wks.name}/common"
-    kind "SharedLib"
+	kind "SharedLib"
 
-    applyCppSettings()
+	applyCppSettings()
 	applyBuildsettings()
 
 	defines("CS_BUILDING_COMMON_DLL")
@@ -103,21 +104,21 @@ project "common"
 	filter "system:windows"
 		systemversion "latest"
 	filter "configurations:Debug"
-        applyDebugSettings()
-    filter "configurations:Release"
-        applyReleaseSettings()
+		applyDebugSettings()
+	filter "configurations:Release"
+		applyReleaseSettings()
 
 project "thirdparty"
 	location "./%{wks.name}/thirdparty"
-    kind "None"
-    files(universal_includes)
-    includedirs(universal_include_dirs)
+	kind "None"
+	files(universal_includes)
+	includedirs(universal_include_dirs)
 
 -- Resource files
 project "resources"
 	location "./%{wks.name}/resources"
-    kind "None"
-    filter "system:windows"
+	kind "None"
+	filter "system:windows"
   		files { 'resources.rc', '**.ico' }
 
 project "Core"
@@ -143,15 +144,25 @@ project "Core"
 	filter "system:windows"
 		systemversion "latest"
 		files { '%{wks.location}/%{wks.name}/resources/resources.rc', '%{wks.location}/%{wks.name}/resources/**.ico' }
-    filter "configurations:Debug"
-        applyDebugSettings()
-    filter "configurations:Release"
-        applyReleaseSettings()
+	filter "configurations:Debug"
+		applyDebugSettings()
+	filter "configurations:Release"
+		applyReleaseSettings()
 
 project "Main"
 	location "./%{wks.name}/Main"
-
-	links {
-		"common"
-	}
 	applyModuleSettings()
+
+project "Sandbox"
+	location "%{wks.location}/Sandbox"
+	kind "StaticLib"
+
+	applyCppSettings()
+	applyBuildsettings()
+
+	filter "system:windows"
+		systemversion "latest"
+	filter "configurations:Debug"
+		applyDebugSettings()
+	filter "configurations:Release"
+		applyReleaseSettings()

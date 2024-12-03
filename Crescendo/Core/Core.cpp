@@ -52,7 +52,17 @@ namespace CrescendoEngine
 
 		// Check for cycles
 		if (loadingModules.count(moduleName))
-			Console::Fatal<std::runtime_error>("Cycle detected while loading module: ", moduleName);
+		{
+			std::ostringstream cycleDetails;
+			cycleDetails << "Cycle detected while loading module: '" << moduleName << "'\n\t" << "Current dependency chain: ";
+
+			for (const auto& loadingModule : loadingModules)
+				cycleDetails << loadingModule << " -> ";
+			cycleDetails << moduleName;
+
+			cycleDetails << "\n\tHint: Ensure modules do not have circular dependencies in their load order.";
+			Console::Fatal<std::runtime_error>(cycleDetails.str());
+		}
 
 		// Skiped already loaded modules
 		if (loadedModules.count(moduleName))
@@ -140,7 +150,6 @@ namespace CrescendoEngine
 			{
 				for (auto& module : m_loadedModules)
 					module.module->OnUpdate(0.5);
-				Console::Log("Update...");
 				accumulator -= 0.5;
 			}
 		}

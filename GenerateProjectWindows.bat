@@ -19,6 +19,10 @@ if not exist premake5.exe (
 :: Move back out to main directory
 cd ../../../
 
+:: Install dependencies
+echo Installing dependencies.
+call InstallDependencies.bat
+
 :: Ask the user to select the IDE
 echo Select the IDE you want to generate project files for:
 echo.
