@@ -24,7 +24,7 @@ namespace CrescendoEngine
 		}
 		return result;
 	}
-
+	Core* Core::s_instance = nullptr;
 	std::string Core::LoadConfig(const std::filesystem::path& path)
 	{
 		// Check if the file exists
@@ -169,6 +169,12 @@ namespace CrescendoEngine
 		}
 		m_loadedModules.clear();
 	}
+	Core::Core()
+	{
+		if (s_instance)
+			Console::Fatal<std::runtime_error>("Core instance already exists");
+		s_instance = this;
+	}
 	void Core::Run(const std::filesystem::path& configPath)
 	{
 		Console::Begin();
@@ -188,4 +194,5 @@ namespace CrescendoEngine
 
 		Console::Log("Core Shutdown, total time: ", static_cast<double>(Console::End<std::chrono::milliseconds>()) / 1000.0, "s");
 	};
+	Core* Core::Get() { return s_instance; }
 }

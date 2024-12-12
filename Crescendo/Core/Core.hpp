@@ -8,7 +8,7 @@
 
 namespace CrescendoEngine
 {
-	using CreateModuleFunc = Module * (*)();
+	using CreateModuleFunc = Module*(*)();
 	using GetMetadataFunc = ModuleMetadata(*)();
 
 	class Core
@@ -25,6 +25,8 @@ namespace CrescendoEngine
 			CreateModuleFunc createModule = nullptr;
 			GetMetadataFunc getMetadata = nullptr;
 		};
+	private:
+		static Core* s_instance;
 
 		std::vector<ModuleData> m_loadedModules;
 
@@ -39,6 +41,9 @@ namespace CrescendoEngine
 		void MainLoop();
 		void UnloadModules();
 	public:
+		Core();
 		void Run(const std::filesystem::path& configPath);
+
+		static Core* Get();
 	};
 }

@@ -1,6 +1,5 @@
 #pragma once
 #include "OSDetection.hpp"
-#include <cstdint>
 
 namespace CrescendoEngine
 {

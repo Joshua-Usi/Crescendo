@@ -43,6 +43,13 @@ function applyDebugSettings()
 end
 
 function applyReleaseSettings()
+	symbols "on"
+	floatingpoint "fast"
+	optimize "speed"
+	flags(universal_optimised_flags)
+end
+
+function applyProductionSettings()
 	symbols "off"
 	floatingpoint "fast"
 	optimize "speed"
@@ -63,6 +70,17 @@ function applyBuildsettings()
 	defines(universal_defines)
 end
 
+function applyBuildConfigSettings()
+	filter "system:windows"
+		systemversion "latest"
+	filter "configurations:Debug"
+		applyDebugSettings()
+	filter "configurations:Release"
+		applyReleaseSettings()
+	filter "configurations:Production"
+		applyProductionSettings()
+end
+
 function applyModuleSettings()
 	kind "SharedLib"
 	applyCppSettings()
@@ -71,12 +89,7 @@ function applyModuleSettings()
 	defines("CS_BUILDING_DLL")
 	files { "%{prj.location}/Entrypoint.cpp" }
 	links { "common" }
-	filter "system:windows"
-		systemversion "latest"
-	filter "configurations:Debug"
-		applyDebugSettings()
-	filter "configurations:Release"
-		applyReleaseSettings()
+	applyBuildConfigSettings();
 end
 
 workspace "Crescendo"
@@ -95,18 +108,10 @@ workspace "Crescendo"
 project "common"
 	location "./%{wks.name}/common"
 	kind "SharedLib"
-
 	applyCppSettings()
 	applyBuildsettings()
-
 	defines("CS_BUILDING_COMMON_DLL")
-
-	filter "system:windows"
-		systemversion "latest"
-	filter "configurations:Debug"
-		applyDebugSettings()
-	filter "configurations:Release"
-		applyReleaseSettings()
+	applyBuildConfigSettings();
 
 project "thirdparty"
 	location "./%{wks.name}/thirdparty"
@@ -142,12 +147,8 @@ project "Core"
 	}
 
 	filter "system:windows"
-		systemversion "latest"
 		files { '%{wks.location}/%{wks.name}/resources/resources.rc', '%{wks.location}/%{wks.name}/resources/**.ico' }
-	filter "configurations:Debug"
-		applyDebugSettings()
-	filter "configurations:Release"
-		applyReleaseSettings()
+	applyBuildConfigSettings();
 
 project "Main"
 	location "./%{wks.name}/Main"
@@ -159,10 +160,4 @@ project "Sandbox"
 
 	applyCppSettings()
 	applyBuildsettings()
-
-	filter "system:windows"
-		systemversion "latest"
-	filter "configurations:Debug"
-		applyDebugSettings()
-	filter "configurations:Release"
-		applyReleaseSettings()
+	applyBuildConfigSettings()
