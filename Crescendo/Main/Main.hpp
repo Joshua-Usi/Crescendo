@@ -2,6 +2,8 @@
 #include "Interfaces/Module.hpp"
 #include "Console.hpp"
 #include "Core.hpp"
+
+#include "../WindowManager/WindowManager.hpp"
 using namespace CrescendoEngine;
 
 struct DummyComponent : public Component
@@ -21,6 +23,10 @@ public:
 		Entity entity = registry.CreateEntity();
 		entity.EmplaceComponent<DummyComponent>(5.0f);
 
+		Module* windowManager = Core::Get()->GetModule("WindowManager");
+
+		dynamic_cast<WindowManagerInterface*>(windowManager)->CreateWindow(800, 600, "Test");
+
 	}
 	void OnUnload() override
 	{
@@ -29,12 +35,6 @@ public:
 	void OnUpdate(double dt) override
 	{
 		Console::Log("Update.....");
-
-		EntityRegistry& registry = Core::Get()->GetEntityRegistry();
-		Console::Log("Component count: ", registry.GetComponentCount<DummyComponent>());
-		registry.ForEach<DummyComponent>([&](DummyComponent& component) {
-			Console::Log(component.x);
-		});
 	}
 	static ModuleMetadata GetMetadata()
 	{

@@ -45,7 +45,7 @@ namespace CrescendoEngine
 		return std::string(doc["entrypoint"].get_string().value());
 	}
 	void Core::LoadModule(
-		const std::filesystem::path& path, std::vector<ModuleCreateData>& modules,
+		const std::filesystem::path& path, std::vector<ModuleData>& modules,
 		std::unordered_set<std::string>& loadingModules, std::unordered_set<std::string>& loadedModules
 	) {
 		std::string moduleName = path.filename().string();
@@ -101,11 +101,11 @@ namespace CrescendoEngine
 		for (const auto& dependencyName : dependencies)
 			LoadModule(dependencyName, modules, loadingModules, loadedModules);
 
-		modules.push_back({ dllHandle, CreateModule, GetMetadata });
+		modules.push_back({ dllHandle, CreateModule, GetMetadata, nullptr });
 		loadingModules.erase(moduleName);
 		loadedModules.insert(moduleName);
 	}
-	void Core::InitializeModules(const std::vector<ModuleCreateData>& modules)
+	void Core::InitializeModules(const std::vector<ModuleData>& modules)
 	{
 		for (const auto& module : modules)
 		{
@@ -115,7 +115,7 @@ namespace CrescendoEngine
 				FreeLibrary(module.dllHandle);
 				Console::Fatal<std::runtime_error>("Failed to create module instance");
 			}
-			m_loadedModules.push_back({ module.dllHandle, std::unique_ptr<Module>(instance) });
+			m_loadedModules[module.getMetadata().name] = { module.dllHandle, module.createModule, module.getMetadata, std::unique_ptr<Module>(instance) };
 			instance->OnLoad();
 		}
 	}
@@ -149,7 +149,7 @@ namespace CrescendoEngine
 
 			while (accumulator >= 0.5)
 			{
-				for (auto& module : m_loadedModules)
+				for (auto& [moduleName, module] : m_loadedModules)
 				{
 					module.module->OnUpdate(0.5);
 				}
@@ -161,14 +161,14 @@ namespace CrescendoEngine
 	}
 	void Core::UnloadModules()
 	{
-		for (auto& module : m_loadedModules)
+		for (auto& [moduleName, module] : m_loadedModules)
 			module.module->OnUnload();
-		for (auto& moduleData : m_loadedModules)
+		for (auto& [moduleName, module] : m_loadedModules)
 		{
-			if (moduleData.module)
-				moduleData.module.reset();
-			if (moduleData.dllHandle)
-				FreeLibrary(moduleData.dllHandle);
+			if (module.module)
+				module.module.reset();
+			if (module.dllHandle)
+				FreeLibrary(module.dllHandle);
 		}
 		m_loadedModules.clear();
 	}
@@ -185,7 +185,7 @@ namespace CrescendoEngine
 
 		std::string entrypoint = LoadConfig(configPath);
 
-		std::vector<ModuleCreateData> modules;
+		std::vector<ModuleData> modules;
 		// Used for tracking circular dependencies
 		std::unordered_set<std::string> loadingModules;
 		std::unordered_set<std::string> loadedModules;
@@ -204,6 +204,17 @@ namespace CrescendoEngine
 	void Core::RequestShutdown()
 	{
 		Console::Log("Shutting down (does nothing)");
+	}
+	bool Core::IsModuleLoaded(const std::string& moduleName)
+	{
+		return m_loadedModules.find(moduleName) != m_loadedModules.end();
+	}
+	Module* Core::GetModule(const std::string& moduleName)
+	{
+		auto it = m_loadedModules.find(moduleName);
+		if (it == m_loadedModules.end())
+			return nullptr;
+		return it->second.module.get();
 	}
 	Core* Core::Get() { return s_instance; }
 }
