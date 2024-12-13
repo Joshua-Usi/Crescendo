@@ -10,6 +10,7 @@ universal_includes = {
 	"%{wks.name}/%{prj.name}/**.c",
 }
 universal_include_dirs = {
+	"%{wks.location}/Crescendo/Core",
 	"%{wks.location}/Crescendo/common",
 	"%{wks.location}/Crescendo/thirdparty",
 }
@@ -86,7 +87,7 @@ function applyModuleSettings()
 	applyCppSettings()
 	applyBuildsettings()
 	prebuildcommands(module_prebuild_commands)
-	defines("CS_BUILDING_DLL")
+	defines("CS_BUILDING_MODULE_DLL")
 	files { "%{prj.location}/Entrypoint.cpp" }
 	links { "common" }
 	applyBuildConfigSettings();
@@ -133,6 +134,8 @@ project "Core"
 
 	applyCppSettings()
 	applyBuildsettings()
+
+	defines("CS_BUILDING_CORE")
 
 	links {
 		"common",

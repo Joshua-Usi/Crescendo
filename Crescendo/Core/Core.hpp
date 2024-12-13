@@ -5,13 +5,15 @@
 #include <filesystem>
 #include <string>
 #include <unordered_set>
+#include "ECS/EntityRegistry.hpp"
+#include "OSDetection.hpp"
 
 namespace CrescendoEngine
 {
 	using CreateModuleFunc = Module*(*)();
 	using GetMetadataFunc = ModuleMetadata(*)();
 
-	class Core
+	class CS_CORE_EXPORT Core
 	{
 	private:
 		struct ModuleData
@@ -29,6 +31,8 @@ namespace CrescendoEngine
 		static Core* s_instance;
 
 		std::vector<ModuleData> m_loadedModules;
+		EntityRegistry m_entityRegistry;
+
 
 		// Loads a configuration file and returns the entrypoint module
 		std::string LoadConfig(const std::filesystem::path& path);
@@ -43,6 +47,8 @@ namespace CrescendoEngine
 	public:
 		Core();
 		void Run(const std::filesystem::path& configPath);
+
+		EntityRegistry& GetEntityRegistry();
 
 		static Core* Get();
 	};

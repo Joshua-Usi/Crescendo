@@ -1,12 +1,27 @@
 #pragma once
 #include "Interfaces/Module.hpp"
 #include "Console.hpp"
+#include "Core.hpp"
 
-class Main : public CrescendoEngine::Module
+using namespace CrescendoEngine;
+
+struct DummyComponent : public Component
+{
+	float x;
+
+	DummyComponent(float x) : x(x) {}
+};
+
+class Main : public Module
 {
 public:
 	void OnLoad() override
 	{
+		EntityRegistry& registry = Core::Get()->GetEntityRegistry();
+
+		Entity entity = registry.CreateEntity();
+
+		entity.EmplaceComponent<DummyComponent>(5.0f);
 
 	}
 	void OnUnload() override
@@ -15,9 +30,9 @@ public:
 	}
 	void OnUpdate(double dt) override
 	{
-		CrescendoEngine::Console::Log("Update...");
+		Console::Log("Update...");
 	}
-	static CrescendoEngine::ModuleMetadata GetMetadata()
+	static ModuleMetadata GetMetadata()
 	{
 		return
 		{

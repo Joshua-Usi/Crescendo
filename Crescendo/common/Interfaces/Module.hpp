@@ -27,5 +27,5 @@ namespace CrescendoEngine
 	};
 }
 
-#define CS_CREATE_MODULE_FACTORY_FUNCTION(mod) extern "C" CS_EXPORT CrescendoEngine::Module* CreateModule() { return new mod(); }
-#define CS_CREATE_MODULE_METADATA_FUNCTION(mod) extern "C" CS_EXPORT CrescendoEngine::ModuleMetadata GetMetadata() { return mod::GetMetadata(); }
+#define CS_CREATE_MODULE_FACTORY_FUNCTION(mod) extern "C" CS_MODULE_EXPORT CrescendoEngine::Module* CreateModule() { return new mod(); }
+#define CS_CREATE_MODULE_METADATA_FUNCTION(mod) extern "C" CS_MODULE_EXPORT CrescendoEngine::ModuleMetadata GetMetadata() { return mod::GetMetadata(); }

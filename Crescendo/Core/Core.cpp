@@ -193,6 +193,11 @@ namespace CrescendoEngine
 		UnloadModules();
 
 		Console::Log("Core Shutdown, total time: ", static_cast<double>(Console::End<std::chrono::milliseconds>()) / 1000.0, "s");
-	};
+	}
+	EntityRegistry& Core::GetEntityRegistry()
+	{
+		return m_entityRegistry;
+	}
+	;
 	Core* Core::Get() { return s_instance; }
 }
