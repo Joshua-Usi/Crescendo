@@ -5,7 +5,7 @@
 
 namespace CrescendoEngine
 {
-	class EntityRegistry
+	class CS_CORE_EXPORT EntityRegistry
 	{
 	private:
 		entt::registry m_Registry;

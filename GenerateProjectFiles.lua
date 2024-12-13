@@ -11,7 +11,6 @@ universal_includes = {
 }
 universal_include_dirs = {
 	"%{wks.location}/Crescendo/Core",
-	"%{wks.location}/Crescendo/common",
 	"%{wks.location}/Crescendo/thirdparty",
 }
 universal_debug_flags = {
@@ -89,31 +88,51 @@ function applyModuleSettings()
 	prebuildcommands(module_prebuild_commands)
 	defines("CS_BUILDING_MODULE_DLL")
 	files { "%{prj.location}/Entrypoint.cpp" }
-	links { "common" }
+	links { "Core" }
 	applyBuildConfigSettings();
+end
+
+function defineModule(moduleName)
+    project(moduleName)
+        location("./%{wks.name}/" .. moduleName)
+        applyModuleSettings()
 end
 
 workspace "Crescendo"
 	architecture "x64"
-	startproject "Core"
+	startproject "entrypoint"
 	configurations {
 		-- Intended for debugging
 		"Debug",
 		-- Intended for normal use
 		"Release",
-		-- Intended for release 
+		-- Same as release but doesn't output debug symbols
 		"Production"
 	}
 
--- Common files
-project "common"
-	location "./%{wks.name}/common"
+project "entrypoint"
+	location "./%{wks.name}/entrypoint"
+	kind "ConsoleApp"
+	targetname "Crescendo"
+	links { "Core" }
+	dependson { "Main" }
+	applyCppSettings()
+	applyBuildsettings()
+	applyBuildConfigSettings();
+	filter "system:windows"
+		files { '%{wks.location}/%{wks.name}/resources/resources.rc', '%{wks.location}/%{wks.name}/resources/**.ico' }
+
+project "Core"
+	location "./%{wks.name}/Core"
 	kind "SharedLib"
 	applyCppSettings()
 	applyBuildsettings()
-	defines("CS_BUILDING_COMMON_DLL")
+	defines("CS_BUILDING_CORE_DLL")
+	links { "kernel32.lib" }
+	files { "./%{wks.name}/thirdparty/simdjson/simdjson.cpp" }
 	applyBuildConfigSettings();
 
+-- Third party files
 project "thirdparty"
 	location "./%{wks.name}/thirdparty"
 	kind "None"
@@ -127,40 +146,6 @@ project "resources"
 	filter "system:windows"
   		files { 'resources.rc', '**.ico' }
 
-project "Core"
-	location "./%{wks.name}/Core"
-	kind "ConsoleApp"
-	targetname "Crescendo"
+---------------------------------------------------------------- Modules ----------------------------------------------------------------
 
-	applyCppSettings()
-	applyBuildsettings()
-
-	defines("CS_BUILDING_CORE")
-
-	links {
-		"common",
-		-- Modules
-		"Main",
-		-- windows specific
-		"kernel32.lib",
-	}
-
-	files {
-		"./%{wks.name}/thirdparty/simdjson/simdjson.cpp"
-	}
-
-	filter "system:windows"
-		files { '%{wks.location}/%{wks.name}/resources/resources.rc', '%{wks.location}/%{wks.name}/resources/**.ico' }
-	applyBuildConfigSettings();
-
-project "Main"
-	location "./%{wks.name}/Main"
-	applyModuleSettings()
-
-project "Sandbox"
-	location "%{wks.location}/Sandbox"
-	kind "StaticLib"
-
-	applyCppSettings()
-	applyBuildsettings()
-	applyBuildConfigSettings()
+defineModule("Main")

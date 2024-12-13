@@ -20,7 +20,6 @@ public:
 		EntityRegistry& registry = Core::Get()->GetEntityRegistry();
 
 		Entity entity = registry.CreateEntity();
-
 		entity.EmplaceComponent<DummyComponent>(5.0f);
 
 	}
@@ -30,7 +29,13 @@ public:
 	}
 	void OnUpdate(double dt) override
 	{
-		Console::Log("Update...");
+		Console::Log("Update.....");
+
+		EntityRegistry& registry = Core::Get()->GetEntityRegistry();
+		Console::Log("Component count: ", registry.GetComponentCount<DummyComponent>());
+		registry.ForEach<DummyComponent>([&](DummyComponent& component) {
+			Console::Log(component.x);
+		});
 	}
 	static ModuleMetadata GetMetadata()
 	{

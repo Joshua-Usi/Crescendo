@@ -15,21 +15,15 @@
 
 // Exporting symbols
 #if defined(CS_TARGET_WINDOWS)
-	// Normal exports
+	// Module exports
 	#ifdef CS_BUILDING_MODULE_DLL
 		#define CS_MODULE_EXPORT __declspec(dllexport)
 	#else
 		#define CS_MODULE_EXPORT __declspec(dllimport)
 	#endif
-	// Exports specifically for building the common DLL
-	#ifdef CS_BUILDING_COMMON_DLL
-		#define CS_COMMON_EXPORT __declspec(dllexport)
-	#else
-		#define CS_COMMON_EXPORT __declspec(dllimport)
-	#endif
 	// Exports specifically for building the core DLL
-	#ifdef CS_BUILDING_CORE
-		#define CS_CORE_EXPORT
+	#ifdef CS_BUILDING_CORE_DLL
+		#define CS_CORE_EXPORT __declspec(dllexport)
 	#else
 		#define CS_CORE_EXPORT __declspec(dllimport)
 	#endif

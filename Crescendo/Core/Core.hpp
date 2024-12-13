@@ -33,7 +33,6 @@ namespace CrescendoEngine
 		std::vector<ModuleData> m_loadedModules;
 		EntityRegistry m_entityRegistry;
 
-
 		// Loads a configuration file and returns the entrypoint module
 		std::string LoadConfig(const std::filesystem::path& path);
 		// Loads the entrypoint module and all the dependencies

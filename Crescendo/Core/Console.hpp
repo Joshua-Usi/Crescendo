@@ -32,12 +32,12 @@ namespace CrescendoEngine
 			fatal	= 0b00100000,
 		};
 	private:
-		CS_COMMON_EXPORT static constexpr const char* const SEVERITY_STRINGS[6] { "Verbose", "Info", "Log", "Warn", "Error", "Fatal" };
-		CS_COMMON_EXPORT static bool enableThreadSafety;
-		CS_COMMON_EXPORT static std::mutex threadMutex;
-		CS_COMMON_EXPORT static severity displayedSeverities;
-		CS_COMMON_EXPORT static bool printSeverity, printTimestamp;
-		CS_COMMON_EXPORT static std::chrono::time_point<std::chrono::steady_clock> timePoint;
+		CS_CORE_EXPORT static constexpr const char* const SEVERITY_STRINGS[6] { "Verbose", "Info", "Log", "Warn", "Error", "Fatal" };
+		CS_CORE_EXPORT static bool enableThreadSafety;
+		CS_CORE_EXPORT static std::mutex threadMutex;
+		CS_CORE_EXPORT static severity displayedSeverities;
+		CS_CORE_EXPORT static bool printSeverity, printTimestamp;
+		CS_CORE_EXPORT static std::chrono::time_point<std::chrono::steady_clock> timePoint;
 
 		template<typename... Ts>
 		static void base_log(severity_bits severity, Ts&&... args)
@@ -136,16 +136,16 @@ namespace CrescendoEngine
 		}
 
 		// Set the severity flags, by default allows info, log, warn, error and fatal
-		CS_COMMON_EXPORT static void SetSeverityFlags(severity severityFlag);
+		CS_CORE_EXPORT static void SetSeverityFlags(severity severityFlag);
 		// Enables thread safety, on by default, can improve performance slightly if turned off
 		// However, if turned off does not gaurantee order or correctness in multi-threaded environments
-		CS_COMMON_EXPORT static void SetThreadSafety(bool enable);
+		CS_CORE_EXPORT static void SetThreadSafety(bool enable);
 		// Whether or not to print the HH:MM::SS timestamps next to the logs
-		CS_COMMON_EXPORT static void SetTimestampPrinting(bool enable);
+		CS_CORE_EXPORT static void SetTimestampPrinting(bool enable);
 		// Whether or not to print the severity of the log	
-		CS_COMMON_EXPORT static void SetSeverityPrinting(bool enable);
+		CS_CORE_EXPORT static void SetSeverityPrinting(bool enable);
 		// Begin a timer
-		CS_COMMON_EXPORT static void Begin();
+		CS_CORE_EXPORT static void Begin();
 		// End a timer and return the time elapsed in the specified time unit
 		template<typename TimeUnit = std::chrono::seconds> static size_t End()
 		{

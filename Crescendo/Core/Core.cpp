@@ -116,6 +116,7 @@ namespace CrescendoEngine
 				Console::Fatal<std::runtime_error>("Failed to create module instance");
 			}
 			m_loadedModules.push_back({ module.dllHandle, std::unique_ptr<Module>(instance) });
+			instance->OnLoad();
 		}
 	}
 	void Core::MainLoop()
