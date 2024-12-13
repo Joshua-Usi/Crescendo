@@ -2,7 +2,6 @@
 #include "Interfaces/Module.hpp"
 #include "Console.hpp"
 #include "Core.hpp"
-
 using namespace CrescendoEngine;
 
 struct DummyComponent : public Component
@@ -45,7 +44,7 @@ public:
 			"0.0.1",
 			"Main module for Crescendo",
 			"Joshua Usi",
-			"",
+			"WindowManager",
 			0.5
 		};
 	}

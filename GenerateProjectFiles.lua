@@ -1,6 +1,9 @@
 -- build and build intermediate output directory
 output_dir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
-library_dirs = {}
+
+universal_library_dirs = {
+	"%{wks.location}/Crescendo/thirdparty/glfw/libs"
+}
 
 -- Universal settings
 universal_includes = {
@@ -66,6 +69,7 @@ function applyBuildsettings()
 	targetdir ("bin/" .. output_dir)
 	objdir ("bin-intermediate/" .. output_dir .. "/%{prj.name}")
 	files(universal_includes)
+	libdirs(universal_library_dirs)
 	includedirs(universal_include_dirs)
 	defines(universal_defines)
 end
@@ -92,10 +96,15 @@ function applyModuleSettings()
 	applyBuildConfigSettings();
 end
 
-function defineModule(moduleName)
-    project(moduleName)
-        location("./%{wks.name}/" .. moduleName)
-        applyModuleSettings()
+function defineModule(moduleName, linked)
+	project(moduleName)
+		location("./%{wks.name}/" .. moduleName)
+
+		if linked and #linked > 0 then
+			links(linked)
+		end
+
+		applyModuleSettings()
 end
 
 workspace "Crescendo"
@@ -135,17 +144,18 @@ project "Core"
 -- Third party files
 project "thirdparty"
 	location "./%{wks.name}/thirdparty"
-	kind "None"
-	files(universal_includes)
-	includedirs(universal_include_dirs)
+	kind "Utility"
+	applyBuildsettings()
 
 -- Resource files
 project "resources"
 	location "./%{wks.name}/resources"
-	kind "None"
+	kind "Utility"
+	applyBuildsettings()
 	filter "system:windows"
   		files { 'resources.rc', '**.ico' }
 
 ---------------------------------------------------------------- Modules ----------------------------------------------------------------
 
 defineModule("Main")
+defineModule("WindowManager", { "glfw3.lib" })

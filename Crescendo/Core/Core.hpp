@@ -45,10 +45,13 @@ namespace CrescendoEngine
 		void UnloadModules();
 	public:
 		Core();
+		// Runs the engine with the specified configuration file
 		void Run(const std::filesystem::path& configPath);
-
+		// Returns the entity registry
 		EntityRegistry& GetEntityRegistry();
-
+		// Requests a shutdown and begins the shutdown sequence
+		void RequestShutdown();
+		// Returns the singleton instance of the Core
 		static Core* Get();
 	};
 }

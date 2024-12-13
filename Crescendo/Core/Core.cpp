@@ -150,7 +150,9 @@ namespace CrescendoEngine
 			while (accumulator >= 0.5)
 			{
 				for (auto& module : m_loadedModules)
+				{
 					module.module->OnUpdate(0.5);
+				}
 				accumulator -= 0.5;
 			}
 		}
@@ -199,6 +201,9 @@ namespace CrescendoEngine
 	{
 		return m_entityRegistry;
 	}
-	;
+	void Core::RequestShutdown()
+	{
+		Console::Log("Shutting down (does nothing)");
+	}
 	Core* Core::Get() { return s_instance; }
 }
